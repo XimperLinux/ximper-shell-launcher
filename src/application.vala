@@ -122,6 +122,20 @@ namespace XimperShellTileMenu {
                 css_provider,
                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             );
+
+            // User custom style.css from config directory
+            string user_css = Path.build_filename (
+                Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "style.css"
+            );
+            if (FileUtils.test (user_css, FileTest.EXISTS)) {
+                var user_provider = new Gtk.CssProvider ();
+                user_provider.load_from_path (user_css);
+                Gtk.StyleContext.add_provider_for_display (
+                    Gdk.Display.get_default (),
+                    user_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER
+                );
+            }
         }
     }
 }
