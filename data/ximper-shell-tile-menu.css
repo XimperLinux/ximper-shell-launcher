@@ -1,0 +1,127 @@
+/* Grid overlay */
+.grid-overlay {
+    background: @window_bg_color;
+}
+
+/* Search */
+.search-entry {
+    font-size: 16px;
+    min-height: 40px;
+}
+
+.search-section-header {
+    padding: 8px 12px 4px;
+}
+
+.search-section-title {
+    font-weight: bold;
+    font-size: 11px;
+    color: alpha(@window_fg_color, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.search-result-row {
+    border-radius: 12px;
+    padding: 2px;
+    transition: background 150ms ease;
+}
+
+.search-result-row:hover {
+    background: alpha(@accent_bg_color, 0.1);
+}
+
+.search-result-name {
+    font-size: 14px;
+    color: @window_fg_color;
+}
+
+.search-result-desc {
+    font-size: 12px;
+    color: alpha(@window_fg_color, 0.55);
+}
+
+.search-results {
+    margin-top: 8px;
+}
+
+/* Tiles */
+.tile {
+    border-radius: 12px;
+    background: @card_bg_color;
+    box-shadow: 0 0 0 1px @card_shade_color;
+    transition: box-shadow 150ms ease, background 150ms ease;
+}
+
+.tile:hover {
+    box-shadow: 0 0 0 1px @card_shade_color, 0 2px 6px @card_shade_color;
+}
+
+.tile:active {
+    background: alpha(@accent_bg_color, 0.15);
+}
+
+.tile:focus, .tile-focused {
+    box-shadow: 0 0 0 2px @accent_bg_color;
+}
+
+.tile-dragging {
+    opacity: 0.4;
+}
+
+.tile-context-menu {
+    background: @popover_bg_color;
+    color: @popover_fg_color;
+    border-radius: 12px;
+    padding: 4px;
+    box-shadow: 0 2px 8px @popover_shade_color;
+}
+
+.tile-small {
+    padding: 8px;
+}
+
+.tile-medium {
+    padding: 8px 12px;
+}
+
+.tile-large {
+    padding: 12px;
+}
+
+.tile-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: @card_fg_color;
+}
+
+/* Groups */
+.tile-group {
+    margin-bottom: 12px;
+}
+
+.tile-group-header {
+    font-weight: bold;
+    font-size: 15px;
+    color: @window_fg_color;
+    padding: 8px 4px;
+}
+
+/* Folders */
+.tile-folder:hover {
+    box-shadow: 0 0 0 1px alpha(@accent_bg_color, 0.3), 0 2px 6px @card_shade_color;
+}
+
+.folder-expanded {
+    background: @view_bg_color;
+    border-radius: 12px;
+    padding: 8px 24px;
+    box-shadow: 0 0 0 1px @card_shade_color;
+}
+
+.folder-header-label {
+    font-weight: bold;
+    font-size: 14px;
+    color: @window_fg_color;
+    margin-bottom: 4px;
+}
