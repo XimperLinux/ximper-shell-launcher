@@ -14,7 +14,7 @@ namespace XimperShellTileMenu {
 
             add_css_class ("grid-overlay");
 
-            LayerShellHelper.setup_overlay (this);
+            LayerShellHelper.setup_overlay (this, LayerShellHelper.parse_layer (app.config.layer));
 
             build_ui ();
             setup_keys ();

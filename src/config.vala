@@ -57,6 +57,7 @@ namespace XimperShellTileMenu {
     public class ConfigManager : Object {
 
         public int max_columns { get; set; default = 0; }
+        public int layer { get; set; default = 3; }
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -83,6 +84,8 @@ namespace XimperShellTileMenu {
 
                 if (root.has_member ("max_columns"))
                     max_columns = (int) root.get_int_member ("max_columns");
+                if (root.has_member ("layer"))
+                    layer = (int) root.get_int_member ("layer");
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -127,6 +130,8 @@ namespace XimperShellTileMenu {
 
             builder.set_member_name ("max_columns");
             builder.add_int_value (max_columns);
+            builder.set_member_name ("layer");
+            builder.add_int_value (layer);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();

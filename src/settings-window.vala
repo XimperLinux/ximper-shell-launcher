@@ -33,6 +33,17 @@ namespace XimperShellTileMenu {
             });
             layout_group.add (cols_row);
 
+            // Layer
+            var layer_row = new Adw.SpinRow.with_range (0, 3, 1);
+            layer_row.title = "Layer";
+            layer_row.subtitle = "0 = background, 1 = bottom, 2 = top, 3 = overlay";
+            layer_row.value = app.config.layer;
+            layer_row.notify["value"].connect (() => {
+                app.config.layer = (int) layer_row.value;
+                app.config.save ();
+            });
+            layout_group.add (layer_row);
+
             page.add (layout_group);
 
             // Data group
