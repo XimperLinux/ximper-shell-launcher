@@ -25,7 +25,24 @@ namespace XimperShellTileMenu {
         }
 
         public bool is_available () {
-            return proxy != null;
+            if (proxy == null) return false;
+            try {
+                var conn = Bus.get_sync (BusType.SESSION, null);
+                var result = conn.call_sync (
+                    "org.freedesktop.DBus",
+                    "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus",
+                    "NameHasOwner",
+                    new Variant.tuple ({ new Variant.string ("ru.ximperlinux.shell.Dock") }),
+                    new VariantType ("(b)"),
+                    DBusCallFlags.NONE, 500, null
+                );
+                bool owned;
+                result.get ("(b)", out owned);
+                return owned;
+            } catch (Error e) {
+                return false;
+            }
         }
 
         public bool is_pinned (string desktop_id) {
