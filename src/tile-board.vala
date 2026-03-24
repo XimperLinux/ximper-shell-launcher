@@ -49,9 +49,57 @@ namespace XimperShellTileMenu {
             hexpand = true;
             focusable = true;
 
+            purge_missing_apps ();
             setup_keyboard ();
             compute_layout ();
             rebuild ();
+        }
+
+        private void purge_missing_apps () {
+            bool changed = false;
+
+            // Remove missing apps from folder_items
+            for (uint i = 0; i < tile_configs.length; i++) {
+                var tc = tile_configs[i];
+                if (tc.folder_items == null) continue;
+                for (int j = (int) tc.folder_items.length - 1; j >= 0; j--) {
+                    if (app.app_provider.find_by_desktop_id (tc.folder_items[j]) == null) {
+                        tc.folder_items.remove_index (j);
+                        changed = true;
+                    }
+                }
+                // If folder has fewer than 2 items, ungroup it
+                if (tc.size == TileSize.FOLDER && tc.folder_items.length < 2) {
+                    // Extract remaining items as standalone tiles
+                    var insert_pos = (int) i + 1;
+                    for (uint k = 0; k < tc.folder_items.length; k++) {
+                        var new_tc = new TileConfig (tc.folder_items[k], TileSize.SMALL);
+                        tile_configs.insert (insert_pos, new_tc);
+                        insert_pos++;
+                    }
+                    tile_configs.remove_index (i);
+                    changed = true;
+                    i--; // re-check this index
+                }
+            }
+
+            // Remove standalone tiles for missing apps
+            for (int i = (int) tile_configs.length - 1; i >= 0; i--) {
+                var tc = tile_configs[i];
+                if (tc.size == TileSize.FOLDER) continue;
+                if (app.app_provider.find_by_desktop_id (tc.desktop_id) == null) {
+                    tile_configs.remove_index (i);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                // Save directly — layout_changed signal is not yet connected during construction
+                var new_groups = new GenericArray<GroupConfig> ();
+                new_groups.add (to_config (""));
+                app.config.groups = new_groups;
+                app.config.save ();
+            }
         }
 
         private void setup_keyboard () {
