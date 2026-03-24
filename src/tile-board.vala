@@ -19,7 +19,8 @@ namespace XimperShellTileMenu {
         private int columns = 10;
         private int cell_size = 80;
         private const int SPACING = 6;
-        private const int MARGIN = 24;
+        private const int MIN_MARGIN = 24;
+        private int margin = 24;
 
         // Folder expansion
         private string? open_folder_id = null;
@@ -166,7 +167,7 @@ namespace XimperShellTileMenu {
 
             // For large tiles starting at folder row — check how many
             // folder content rows actually reach this tile's columns
-            int tile_col_start = (tile_x - MARGIN) / (cell_size + SPACING);
+            int tile_col_start = (tile_x - margin) / (cell_size + SPACING);
 
             int total_folder_rows = (folder_item_count_cached + columns - 1) / columns;
             int last_row_items = folder_item_count_cached % columns;
@@ -287,38 +288,62 @@ namespace XimperShellTileMenu {
             return false;
         }
 
-        private void compute_layout_for_width (int width) {
-            int usable = width - MARGIN * 2;
+        private void compute_layout_for_size (int width, int height) {
+            int usable = width - MIN_MARGIN * 2;
             if (usable < 200) usable = 200;
 
+            int cfg_cell = app.config.cell_size;
             int max_col = app.config.max_columns;
-            if (max_col <= 0) max_col = 18; // auto
 
-            int new_cols = usable / (70 + SPACING);
+            int new_cell;
+            int new_cols;
+
+            if (cfg_cell > 0) {
+                // Fixed cell size from config
+                new_cell = cfg_cell;
+                new_cols = usable / (new_cell + SPACING);
+            } else {
+                // Auto: compute from width
+                new_cols = usable / (70 + SPACING);
+                new_cell = (usable - (new_cols - 1) * SPACING) / new_cols;
+            }
+
+            if (max_col <= 0) max_col = 18;
             if (new_cols > max_col) new_cols = max_col;
             if (new_cols < 4) new_cols = 4;
             if (new_cols % 2 != 0) new_cols--;
 
-            int new_cell = (usable - (new_cols - 1) * SPACING) / new_cols;
+            // Recalculate cell size for final column count (unless fixed)
+            if (cfg_cell <= 0) {
+                new_cell = (usable - (new_cols - 1) * SPACING) / new_cols;
+            }
 
-            if (new_cols != columns || new_cell != cell_size) {
+            // Center the grid: compute margin from leftover space
+            int grid_w = new_cols * (new_cell + SPACING) - SPACING;
+            int new_margin = (width - grid_w) / 2;
+            if (new_margin < MIN_MARGIN) new_margin = MIN_MARGIN;
+
+            if (new_cols != columns || new_cell != cell_size || new_margin != margin) {
                 columns = new_cols;
                 cell_size = new_cell;
+                margin = new_margin;
                 rebuild ();
             }
         }
 
         private void compute_layout () {
             int screen_w = 1920;
+            int screen_h = 1080;
             var display = Gdk.Display.get_default ();
             if (display != null) {
                 var monitors = display.get_monitors ();
                 if (monitors.get_n_items () > 0) {
                     var monitor = (Gdk.Monitor) monitors.get_item (0);
                     screen_w = monitor.geometry.width;
+                    screen_h = monitor.geometry.height;
                 }
             }
-            compute_layout_for_width (screen_w);
+            compute_layout_for_size (screen_w, screen_h);
         }
 
         public void rebuild () {
@@ -398,7 +423,7 @@ namespace XimperShellTileMenu {
                 var p = placements[i];
                 var tc = tile_configs[p.config_index];
 
-                int x = MARGIN + p.col * (cell_size + SPACING);
+                int x = margin + p.col * (cell_size + SPACING);
                 int y = p.row * (cell_size + SPACING);
                 bool below = open_folder_id != null &&
                     p.row > folder_insert_after_row;
@@ -494,7 +519,7 @@ namespace XimperShellTileMenu {
             header.add_css_class ("folder-header-label");
             header.halign = Gtk.Align.START;
             header.set_parent (this);
-            header.set_data<int> ("board-x", MARGIN + 8);
+            header.set_data<int> ("board-x", margin + 8);
             header.set_data<int> ("board-y", base_y);
             header.set_data<int> ("board-w", columns * (cell_size + SPACING) - SPACING);
             header.set_data<int> ("board-h", header_h);
@@ -530,7 +555,7 @@ namespace XimperShellTileMenu {
 
                 int col = placed % columns;
                 int row = placed / columns;
-                int x = MARGIN + col * (cell_size + SPACING);
+                int x = margin + col * (cell_size + SPACING);
                 int y = content_y + row * (cell_size + SPACING);
 
                 tile.set_parent (this);
@@ -548,8 +573,8 @@ namespace XimperShellTileMenu {
         }
 
         protected override void size_allocate (int width, int height, int baseline) {
-            // Recompute layout if width changed
-            compute_layout_for_width (width);
+            // Recompute layout if size changed
+            compute_layout_for_size (width, height);
 
             // Compute uniform offset — max needed across all below tiles
             int uniform_offset = target_folder_height;
@@ -625,7 +650,7 @@ namespace XimperShellTileMenu {
 
             if (orientation == Gtk.Orientation.HORIZONTAL) {
                 minimum = 200;
-                natural = columns * (cell_size + SPACING) + MARGIN * 2;
+                natural = columns * (cell_size + SPACING) + margin * 2;
             } else {
                 int uo = target_folder_height;
                 for (uint j = 0; j < all_widgets.length; j++) {

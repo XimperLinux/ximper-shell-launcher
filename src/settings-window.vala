@@ -33,6 +33,17 @@ namespace XimperShellTileMenu {
             });
             layout_group.add (cols_row);
 
+            // Cell size
+            var cell_row = new Adw.SpinRow.with_range (0, 256, 4);
+            cell_row.title = "Cell Size";
+            cell_row.subtitle = "0 = automatic (derived from Max Rows or screen)";
+            cell_row.value = app.config.cell_size;
+            cell_row.notify["value"].connect (() => {
+                app.config.cell_size = (int) cell_row.value;
+                app.config.save ();
+            });
+            layout_group.add (cell_row);
+
             // Layer
             var layer_row = new Adw.SpinRow.with_range (0, 3, 1);
             layer_row.title = "Layer";

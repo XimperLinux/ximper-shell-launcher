@@ -57,6 +57,7 @@ namespace XimperShellTileMenu {
     public class ConfigManager : Object {
 
         public int max_columns { get; set; default = 0; }
+        public int cell_size { get; set; default = 0; }
         public int layer { get; set; default = 3; }
         public GenericArray<GroupConfig> groups;
 
@@ -84,6 +85,8 @@ namespace XimperShellTileMenu {
 
                 if (root.has_member ("max_columns"))
                     max_columns = (int) root.get_int_member ("max_columns");
+                if (root.has_member ("cell_size"))
+                    cell_size = (int) root.get_int_member ("cell_size");
                 if (root.has_member ("layer"))
                     layer = (int) root.get_int_member ("layer");
 
@@ -130,6 +133,8 @@ namespace XimperShellTileMenu {
 
             builder.set_member_name ("max_columns");
             builder.add_int_value (max_columns);
+            builder.set_member_name ("cell_size");
+            builder.add_int_value (cell_size);
             builder.set_member_name ("layer");
             builder.add_int_value (layer);
             builder.set_member_name ("groups");
