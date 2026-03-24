@@ -8,6 +8,7 @@ namespace XimperShellTileMenu {
         public string desktop_id { get; private set; }
         public string name { get; private set; }
         public string? generic_name { get; private set; }
+        public string? description { get; private set; }
         public Icon? icon { get; private set; }
         public string? categories { get; private set; }
         public string[]? keywords { get; private set; }
@@ -19,6 +20,7 @@ namespace XimperShellTileMenu {
             this.desktop_id = info.get_id () ?? info.get_filename ();
             this.name = info.get_display_name () ?? info.get_name ();
             this.generic_name = info.get_generic_name ();
+            this.description = info.get_description ();
             this.icon = info.get_icon ();
             this.categories = info.get_categories ();
             this.keywords = info.get_keywords ();
@@ -104,20 +106,69 @@ namespace XimperShellTileMenu {
             return result.str.strip ();
         }
 
-        public bool matches (string query) {
+        // Returns relevance score (0 = no match, higher = better).
+        public int match_score (string query) {
             var q = query.down ();
+            int best = 0;
 
-            if (name.down ().contains (q)) return true;
-            if (generic_name != null && generic_name.down ().contains (q)) return true;
-            if (categories != null && categories.down ().contains (q)) return true;
-
+            // Name — highest weight
+            best = int.max (best, fuzzy_score (name.down (), q) * 10);
+            // Generic name
+            if (generic_name != null)
+                best = int.max (best, fuzzy_score (generic_name.down (), q) * 6);
+            // Description (Comment field)
+            if (description != null)
+                best = int.max (best, fuzzy_score (description.down (), q) * 4);
+            // Desktop ID (e.g. "org.gnome.Nautilus.desktop")
+            best = int.max (best, fuzzy_score (desktop_id.down (), q) * 3);
+            // Keywords
             if (keywords != null) {
                 foreach (var kw in keywords) {
-                    if (kw.down ().contains (q)) return true;
+                    best = int.max (best, fuzzy_score (kw.down (), q) * 5);
+                }
+            }
+            // Categories
+            if (categories != null)
+                best = int.max (best, fuzzy_score (categories.down (), q) * 2);
+
+            return best;
+        }
+
+        // Fuzzy score: 0 = no match.
+        // 100 = exact match, 90 = prefix, 70 = contains,
+        // 1..60 = subsequence (higher = more consecutive).
+        private static int fuzzy_score (string text, string query) {
+            if (text == query) return 100;
+            if (text.has_prefix (query)) return 90;
+            if (text.contains (query)) return 70;
+
+            // Subsequence match: all query chars must appear in order
+            int qi = 0;
+            int consecutive = 0;
+            int max_consecutive = 0;
+            int ql = query.length;
+
+            for (int ti = 0; ti < text.length && qi < ql; ti++) {
+                if (text[ti] == query[qi]) {
+                    qi++;
+                    consecutive++;
+                    if (consecutive > max_consecutive)
+                        max_consecutive = consecutive;
+                } else {
+                    consecutive = 0;
                 }
             }
 
-            return false;
+            if (qi < ql) return 0; // not all chars matched
+
+            // Score based on how consecutive the matches are
+            int score = 10 + (max_consecutive * 50 / ql);
+            if (score > 60) score = 60;
+            return score;
+        }
+
+        public bool matches (string query) {
+            return match_score (query) > 0;
         }
     }
 }

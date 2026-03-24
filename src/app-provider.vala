@@ -39,13 +39,28 @@ namespace XimperShellTileMenu {
         }
 
         public GenericArray<AppEntry> search (string query) {
-            var results = new GenericArray<AppEntry> ();
+            var scored = new GenericArray<AppEntry> ();
+            var scores = new GenericArray<int> ();
+
             for (uint i = 0; i < apps.length; i++) {
-                if (apps[i].matches (query)) {
-                    results.add (apps[i]);
+                int s = apps[i].match_score (query);
+                if (s > 0) {
+                    scored.add (apps[i]);
+                    scores.add (s);
                 }
             }
-            return results;
+
+            // Sort by score descending
+            for (int i = 0; i < (int) scored.length - 1; i++) {
+                for (int j = i + 1; j < (int) scored.length; j++) {
+                    if (scores[j] > scores[i]) {
+                        var tmp_e = scored[i]; scored[i] = scored[j]; scored[j] = tmp_e;
+                        var tmp_s = scores[i]; scores[i] = scores[j]; scores[j] = tmp_s;
+                    }
+                }
+            }
+
+            return scored;
         }
 
         public AppEntry? find_by_desktop_id (string desktop_id) {

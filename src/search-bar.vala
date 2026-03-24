@@ -209,9 +209,11 @@ namespace XimperShellTileMenu {
             name_label.add_css_class ("search-result-name");
             text_box.append (name_label);
 
-            if (entry.generic_name != null) {
-                var desc_label = new Gtk.Label (entry.generic_name);
+            var subtitle = entry.generic_name ?? entry.description;
+            if (subtitle != null) {
+                var desc_label = new Gtk.Label (subtitle);
                 desc_label.halign = Gtk.Align.START;
+                desc_label.ellipsize = Pango.EllipsizeMode.END;
                 desc_label.add_css_class ("search-result-desc");
                 desc_label.add_css_class ("dim-label");
                 text_box.append (desc_label);
