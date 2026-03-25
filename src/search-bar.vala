@@ -3,11 +3,11 @@ namespace XimperShellTileMenu {
     public class SearchBar : Gtk.Box {
 
         public Gtk.SearchEntry search_entry { get; private set; }
+        public Gtk.ScrolledWindow results_widget { get; private set; }
 
         private weak Application app;
         private SearchProviderManager provider_manager;
         private Gtk.Box results_box;
-        private Gtk.ScrolledWindow results_scroll;
         private Cancellable? search_cancellable;
         private uint search_timeout_id = 0;
 
@@ -36,7 +36,7 @@ namespace XimperShellTileMenu {
             clamp.margin_end = 24;
 
             search_entry = new Gtk.SearchEntry ();
-            search_entry.placeholder_text = "Search applications...";
+            search_entry.placeholder_text = "Search applications…";
             search_entry.add_css_class ("search-entry");
             search_entry.hexpand = true;
 
@@ -47,6 +47,7 @@ namespace XimperShellTileMenu {
             clamp.set_child (search_entry);
             append (clamp);
 
+            // Results widget — will be added to the stack in GridWindow
             results_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
             results_box.add_css_class ("search-results");
 
@@ -56,12 +57,10 @@ namespace XimperShellTileMenu {
             results_clamp.margin_end = 24;
             results_clamp.set_child (results_box);
 
-            results_scroll = new Gtk.ScrolledWindow ();
-            results_scroll.vexpand = true;
-            results_scroll.hscrollbar_policy = Gtk.PolicyType.NEVER;
-            results_scroll.set_child (results_clamp);
-            results_scroll.visible = false;
-            append (results_scroll);
+            results_widget = new Gtk.ScrolledWindow ();
+            results_widget.vexpand = true;
+            results_widget.hscrollbar_policy = Gtk.PolicyType.NEVER;
+            results_widget.set_child (results_clamp);
         }
 
         private void debounce_search () {
@@ -88,13 +87,11 @@ namespace XimperShellTileMenu {
             clear_results ();
 
             if (query.length == 0) {
-                results_scroll.visible = false;
                 search_changed (false);
                 return;
             }
 
             search_changed (true);
-            results_scroll.visible = true;
 
             // Local app search
             var local_results = app.app_provider.search (query);
@@ -327,7 +324,6 @@ namespace XimperShellTileMenu {
         public void reset () {
             search_entry.text = "";
             clear_results ();
-            results_scroll.visible = false;
             provider_manager.reset_search ();
         }
     }

@@ -69,7 +69,9 @@ namespace XimperShellTileMenu {
             var rmb = new Gtk.GestureClick ();
             rmb.button = Gdk.BUTTON_SECONDARY;
             rmb.pressed.connect ((n, x, y) => {
+                rmb.set_state (Gtk.EventSequenceState.CLAIMED);
                 show_folder_menu ();
+                unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
             add_controller (rmb);
 

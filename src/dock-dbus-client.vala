@@ -13,14 +13,18 @@ namespace XimperShellTileMenu {
         private DockDBusProxy? proxy;
 
         public DockClient () {
-            try {
-                proxy = Bus.get_proxy_sync (
-                    BusType.SESSION,
-                    "ru.ximperlinux.shell.Dock",
-                    "/ru/ximperlinux/shell/Dock"
-                );
-            } catch (Error e) {
-                proxy = null;
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    proxy = Bus.get_proxy_sync (
+                        BusType.SESSION,
+                        "ru.ximperlinux.shell.Dock",
+                        "/ru/ximperlinux/shell/Dock"
+                    );
+                    if (proxy != null && is_available ()) return;
+                } catch (Error e) {
+                    proxy = null;
+                }
+                if (attempt < 2) Thread.usleep (100000);
             }
         }
 

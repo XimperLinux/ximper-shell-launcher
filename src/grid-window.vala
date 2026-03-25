@@ -6,6 +6,7 @@ namespace XimperShellTileMenu {
         private SearchBar search_bar;
         private TileGrid tile_grid;
         private Gtk.ScrolledWindow scrolled;
+        private Gtk.Stack content_stack;
 
         public GridWindow (Application app) {
             this.app = app;
@@ -32,7 +33,7 @@ namespace XimperShellTileMenu {
                 close_grid ();
             });
             search_bar.search_changed.connect ((is_searching) => {
-                scrolled.visible = !is_searching;
+                content_stack.visible_child_name = is_searching ? "search" : "tiles";
             });
             top_overlay.set_child (search_bar);
 
@@ -53,6 +54,13 @@ namespace XimperShellTileMenu {
 
             main_box.append (top_overlay);
 
+            // Stack: tiles ↔ search results with crossfade
+            content_stack = new Gtk.Stack ();
+            content_stack.transition_type = Gtk.StackTransitionType.CROSSFADE;
+            content_stack.transition_duration = 200;
+            content_stack.vexpand = true;
+            content_stack.hexpand = true;
+
             scrolled = new Gtk.ScrolledWindow ();
             scrolled.vexpand = true;
             scrolled.hexpand = true;
@@ -71,7 +79,11 @@ namespace XimperShellTileMenu {
             });
 
             scrolled.set_child (tile_grid);
-            main_box.append (scrolled);
+            content_stack.add_named (scrolled, "tiles");
+            content_stack.add_named (search_bar.results_widget, "search");
+            content_stack.visible_child_name = "tiles";
+
+            main_box.append (content_stack);
 
             // Drop on empty area — extract from folder
             var empty_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
@@ -96,7 +108,7 @@ namespace XimperShellTileMenu {
                 }
                 // Arrow down from search → focus first tile
                 if (keyval == Gdk.Key.Down && search_bar.search_entry.has_focus &&
-                    !search_bar.is_searching () && scrolled.visible) {
+                    !search_bar.is_searching () && content_stack.visible_child_name == "tiles") {
                     tile_grid.focus_first_tile ();
                     return true;
                 }
@@ -126,7 +138,7 @@ namespace XimperShellTileMenu {
         public void open_grid () {
             search_bar.reset ();
             tile_grid.build_from_config ();
-            scrolled.visible = true;
+            content_stack.visible_child_name = "tiles";
 
             set_visible (true);
 
