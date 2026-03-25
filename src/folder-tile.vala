@@ -75,6 +75,15 @@ namespace XimperShellTileMenu {
             });
             add_controller (rmb);
 
+            // Long press for touchscreen
+            var long_press = new Gtk.GestureLongPress ();
+            long_press.pressed.connect ((x, y) => {
+                long_press.set_state (Gtk.EventSequenceState.CLAIMED);
+                show_folder_menu ();
+                unset_state_flags (Gtk.StateFlags.ACTIVE);
+            });
+            add_controller (long_press);
+
             // DragSource — sends folder_id as string
             var source = new Gtk.DragSource ();
             source.set_actions (Gdk.DragAction.MOVE);

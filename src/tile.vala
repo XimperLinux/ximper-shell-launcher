@@ -82,6 +82,15 @@ namespace XimperShellTileMenu {
                 unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
             add_controller (rmb);
+
+            // Long press for touchscreen
+            var long_press = new Gtk.GestureLongPress ();
+            long_press.pressed.connect ((x, y) => {
+                long_press.set_state (Gtk.EventSequenceState.CLAIMED);
+                show_context_menu ();
+                unset_state_flags (Gtk.StateFlags.ACTIVE);
+            });
+            add_controller (long_press);
         }
 
         private Gtk.Button make_menu_item (string label) {
