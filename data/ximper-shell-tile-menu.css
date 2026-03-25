@@ -119,6 +119,16 @@
     box-shadow: 0 0 0 1px @card_shade_color;
 }
 
+.folder-drop-zone {
+    border-radius: 12px;
+    transition: background 150ms ease;
+}
+
+.folder-drop-zone:drop(active) {
+    background: alpha(@accent_bg_color, 0.1);
+    box-shadow: 0 0 0 2px alpha(@accent_bg_color, 0.4);
+}
+
 .folder-header-label {
     font-weight: bold;
     font-size: 14px;

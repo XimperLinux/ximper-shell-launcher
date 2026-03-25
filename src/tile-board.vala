@@ -9,6 +9,7 @@ namespace XimperShellTileMenu {
 
         private GenericArray<TilePlacement> placements;
         private Gtk.Widget? folder_header;
+        private Gtk.Widget? folder_drop_zone;
 
         // Folder state
         private string? open_folder_id;
@@ -72,6 +73,10 @@ namespace XimperShellTileMenu {
             if (folder_header != null) {
                 folder_header.unparent ();
                 folder_header = null;
+            }
+            if (folder_drop_zone != null) {
+                folder_drop_zone.unparent ();
+                folder_drop_zone = null;
             }
 
             // Pack grid
@@ -182,6 +187,28 @@ namespace XimperShellTileMenu {
             header.set_parent (this);
             folder_header = header;
 
+            // Drop zone background — accepts tiles dragged into the folder
+            int grid_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
+            var zone = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            zone.add_css_class ("folder-drop-zone");
+            var zone_target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            var folder_name_for_drop = fc.folder_name;
+            zone_target.drop.connect ((val, x, y) => {
+                var source_id = (string) val;
+                if (source_id == null || source_id.has_prefix ("folder:")) return false;
+                if (model.add_to_folder (folder_name_for_drop, source_id)) {
+                    folder_item_count = model.count_folder_items (open_folder_id, app.app_provider);
+                    target_folder_height = packer.compute_folder_height (folder_item_count);
+                    rebuild ();
+                    layout_changed ();
+                    return true;
+                }
+                return false;
+            });
+            zone.add_controller (zone_target);
+            zone.set_parent (this);
+            folder_drop_zone = zone;
+
             int content_y = base_y + GridPacker.FOLDER_HEADER_H + GridPacker.SPACING;
             var fname = fc.folder_name;
             int placed = 0;
@@ -261,6 +288,17 @@ namespace XimperShellTileMenu {
                 var transform = new Gsk.Transform ();
                 transform = transform.translate (Graphene.Point () { x = hx, y = hy });
                 folder_header.allocate (hw, int.max (GridPacker.FOLDER_HEADER_H, mh2), -1, transform);
+            }
+
+            if (folder_drop_zone != null && folder_row >= 0) {
+                int zone_x = packer.margin;
+                int zone_y = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
+                int zone_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
+                int zone_h = animated_offset;
+
+                var zt = new Gsk.Transform ();
+                zt = zt.translate (Graphene.Point () { x = zone_x, y = zone_y });
+                folder_drop_zone.allocate (zone_w, zone_h, -1, zt);
             }
         }
 
@@ -408,6 +446,10 @@ namespace XimperShellTileMenu {
                 folder_header.unparent ();
                 folder_header = null;
             }
+            if (folder_drop_zone != null) {
+                folder_drop_zone.unparent ();
+                folder_drop_zone = null;
+            }
             for (int k = (int) placements.length - 1; k >= 0; k--) {
                 if (placements[k].is_folder_item) {
                     placements[k].widget.unparent ();
@@ -550,6 +592,9 @@ namespace XimperShellTileMenu {
 
         private void on_drop (string source_id, string target_id) {
             if (model.handle_drop (source_id, target_id)) {
+                if (open_folder_id != null && !model.has_folder (open_folder_id)) {
+                    close_folder_state ();
+                }
                 rebuild ();
                 layout_changed ();
             }
@@ -632,6 +677,10 @@ namespace XimperShellTileMenu {
             if (folder_header != null) {
                 folder_header.unparent ();
                 folder_header = null;
+            }
+            if (folder_drop_zone != null) {
+                folder_drop_zone.unparent ();
+                folder_drop_zone = null;
             }
             base.dispose ();
         }

@@ -58,7 +58,13 @@ namespace XimperShellTileMenu {
                 return add_to_folder (target_id.substring ("folder:".length), source_id);
             }
 
+            // If source is inside a folder, extract it first
             int idx_a = find_index (source_id);
+            if (idx_a < 0 && !source_id.has_prefix ("folder:")) {
+                extract_from_any_folder (source_id);
+                idx_a = find_index (source_id);
+            }
+
             int idx_b = find_index (target_id);
             if (idx_a >= 0 && idx_b >= 0 && idx_a != idx_b) {
                 var tmp = tiles[idx_a];
@@ -67,6 +73,23 @@ namespace XimperShellTileMenu {
                 return true;
             }
             return false;
+        }
+
+        private void extract_from_any_folder (string desktop_id) {
+            for (uint i = 0; i < tiles.length; i++) {
+                var tc = tiles[i];
+                if (tc.size != TileSize.FOLDER || tc.folder_items == null) continue;
+                for (uint j = 0; j < tc.folder_items.length; j++) {
+                    if (tc.folder_items[j] == desktop_id) {
+                        tc.folder_items.remove_index (j);
+                        if (tc.folder_items.length == 0) {
+                            tiles.remove_index (i);
+                        }
+                        tiles.add (new TileConfig (desktop_id, TileSize.SMALL));
+                        return;
+                    }
+                }
+            }
         }
 
         public bool add_to_folder (string folder_name, string desktop_id) {
