@@ -526,7 +526,7 @@ namespace XimperShellTileMenu {
             return p.y + compute_animated_offset ();
         }
 
-        private bool navigate_focus (int dx, int dy) {
+        public bool navigate_focus (int dx, int dy) {
             int current = get_focused_index ();
             if (current < 0) {
                 if (placements.length > 0) { set_tile_focus (0); return true; }
@@ -578,7 +578,7 @@ namespace XimperShellTileMenu {
             }
         }
 
-        private bool activate_focused () {
+        public bool activate_focused () {
             int idx = get_focused_index ();
             if (idx < 0) return false;
 
@@ -663,6 +663,46 @@ namespace XimperShellTileMenu {
         }
 
         // --- Public API ---
+
+        public Gtk.Popover? get_active_popover () {
+            for (uint i = 0; i < placements.length; i++) {
+                var w = placements[i].widget;
+                if (w is Tile) {
+                    var p = ((Tile) w).active_popover;
+                    if (p != null) return p;
+                } else if (w is FolderTile) {
+                    var p = ((FolderTile) w).active_popover;
+                    if (p != null) return p;
+                }
+            }
+            return null;
+        }
+
+        public void show_focused_context_menu () {
+            int idx = get_focused_index ();
+            if (idx < 0) return;
+            var widget = placements[idx].widget;
+            if (widget is Tile) {
+                ((Tile) widget).open_context_menu ();
+            } else if (widget is FolderTile) {
+                ((FolderTile) widget).open_context_menu ();
+            }
+        }
+
+        public bool has_open_folder () {
+            return open_folder_id != null;
+        }
+
+        public void close_open_folder () {
+            if (open_folder_id == null) return;
+            animator.cancel ();
+            animator.run_cascade (animator.cascade_progress, 0.0, () => {
+                animator.run_slide (animator.slide_progress, 0.0, () => {
+                    close_folder_state ();
+                    rebuild ();
+                });
+            });
+        }
 
         public void try_extract_from_folder (string desktop_id) {
             if (open_folder_id != null) {

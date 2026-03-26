@@ -114,6 +114,12 @@ namespace XimperShellTileMenu {
         public signal void ungroup_requested (FolderTile folder);
         public signal void rename_requested (FolderTile folder, string new_name);
 
+        public Gtk.Popover? active_popover { get; private set; }
+
+        public void open_context_menu () {
+            show_folder_menu ();
+        }
+
         private void show_folder_menu () {
             var popover = new Gtk.Popover ();
             popover.set_parent (this);
@@ -143,8 +149,11 @@ namespace XimperShellTileMenu {
 
             popover.set_child (menu_box);
             popover.popup ();
+            active_popover = popover;
+            rename_btn.grab_focus ();
 
             popover.closed.connect (() => {
+                active_popover = null;
                 popover.unparent ();
             });
         }

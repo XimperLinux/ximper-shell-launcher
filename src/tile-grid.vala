@@ -98,6 +98,30 @@ namespace XimperShellTileMenu {
             return y < 10;
         }
 
+        public void gamepad_navigate (int dx, int dy) {
+            if (board != null) board.navigate_focus (dx, dy);
+        }
+
+        public void gamepad_activate () {
+            if (board != null) board.activate_focused ();
+        }
+
+        public bool has_open_folder () {
+            return board != null && board.has_open_folder ();
+        }
+
+        public Gtk.Popover? get_active_popover () {
+            return board != null ? board.get_active_popover () : null;
+        }
+
+        public void gamepad_context_menu () {
+            if (board != null) board.show_focused_context_menu ();
+        }
+
+        public void gamepad_close_folder () {
+            if (board != null) board.close_open_folder ();
+        }
+
         public void save_layout () {
             if (board == null) return;
             var new_groups = new GenericArray<GroupConfig> ();

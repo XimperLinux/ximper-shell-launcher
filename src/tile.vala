@@ -100,6 +100,12 @@ namespace XimperShellTileMenu {
             return btn;
         }
 
+        public Gtk.Popover? active_popover { get; private set; }
+
+        public void open_context_menu () {
+            show_context_menu ();
+        }
+
         private void show_context_menu () {
             if (menu_visible) return;
 
@@ -191,9 +197,16 @@ namespace XimperShellTileMenu {
             popover.set_child (menu_box);
             popover.popup ();
             menu_visible = true;
+            active_popover = popover;
+
+            var first_btn = menu_box.get_first_child ();
+            if (first_btn != null && first_btn is Gtk.Button) {
+                first_btn.grab_focus ();
+            }
 
             popover.closed.connect (() => {
                 menu_visible = false;
+                active_popover = null;
                 popover.unparent ();
             });
         }

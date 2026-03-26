@@ -4,6 +4,7 @@ grid_deps = [
   dependency('gtk4-layer-shell-0', version: '>= 1.0'),
   dependency('json-glib-1.0'),
   dependency('gio-unix-2.0'),
+  dependency('manette-0.2'),
 ]
 
 grid_sources = files(
@@ -26,6 +27,7 @@ grid_sources = files(
   'layer-shell-helper.vala',
   'dock-dbus-client.vala',
   'dbus-service.vala',
+  'gamepad-controller.vala',
 )
 
 executable('ximper-shell-tile-menu', grid_sources,

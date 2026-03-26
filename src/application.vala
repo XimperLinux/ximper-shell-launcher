@@ -8,6 +8,7 @@ namespace XimperShellTileMenu {
 
         private GridWindow? grid_window;
         private GridDBusService? dbus_service;
+        private GamepadController? gamepad;
 
         private const OptionEntry[] OPTIONS = {
             { "toggle", 't', 0, OptionArg.NONE, null, "Toggle the grid overlay", null },
@@ -70,6 +71,11 @@ namespace XimperShellTileMenu {
 
             grid_window = new GridWindow (this);
             add_window (grid_window);
+
+            gamepad = new GamepadController (grid_window);
+            gamepad.device_connected_notify.connect ((name) => {
+                grid_window.show_toast ("Gamepad connected: " + name);
+            });
         }
 
         public void pin_to_dock (string desktop_id) {

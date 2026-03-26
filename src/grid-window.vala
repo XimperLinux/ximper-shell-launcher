@@ -7,6 +7,10 @@ namespace XimperShellTileMenu {
         private TileGrid tile_grid;
         private Gtk.ScrolledWindow scrolled;
         private Gtk.Stack content_stack;
+        private Adw.ToastOverlay toast_overlay;
+
+        private int popover_focus_index = -1;
+        private GenericArray<Gtk.Button>? popover_buttons;
 
         public GridWindow (Application app) {
             this.app = app;
@@ -95,7 +99,9 @@ namespace XimperShellTileMenu {
             });
             scrolled.add_controller (empty_drop);
 
-            set_child (main_box);
+            toast_overlay = new Adw.ToastOverlay ();
+            toast_overlay.set_child (main_box);
+            set_child (toast_overlay);
         }
 
         private void setup_keys () {
@@ -151,6 +157,151 @@ namespace XimperShellTileMenu {
 
         private void close_grid () {
             set_visible (false);
+        }
+
+        private void setup_popover_buttons (Gtk.Popover popover) {
+            popover_buttons = new GenericArray<Gtk.Button> ();
+            popover_focus_index = 0;
+
+            var menu_box = popover.get_child ();
+            if (menu_box == null) return;
+
+            var child = menu_box.get_first_child ();
+            while (child != null) {
+                if (child is Gtk.Button && child.sensitive) {
+                    popover_buttons.add ((Gtk.Button) child);
+                }
+                child = child.get_next_sibling ();
+            }
+
+            update_popover_highlight ();
+
+            popover.closed.connect (() => {
+                if (popover_buttons != null) {
+                    clear_popover_highlight ();
+                    popover_buttons = null;
+                    popover_focus_index = -1;
+                }
+            });
+        }
+
+        private void update_popover_highlight () {
+            if (popover_buttons == null) return;
+            for (uint i = 0; i < popover_buttons.length; i++) {
+                if ((int) i == popover_focus_index) {
+                    popover_buttons[i].add_css_class ("popover-item-focused");
+                } else {
+                    popover_buttons[i].remove_css_class ("popover-item-focused");
+                }
+            }
+        }
+
+        private void clear_popover_highlight () {
+            if (popover_buttons == null) return;
+            for (uint i = 0; i < popover_buttons.length; i++) {
+                popover_buttons[i].remove_css_class ("popover-item-focused");
+            }
+        }
+
+        private void navigate_popover (int dy) {
+            if (popover_buttons == null || popover_buttons.length == 0) return;
+            popover_focus_index += dy;
+            if (popover_focus_index < 0) popover_focus_index = (int) popover_buttons.length - 1;
+            if (popover_focus_index >= (int) popover_buttons.length) popover_focus_index = 0;
+            update_popover_highlight ();
+        }
+
+        private void activate_popover_focused () {
+            if (popover_buttons == null || popover_focus_index < 0) return;
+            if (popover_focus_index >= (int) popover_buttons.length) return;
+
+            var btn = popover_buttons[popover_focus_index];
+
+            // Clean up state BEFORE activation — activation may trigger rebuild
+            clear_popover_highlight ();
+            popover_buttons = null;
+            popover_focus_index = -1;
+
+            btn.activate ();
+        }
+
+        public void show_toast (string message) {
+            var toast = new Adw.Toast (message);
+            toast.timeout = 3;
+            toast_overlay.add_toast (toast);
+        }
+
+        // --- Gamepad ---
+
+        public void gamepad_navigate (int dx, int dy) {
+            if (!visible) return;
+
+            if (popover_buttons != null) {
+                if (dy != 0) navigate_popover (dy);
+                return;
+            }
+
+            if (content_stack.visible_child_name == "tiles") {
+                if (dy < 0 && tile_grid.is_at_top_row ()) {
+                    search_bar.search_entry.grab_focus ();
+                } else {
+                    tile_grid.gamepad_navigate (dx, dy);
+                }
+            }
+        }
+
+        public void gamepad_activate () {
+            if (!visible) return;
+
+            if (popover_buttons != null) {
+                activate_popover_focused ();
+                return;
+            }
+
+            tile_grid.gamepad_activate ();
+        }
+
+        public void gamepad_context_menu () {
+            if (!visible || popover_buttons != null) return;
+            tile_grid.gamepad_context_menu ();
+            var popover = tile_grid.get_active_popover ();
+            if (popover != null) {
+                setup_popover_buttons (popover);
+            }
+        }
+
+        public void gamepad_back () {
+            if (!visible) return;
+
+            if (popover_buttons != null) {
+                var popover = tile_grid.get_active_popover ();
+                if (popover != null) popover.popdown ();
+                popover_buttons = null;
+                popover_focus_index = -1;
+                return;
+            }
+
+            if (tile_grid.has_open_folder ()) {
+                tile_grid.gamepad_close_folder ();
+            } else {
+                close_grid ();
+            }
+        }
+
+        public void gamepad_toggle () {
+            if (popover_buttons != null) return;
+            if (visible) {
+                close_grid ();
+            } else {
+                open_grid ();
+            }
+        }
+
+        public void gamepad_scroll (int direction) {
+            if (!visible) return;
+            if (popover_buttons != null) return;
+            var adj = scrolled.vadjustment;
+            adj.value += direction * adj.page_size * 0.3;
         }
     }
 }
