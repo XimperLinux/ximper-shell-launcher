@@ -14,6 +14,7 @@ namespace XimperShellTileMenu {
         private const uint16 BTN_START = 0x13b;
         private const uint16 BTN_MODE  = 0x13c;   // Xbox/Guide/PS
 
+
         private const uint16 BTN_DPAD_UP    = 0x220;
         private const uint16 BTN_DPAD_DOWN  = 0x221;
         private const uint16 BTN_DPAD_LEFT  = 0x222;
@@ -32,6 +33,22 @@ namespace XimperShellTileMenu {
         private bool repeat_started;
 
         public signal void device_connected_notify (string name);
+
+        private static bool is_steam_running () {
+            try {
+                var dir = Dir.open ("/proc");
+                string? name;
+                while ((name = dir.read_name ()) != null) {
+                    if (name[0] < '0' || name[0] > '9') continue;
+                    var comm_path = "/proc/" + name + "/comm";
+                    string contents;
+                    if (FileUtils.get_contents (comm_path, out contents)) {
+                        if (contents.strip () == "steam") return true;
+                    }
+                }
+            } catch (Error e) {}
+            return false;
+        }
 
         public GamepadController (GridWindow window) {
             this.window = window;
@@ -99,6 +116,7 @@ namespace XimperShellTileMenu {
                     window.gamepad_context_menu ();
                     break;
                 case BTN_MODE:
+                    if (is_steam_running ()) break;
                     window.gamepad_toggle ();
                     break;
                 case BTN_DPAD_UP:
