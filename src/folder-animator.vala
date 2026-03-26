@@ -32,7 +32,10 @@ namespace XimperShellTileMenu {
                 cascade_anim = null;
             }
             for (uint i = 0; i < pending_idles.length; i++) {
-                Source.remove (pending_idles[i]);
+                var src = MainContext.default ().find_source_by_id (pending_idles[i]);
+                if (src != null) {
+                    Source.remove (pending_idles[i]);
+                }
             }
             pending_idles = new GenericArray<uint> ();
         }

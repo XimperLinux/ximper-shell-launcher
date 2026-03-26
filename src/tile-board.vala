@@ -295,6 +295,10 @@ namespace XimperShellTileMenu {
                 int zone_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
                 int zone_h = animated_offset;
 
+                int zmw, znw, zmh, znh;
+                folder_drop_zone.measure (Gtk.Orientation.HORIZONTAL, -1, out zmw, out znw, null, null);
+                folder_drop_zone.measure (Gtk.Orientation.VERTICAL, zone_w, out zmh, out znh, null, null);
+
                 var zt = new Gsk.Transform ();
                 zt = zt.translate (Graphene.Point () { x = zone_x, y = zone_y });
                 folder_drop_zone.allocate (zone_w, zone_h, -1, zt);
