@@ -69,13 +69,11 @@ namespace XimperShellTileMenu {
             reset_btn.valign = Gtk.Align.CENTER;
             reset_btn.add_css_class ("destructive-action");
             reset_btn.clicked.connect (() => {
-                try {
-                    var config_path = Path.build_filename (
-                        Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "config.json"
-                    );
-                    FileUtils.remove (config_path);
-                    app.config.load ();
-                } catch (Error e) {}
+                var config_path = Path.build_filename (
+                    Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "config.json"
+                );
+                FileUtils.remove (config_path);
+                app.config.load ();
             });
             reset_row.add_suffix (reset_btn);
             data_group.add (reset_row);

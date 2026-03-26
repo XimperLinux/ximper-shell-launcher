@@ -237,6 +237,9 @@ namespace XimperShellTileMenu {
                     content_box.orientation = Gtk.Orientation.VERTICAL;
                     content_box.spacing = 8;
                     break;
+
+                default:
+                    break;
             }
         }
 

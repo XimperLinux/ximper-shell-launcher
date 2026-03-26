@@ -30,6 +30,6 @@ grid_sources = files(
 
 executable('ximper-shell-tile-menu', grid_sources,
   dependencies: grid_deps,
-
+  c_args: ['-w'],
   install: true,
 )

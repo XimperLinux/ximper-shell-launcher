@@ -188,7 +188,6 @@ namespace XimperShellTileMenu {
             folder_header = header;
 
             // Drop zone background — accepts tiles dragged into the folder
-            int grid_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
             var zone = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             zone.add_css_class ("folder-drop-zone");
             var zone_target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
@@ -395,11 +394,12 @@ namespace XimperShellTileMenu {
                         animator.run_slide (0.0, 1.0, () => {
                             animator.run_cascade (0.0, 1.0, null);
                         });
-                        Idle.add (() => {
+                        var id2 = Idle.add (() => {
                             build_folder_content ();
                             focus_folder_first ();
                             return Source.REMOVE;
                         });
+                        animator.track_idle (id2);
                     });
                 });
             } else {
@@ -415,11 +415,12 @@ namespace XimperShellTileMenu {
                     animator.run_cascade (0.0, 1.0, null);
                 });
 
-                Idle.add (() => {
+                var id = Idle.add (() => {
                     build_folder_content ();
                     focus_folder_first ();
                     return Source.REMOVE;
                 });
+                animator.track_idle (id);
             }
         }
 

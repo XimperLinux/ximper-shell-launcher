@@ -104,47 +104,43 @@ namespace XimperShellTileMenu {
 
             // GNOME Search Providers
             var my_cancellable = search_cancellable;
-            try {
-                var provider_results = yield provider_manager.search (query, my_cancellable);
+            var provider_results = yield provider_manager.search (query, my_cancellable);
 
-                // Drop stale results if a newer search has started
-                if (my_cancellable.is_cancelled ()) return;
+            // Drop stale results if a newer search has started
+            if (my_cancellable.is_cancelled ()) return;
 
-                // Group results by provider
-                var provider_groups = new GenericArray<GenericArray<SearchResult>> ();
-                var provider_keys = new GenericArray<string> ();
+            // Group results by provider
+            var provider_groups = new GenericArray<GenericArray<SearchResult>> ();
+            var provider_keys = new GenericArray<string> ();
 
-                for (uint i = 0; i < provider_results.length; i++) {
-                    var result = provider_results[i];
-                    var key = result.provider.bus_name;
+            for (uint i = 0; i < provider_results.length; i++) {
+                var result = provider_results[i];
+                var key = result.provider.bus_name;
 
-                    int group_idx = -1;
-                    for (uint j = 0; j < provider_keys.length; j++) {
-                        if (provider_keys[j] == key) { group_idx = (int) j; break; }
-                    }
-
-                    if (group_idx < 0) {
-                        provider_keys.add (key);
-                        provider_groups.add (new GenericArray<SearchResult> ());
-                        group_idx = (int) provider_keys.length - 1;
-                    }
-
-                    provider_groups[group_idx].add (result);
+                int group_idx = -1;
+                for (uint j = 0; j < provider_keys.length; j++) {
+                    if (provider_keys[j] == key) { group_idx = (int) j; break; }
                 }
 
-                for (uint i = 0; i < provider_groups.length; i++) {
-                    var results = provider_groups[i];
-                    if (results.length > 0) {
-                        var provider_name = results[0].provider.name ?? provider_keys[i];
-                        add_result_section (provider_name, results[0].provider.icon);
+                if (group_idx < 0) {
+                    provider_keys.add (key);
+                    provider_groups.add (new GenericArray<SearchResult> ());
+                    group_idx = (int) provider_keys.length - 1;
+                }
 
-                        for (uint j = 0; j < results.length; j++) {
-                            add_provider_result (results[j], query);
-                        }
+                provider_groups[group_idx].add (result);
+            }
+
+            for (uint i = 0; i < provider_groups.length; i++) {
+                var results = provider_groups[i];
+                if (results.length > 0) {
+                    var provider_name = results[0].provider.name ?? provider_keys[i];
+                    add_result_section (provider_name, results[0].provider.icon);
+
+                    for (uint j = 0; j < results.length; j++) {
+                        add_provider_result (results[j], query);
                     }
                 }
-            } catch (Error e) {
-                // Search cancelled or failed, ignore
             }
         }
 

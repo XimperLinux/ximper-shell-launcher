@@ -49,7 +49,7 @@ namespace XimperShellTileMenu {
             try {
                 var context = Gdk.Display.get_default ().get_app_launch_context ();
                 return app_info.launch_uris_as_manager (
-                    null, context,
+                    new List<string> (), context,
                     SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
                     () => { c_setsid (); },
                     null

@@ -9,11 +9,17 @@ namespace XimperShellTileMenu {
 
         private Adw.TimedAnimation? slide_anim;
         private Adw.TimedAnimation? cascade_anim;
+        private GenericArray<uint> pending_idles;
 
         public delegate void Callback ();
 
+        public void track_idle (uint id) {
+            pending_idles.add (id);
+        }
+
         public FolderAnimator (Gtk.Widget owner) {
             this.owner = owner;
+            this.pending_idles = new GenericArray<uint> ();
         }
 
         public void cancel () {
@@ -25,6 +31,10 @@ namespace XimperShellTileMenu {
                 cascade_anim.pause ();
                 cascade_anim = null;
             }
+            for (uint i = 0; i < pending_idles.length; i++) {
+                Source.remove (pending_idles[i]);
+            }
+            pending_idles = new GenericArray<uint> ();
         }
 
         public void reset () {
@@ -43,7 +53,8 @@ namespace XimperShellTileMenu {
             slide_anim = new Adw.TimedAnimation (owner, from, to, 200, target);
             if (then != null) {
                 slide_anim.done.connect (() => {
-                    Idle.add (() => { then (); return Source.REMOVE; });
+                    var id = Idle.add (() => { then (); return Source.REMOVE; });
+                    pending_idles.add (id);
                 });
             }
             slide_anim.play ();
@@ -59,7 +70,8 @@ namespace XimperShellTileMenu {
             cascade_anim = new Adw.TimedAnimation (owner, from, to, duration, ct);
             if (then != null) {
                 cascade_anim.done.connect (() => {
-                    Idle.add (() => { then (); return Source.REMOVE; });
+                    var id = Idle.add (() => { then (); return Source.REMOVE; });
+                    pending_idles.add (id);
                 });
             }
             cascade_anim.play ();
