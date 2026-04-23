@@ -105,7 +105,7 @@ namespace XimperShellTileMenu {
                 css_provider.load_from_path (css_path);
             } else {
                 string system_css = Path.build_filename (
-                    "/usr", "share", "ximper-shell-tile-menu", "ximper-shell-tile-menu.css"
+                    "/etc", "xdg", "ximper-shell", "tile-menu", "style.css"
                 );
                 if (FileUtils.test (system_css, FileTest.EXISTS)) {
                     css_provider.load_from_path (system_css);

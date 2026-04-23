@@ -3,5 +3,6 @@ install_data('ximper-shell-tile-menu.desktop',
 )
 
 install_data('ximper-shell-tile-menu.css',
-  install_dir: get_option('datadir') / 'ximper-shell-tile-menu',
+  rename: 'style.css',
+  install_dir: get_option('sysconfdir') / 'xdg' / 'ximper-shell' / 'tile-menu',
 )
