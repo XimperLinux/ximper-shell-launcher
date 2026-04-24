@@ -8,6 +8,8 @@ namespace XimperShellTileMenu {
         private Gtk.ScrolledWindow scrolled;
         private Gtk.Stack content_stack;
         private Adw.ToastOverlay toast_overlay;
+        private bool ignore_next_focus_leave = false;
+        private bool focus_leave_armed = false;
 
         private int popover_focus_index = -1;
         private GenericArray<Gtk.Button>? popover_buttons;
@@ -24,6 +26,9 @@ namespace XimperShellTileMenu {
             build_ui ();
             setup_keys ();
             setup_click_close ();
+            setup_config_updates ();
+            setup_focus_close ();
+            apply_window_mode ();
         }
 
         private void build_ui () {
@@ -133,6 +138,7 @@ namespace XimperShellTileMenu {
         private void setup_click_close () {
             var gesture = new Gtk.GestureClick ();
             gesture.pressed.connect ((n, x, y) => {
+                if (app.config.window_mode != WindowMode.FULLSCREEN) return;
                 var widget = pick (x, y, Gtk.PickFlags.DEFAULT);
                 if (widget == this || widget == scrolled || widget is Gtk.Viewport) {
                     close_grid ();
@@ -141,12 +147,75 @@ namespace XimperShellTileMenu {
             ((Gtk.Widget) this).add_controller (gesture);
         }
 
+        private void setup_config_updates () {
+            app.config.notify["layer"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["window-mode"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-x"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-y"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-width"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-height"].connect (() => {
+                apply_window_mode ();
+            });
+        }
+
+        private void setup_focus_close () {
+            var focus = new Gtk.EventControllerFocus ();
+            focus.enter.connect (() => {
+                if (app.config.window_mode != WindowMode.FLOATING) return;
+                focus_leave_armed = true;
+            });
+            focus.leave.connect (() => {
+                if (!visible) return;
+                if (app.config.window_mode != WindowMode.FLOATING) return;
+                if (!focus_leave_armed) return;
+                if (ignore_next_focus_leave) {
+                    ignore_next_focus_leave = false;
+                    return;
+                }
+                close_grid ();
+            });
+            ((Gtk.Widget) this).add_controller (focus);
+        }
+
+        private void apply_window_mode () {
+            LayerShellHelper.apply_window_mode (
+                this,
+                app.config.window_mode,
+                LayerShellHelper.parse_layer (app.config.layer),
+                app.config.floating_x,
+                app.config.floating_y
+            );
+
+            if (app.config.window_mode == WindowMode.FLOATING) {
+                toast_overlay.width_request = app.config.floating_width.clamp (320, 4096);
+                toast_overlay.height_request = app.config.floating_height.clamp (240, 4096);
+            } else {
+                toast_overlay.width_request = -1;
+                toast_overlay.height_request = -1;
+            }
+
+            queue_resize ();
+        }
+
         public void open_grid () {
             search_bar.reset ();
             tile_grid.build_from_config ();
             content_stack.visible_child_name = "tiles";
+            ignore_next_focus_leave = true;
+            focus_leave_armed = false;
 
             set_visible (true);
+            present ();
 
             search_bar.search_entry.grab_focus ();
         }
@@ -156,6 +225,8 @@ namespace XimperShellTileMenu {
         }
 
         private void close_grid () {
+            ignore_next_focus_leave = false;
+            focus_leave_armed = false;
             set_visible (false);
         }
 

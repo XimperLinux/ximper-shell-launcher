@@ -1,5 +1,20 @@
 namespace XimperShellTileMenu {
 
+    public enum WindowMode {
+        FULLSCREEN,
+        FLOATING;
+
+        public static WindowMode from_string (string val) {
+            if (val == "floating") return FLOATING;
+            return FULLSCREEN;
+        }
+
+        public string to_string () {
+            if (this == FLOATING) return "floating";
+            return "fullscreen";
+        }
+    }
+
     public enum TileSize {
         SMALL,
         MEDIUM,
@@ -59,6 +74,11 @@ namespace XimperShellTileMenu {
         public int max_columns { get; set; default = 0; }
         public int cell_size { get; set; default = 0; }
         public int layer { get; set; default = 3; }
+        public WindowMode window_mode { get; set; default = WindowMode.FULLSCREEN; }
+        public int floating_x { get; set; default = 0; }
+        public int floating_y { get; set; default = 24; }
+        public int floating_width { get; set; default = 960; }
+        public int floating_height { get; set; default = 720; }
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -89,6 +109,16 @@ namespace XimperShellTileMenu {
                     cell_size = (int) root.get_int_member ("cell_size");
                 if (root.has_member ("layer"))
                     layer = (int) root.get_int_member ("layer");
+                if (root.has_member ("window_mode"))
+                    window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
+                if (root.has_member ("floating_x"))
+                    floating_x = (int) root.get_int_member ("floating_x");
+                if (root.has_member ("floating_y"))
+                    floating_y = (int) root.get_int_member ("floating_y");
+                if (root.has_member ("floating_width"))
+                    floating_width = (int) root.get_int_member ("floating_width");
+                if (root.has_member ("floating_height"))
+                    floating_height = (int) root.get_int_member ("floating_height");
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -137,6 +167,16 @@ namespace XimperShellTileMenu {
             builder.add_int_value (cell_size);
             builder.set_member_name ("layer");
             builder.add_int_value (layer);
+            builder.set_member_name ("window_mode");
+            builder.add_string_value (window_mode.to_string ());
+            builder.set_member_name ("floating_x");
+            builder.add_int_value (floating_x);
+            builder.set_member_name ("floating_y");
+            builder.add_int_value (floating_y);
+            builder.set_member_name ("floating_width");
+            builder.add_int_value (floating_width);
+            builder.set_member_name ("floating_height");
+            builder.add_int_value (floating_height);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();

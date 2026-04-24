@@ -22,6 +22,58 @@ namespace XimperShellTileMenu {
             var layout_group = new Adw.PreferencesGroup ();
             layout_group.title = "Layout";
 
+            var mode_row = new Adw.ComboRow ();
+            mode_row.title = "Window Mode";
+            mode_row.subtitle = "Fullscreen overlay or floating panel";
+            var mode_list = new Gtk.StringList ({"Fullscreen", "Floating"});
+            mode_row.model = mode_list;
+            mode_row.selected = app.config.window_mode == WindowMode.FULLSCREEN ? 0 : 1;
+            mode_row.notify["selected"].connect (() => {
+                app.config.window_mode = mode_row.selected == 0 ? WindowMode.FULLSCREEN : WindowMode.FLOATING;
+                app.config.save ();
+            });
+            layout_group.add (mode_row);
+
+            var floating_x_row = new Adw.SpinRow.with_range (0, 10000, 1);
+            floating_x_row.title = "Floating X";
+            floating_x_row.subtitle = "Left margin in floating mode";
+            floating_x_row.value = app.config.floating_x;
+            floating_x_row.notify["value"].connect (() => {
+                app.config.floating_x = (int) floating_x_row.value;
+                app.config.save ();
+            });
+            layout_group.add (floating_x_row);
+
+            var floating_y_row = new Adw.SpinRow.with_range (0, 10000, 1);
+            floating_y_row.title = "Floating Y";
+            floating_y_row.subtitle = "Top margin in floating mode";
+            floating_y_row.value = app.config.floating_y;
+            floating_y_row.notify["value"].connect (() => {
+                app.config.floating_y = (int) floating_y_row.value;
+                app.config.save ();
+            });
+            layout_group.add (floating_y_row);
+
+            var floating_width_row = new Adw.SpinRow.with_range (320, 4096, 10);
+            floating_width_row.title = "Floating Width";
+            floating_width_row.subtitle = "Window width in floating mode";
+            floating_width_row.value = app.config.floating_width;
+            floating_width_row.notify["value"].connect (() => {
+                app.config.floating_width = (int) floating_width_row.value;
+                app.config.save ();
+            });
+            layout_group.add (floating_width_row);
+
+            var floating_height_row = new Adw.SpinRow.with_range (240, 4096, 10);
+            floating_height_row.title = "Floating Height";
+            floating_height_row.subtitle = "Window height in floating mode";
+            floating_height_row.value = app.config.floating_height;
+            floating_height_row.notify["value"].connect (() => {
+                app.config.floating_height = (int) floating_height_row.value;
+                app.config.save ();
+            });
+            layout_group.add (floating_height_row);
+
             // Max columns
             var cols_row = new Adw.SpinRow.with_range (0, 30, 2);
             cols_row.title = "Max Columns";
