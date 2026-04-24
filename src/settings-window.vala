@@ -34,29 +34,44 @@ namespace XimperShellTileMenu {
             });
             layout_group.add (mode_row);
 
-            var floating_x_row = new Adw.SpinRow.with_range (0, 10000, 1);
-            floating_x_row.title = "Floating X";
-            floating_x_row.subtitle = "Left margin in floating mode";
-            floating_x_row.value = app.config.floating_x;
+            var monitor_row = new Adw.ComboRow ();
+            monitor_row.title = "Monitor";
+            monitor_row.subtitle = "Active Monitor uses the monitor under the pointer";
+            var monitor_list = build_monitor_list ();
+            monitor_row.model = monitor_list;
+            monitor_row.selected = (uint) (app.config.monitor_index + 1).clamp (
+                0,
+                (int) monitor_list.get_n_items () - 1
+            );
+            monitor_row.notify["selected"].connect (() => {
+                app.config.monitor_index = (int) monitor_row.selected - 1;
+                app.config.save ();
+            });
+            layout_group.add (monitor_row);
+
+            var floating_x_row = new Adw.SpinRow.with_range (0, 100, 1);
+            floating_x_row.title = "Floating X (%)";
+            floating_x_row.subtitle = "Horizontal position as percent of screen width";
+            floating_x_row.value = app.config.floating_x_percent;
             floating_x_row.notify["value"].connect (() => {
-                app.config.floating_x = (int) floating_x_row.value;
+                app.config.floating_x_percent = (int) floating_x_row.value;
                 app.config.save ();
             });
             layout_group.add (floating_x_row);
 
-            var floating_y_row = new Adw.SpinRow.with_range (0, 10000, 1);
-            floating_y_row.title = "Floating Y";
-            floating_y_row.subtitle = "Top margin in floating mode";
-            floating_y_row.value = app.config.floating_y;
+            var floating_y_row = new Adw.SpinRow.with_range (0, 100, 1);
+            floating_y_row.title = "Floating Y (%)";
+            floating_y_row.subtitle = "Vertical position as percent of screen height";
+            floating_y_row.value = app.config.floating_y_percent;
             floating_y_row.notify["value"].connect (() => {
-                app.config.floating_y = (int) floating_y_row.value;
+                app.config.floating_y_percent = (int) floating_y_row.value;
                 app.config.save ();
             });
             layout_group.add (floating_y_row);
 
             var floating_width_row = new Adw.SpinRow.with_range (320, 4096, 10);
             floating_width_row.title = "Floating Width";
-            floating_width_row.subtitle = "Window width in floating mode";
+            floating_width_row.subtitle = "Window width in pixels";
             floating_width_row.value = app.config.floating_width;
             floating_width_row.notify["value"].connect (() => {
                 app.config.floating_width = (int) floating_width_row.value;
@@ -66,7 +81,7 @@ namespace XimperShellTileMenu {
 
             var floating_height_row = new Adw.SpinRow.with_range (240, 4096, 10);
             floating_height_row.title = "Floating Height";
-            floating_height_row.subtitle = "Window height in floating mode";
+            floating_height_row.subtitle = "Window height in pixels";
             floating_height_row.value = app.config.floating_height;
             floating_height_row.notify["value"].connect (() => {
                 app.config.floating_height = (int) floating_height_row.value;
@@ -133,6 +148,35 @@ namespace XimperShellTileMenu {
             page.add (data_group);
 
             add (page);
+        }
+
+        private Gtk.StringList build_monitor_list () {
+            var list = new Gtk.StringList (null);
+            list.append ("Active Monitor");
+
+            var display = Gdk.Display.get_default ();
+            if (display == null) return list;
+
+            var monitors = display.get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var monitor = (Gdk.Monitor) monitors.get_item (i);
+                var geometry = monitor.geometry;
+                var connector = monitor.get_connector ();
+                if (connector != null && connector.length > 0) {
+                    list.append (
+                        "Monitor %u: %s (%dx%d)".printf (
+                            i + 1,
+                            connector,
+                            geometry.width,
+                            geometry.height
+                        )
+                    );
+                } else {
+                    list.append ("Monitor %u (%dx%d)".printf (i + 1, geometry.width, geometry.height));
+                }
+            }
+
+            return list;
         }
     }
 }

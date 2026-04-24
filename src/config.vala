@@ -79,6 +79,9 @@ namespace XimperShellTileMenu {
         public int floating_y { get; set; default = 24; }
         public int floating_width { get; set; default = 960; }
         public int floating_height { get; set; default = 720; }
+        public int floating_x_percent { get; set; default = 0; }
+        public int floating_y_percent { get; set; default = 0; }
+        public int monitor_index { get; set; default = -1; }
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -119,6 +122,12 @@ namespace XimperShellTileMenu {
                     floating_width = (int) root.get_int_member ("floating_width");
                 if (root.has_member ("floating_height"))
                     floating_height = (int) root.get_int_member ("floating_height");
+                if (root.has_member ("floating_x_percent"))
+                    floating_x_percent = (int) root.get_int_member ("floating_x_percent");
+                if (root.has_member ("floating_y_percent"))
+                    floating_y_percent = (int) root.get_int_member ("floating_y_percent");
+                if (root.has_member ("monitor_index"))
+                    monitor_index = (int) root.get_int_member ("monitor_index");
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -177,6 +186,12 @@ namespace XimperShellTileMenu {
             builder.add_int_value (floating_width);
             builder.set_member_name ("floating_height");
             builder.add_int_value (floating_height);
+            builder.set_member_name ("floating_x_percent");
+            builder.add_int_value (floating_x_percent);
+            builder.set_member_name ("floating_y_percent");
+            builder.add_int_value (floating_y_percent);
+            builder.set_member_name ("monitor_index");
+            builder.add_int_value (monitor_index);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();

@@ -10,6 +10,7 @@ namespace XimperShellTileMenu {
         private Adw.ToastOverlay toast_overlay;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
+        private Gdk.Monitor? floating_monitor;
 
         private int popover_focus_index = -1;
         private GenericArray<Gtk.Button>? popover_buttons;
@@ -154,6 +155,10 @@ namespace XimperShellTileMenu {
             app.config.notify["window-mode"].connect (() => {
                 apply_window_mode ();
             });
+            app.config.notify["monitor-index"].connect (() => {
+                floating_monitor = null;
+                apply_window_mode ();
+            });
             app.config.notify["floating-x"].connect (() => {
                 apply_window_mode ();
             });
@@ -164,6 +169,12 @@ namespace XimperShellTileMenu {
                 apply_window_mode ();
             });
             app.config.notify["floating-height"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-x-percent"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["floating-y-percent"].connect (() => {
                 apply_window_mode ();
             });
         }
@@ -188,17 +199,30 @@ namespace XimperShellTileMenu {
         }
 
         private void apply_window_mode () {
+            if (app.config.window_mode == WindowMode.FLOATING) {
+                var monitor = get_floating_monitor ();
+                if (monitor != null) {
+                    GtkLayerShell.set_monitor (this, monitor);
+                }
+            }
+
+            int floating_x;
+            int floating_y;
+            int floating_width;
+            int floating_height;
+            get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height);
+
             LayerShellHelper.apply_window_mode (
                 this,
                 app.config.window_mode,
                 LayerShellHelper.parse_layer (app.config.layer),
-                app.config.floating_x,
-                app.config.floating_y
+                floating_x,
+                floating_y
             );
 
             if (app.config.window_mode == WindowMode.FLOATING) {
-                toast_overlay.width_request = app.config.floating_width.clamp (320, 4096);
-                toast_overlay.height_request = app.config.floating_height.clamp (240, 4096);
+                toast_overlay.width_request = floating_width;
+                toast_overlay.height_request = floating_height;
             } else {
                 toast_overlay.width_request = -1;
                 toast_overlay.height_request = -1;
@@ -207,12 +231,123 @@ namespace XimperShellTileMenu {
             queue_resize ();
         }
 
+        private void get_floating_geometry (
+            out int x,
+            out int y,
+            out int width,
+            out int height
+        ) {
+            int screen_width = 1920;
+            int screen_height = 1080;
+
+            var monitor = get_floating_monitor ();
+            if (monitor != null) {
+                var geometry = monitor.geometry;
+                screen_width = geometry.width;
+                screen_height = geometry.height;
+            }
+
+            width = app.config.floating_width.clamp (320, 4096);
+            height = app.config.floating_height.clamp (240, 4096);
+
+            int available_width = screen_width - width;
+            int available_height = screen_height - height;
+            if (available_width < 0) available_width = 0;
+            if (available_height < 0) available_height = 0;
+
+            x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
+            y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
+        }
+
+        private Gdk.Monitor? get_floating_monitor () {
+            if (floating_monitor != null) return floating_monitor;
+
+            if (app.config.monitor_index < 0) {
+                floating_monitor = get_hyprland_active_monitor ();
+                if (floating_monitor != null) return floating_monitor;
+
+                floating_monitor = get_pointer_monitor ();
+                if (floating_monitor != null) return floating_monitor;
+            }
+
+            var display = Gdk.Display.get_default ();
+            if (display == null) return null;
+
+            var monitors = display.get_monitors ();
+            if (monitors.get_n_items () == 0) return null;
+
+            var index = app.config.monitor_index.clamp (0, (int) monitors.get_n_items () - 1);
+            floating_monitor = (Gdk.Monitor) monitors.get_item (index);
+            return floating_monitor;
+        }
+
+        private Gdk.Monitor? get_pointer_monitor () {
+            var display = Gdk.Display.get_default ();
+            if (display == null) return null;
+
+            var seat = display.get_default_seat ();
+            if (seat == null) return null;
+
+            var pointer = seat.get_pointer ();
+            if (pointer == null) return null;
+
+            double x;
+            double y;
+            var surface = pointer.get_surface_at_position (out x, out y);
+            if (surface == null) return null;
+
+            return display.get_monitor_at_surface (surface);
+        }
+
+        private Gdk.Monitor? get_hyprland_active_monitor () {
+            try {
+                string stdout_buf;
+                int exit_status;
+
+                Process.spawn_command_line_sync (
+                    "hyprctl activeworkspace -j",
+                    out stdout_buf,
+                    null,
+                    out exit_status
+                );
+
+                if (exit_status != 0 || stdout_buf == null || stdout_buf.length == 0) {
+                    return null;
+                }
+
+                var parser = new Json.Parser ();
+                parser.load_from_data (stdout_buf);
+                var root = parser.get_root ().get_object ();
+                if (!root.has_member ("monitor")) return null;
+
+                return get_monitor_by_connector (root.get_string_member ("monitor"));
+            } catch (Error e) {
+                return null;
+            }
+        }
+
+        private Gdk.Monitor? get_monitor_by_connector (string connector) {
+            var display = Gdk.Display.get_default ();
+            if (display == null) return null;
+
+            var monitors = display.get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var monitor = (Gdk.Monitor) monitors.get_item (i);
+                var current_connector = monitor.get_connector ();
+                if (current_connector == connector) return monitor;
+            }
+
+            return null;
+        }
+
         public void open_grid () {
             search_bar.reset ();
             tile_grid.build_from_config ();
             content_stack.visible_child_name = "tiles";
             ignore_next_focus_leave = true;
             focus_leave_armed = false;
+            floating_monitor = null;
+            apply_window_mode ();
 
             set_visible (true);
             present ();
