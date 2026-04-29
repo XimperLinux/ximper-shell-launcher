@@ -5,6 +5,7 @@ namespace XimperShellTileMenu {
         public ConfigManager config { get; private set; }
         public AppProvider app_provider { get; private set; }
         public DockClient dock_client { get; private set; }
+        public CompositorHelper compositor_helper { get; private set; }
 
         private GridWindow? grid_window;
         private GridDBusService? dbus_service;
@@ -33,6 +34,12 @@ namespace XimperShellTileMenu {
             app_provider.scan ();
 
             dock_client = new DockClient ();
+            if (NiriHelper.is_available ()) {
+                compositor_helper = new NiriHelper ();
+            } else {
+                compositor_helper = new HyprlandHelper ();
+            }
+            message ("Using %s compositor helper", compositor_helper.name);
 
             load_css ();
         }

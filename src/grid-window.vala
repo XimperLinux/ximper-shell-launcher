@@ -263,7 +263,7 @@ namespace XimperShellTileMenu {
             if (floating_monitor != null) return floating_monitor;
 
             if (app.config.monitor_index < 0) {
-                floating_monitor = get_hyprland_active_monitor ();
+                floating_monitor = get_compositor_active_monitor ();
                 if (floating_monitor != null) return floating_monitor;
 
                 floating_monitor = get_pointer_monitor ();
@@ -299,31 +299,10 @@ namespace XimperShellTileMenu {
             return display.get_monitor_at_surface (surface);
         }
 
-        private Gdk.Monitor? get_hyprland_active_monitor () {
-            try {
-                string stdout_buf;
-                int exit_status;
-
-                Process.spawn_command_line_sync (
-                    "hyprctl activeworkspace -j",
-                    out stdout_buf,
-                    null,
-                    out exit_status
-                );
-
-                if (exit_status != 0 || stdout_buf == null || stdout_buf.length == 0) {
-                    return null;
-                }
-
-                var parser = new Json.Parser ();
-                parser.load_from_data (stdout_buf);
-                var root = parser.get_root ().get_object ();
-                if (!root.has_member ("monitor")) return null;
-
-                return get_monitor_by_connector (root.get_string_member ("monitor"));
-            } catch (Error e) {
-                return null;
-            }
+        private Gdk.Monitor? get_compositor_active_monitor () {
+            var connector = app.compositor_helper.get_active_monitor_connector ();
+            if (connector == null || connector.length == 0) return null;
+            return get_monitor_by_connector (connector);
         }
 
         private Gdk.Monitor? get_monitor_by_connector (string connector) {
