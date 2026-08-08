@@ -223,27 +223,33 @@ namespace XimperShellTileMenu {
                 string key;
                 Variant val;
                 while (meta_iter.next ("{sv}", out key, out val)) {
+                    // Values in a{sv} are variant-wrapped. Unwrap them before
+                    // checking their type so clipboardText is not ignored.
+                    var actual_val = val;
+                    if (actual_val.is_of_type (VariantType.VARIANT))
+                        actual_val = actual_val.get_variant ();
+
                     switch (key) {
                         case "id":
-                            if (val.is_of_type (VariantType.STRING))
-                                result_id = safe_string (val.get_string ());
+                            if (actual_val.is_of_type (VariantType.STRING))
+                                result_id = safe_string (actual_val.get_string ());
                             break;
                         case "name":
-                            if (val.is_of_type (VariantType.STRING))
-                                result_name = safe_string (val.get_string ());
+                            if (actual_val.is_of_type (VariantType.STRING))
+                                result_name = safe_string (actual_val.get_string ());
                             break;
                         case "description":
-                            if (val.is_of_type (VariantType.STRING))
-                                result_desc = safe_string (val.get_string ());
+                            if (actual_val.is_of_type (VariantType.STRING))
+                                result_desc = safe_string (actual_val.get_string ());
                             break;
                         case "clipboardText":
-                            if (val.is_of_type (VariantType.STRING))
-                                result_clipboard = safe_string (val.get_string ());
+                            if (actual_val.is_of_type (VariantType.STRING))
+                                result_clipboard = safe_string (actual_val.get_string ());
                             break;
                         case "gicon":
                         case "icon":
-                            if (val.is_of_type (VariantType.STRING)) {
-                                var icon_str = val.get_string ();
+                            if (actual_val.is_of_type (VariantType.STRING)) {
+                                var icon_str = actual_val.get_string ();
                                 if (icon_str != null && icon_str.validate ()) {
                                     try {
                                         result_icon = Icon.new_for_string (icon_str);
@@ -266,7 +272,11 @@ namespace XimperShellTileMenu {
             return results;
         }
 
-        public async void launch_search (SearchProviderInfo provider, string[] terms) {
+        public async void launch_search (
+            SearchProviderInfo provider,
+            owned string[] terms,
+            uint32 timestamp
+        ) {
             try {
                 var conn = yield Bus.get (BusType.SESSION, null);
 
@@ -277,7 +287,7 @@ namespace XimperShellTileMenu {
 
                 var params = new Variant.tuple ({
                     terms_builder.end (),
-                    new Variant.uint32 ((uint32) Gdk.CURRENT_TIME)
+                    new Variant.uint32 (timestamp)
                 });
 
                 yield conn.call (
@@ -292,14 +302,15 @@ namespace XimperShellTileMenu {
                     null
                 );
             } catch (Error e) {
-                var app_info = new DesktopAppInfo (provider.desktop_id);
-                if (app_info != null) {
-                    try { app_info.launch (null, null); } catch (Error e2) {}
-                }
+                warning ("Failed to launch provider search for %s: %s", provider.bus_name, e.message);
             }
         }
 
-        public async void activate_result (SearchResult result, string[] terms) {
+        public async void activate_result (
+            SearchResult result,
+            owned string[] terms,
+            uint32 timestamp
+        ) {
             try {
                 var conn = yield Bus.get (BusType.SESSION, null);
 
@@ -311,7 +322,7 @@ namespace XimperShellTileMenu {
                 var params = new Variant.tuple ({
                     safe_variant_string (result.id),
                     terms_builder.end (),
-                    new Variant.uint32 ((uint32) Gdk.CURRENT_TIME)
+                    new Variant.uint32 (timestamp)
                 });
 
                 yield conn.call (
@@ -326,7 +337,7 @@ namespace XimperShellTileMenu {
                     null
                 );
             } catch (Error e) {
-                yield launch_search (result.provider, terms);
+                yield launch_search (result.provider, terms, timestamp);
             }
         }
 

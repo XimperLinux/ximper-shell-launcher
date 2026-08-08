@@ -135,10 +135,14 @@ namespace XimperShellTileMenu {
                 var results = provider_groups[i];
                 if (results.length > 0) {
                     var provider_name = results[0].provider.name ?? provider_keys[i];
-                    add_result_section (provider_name, results[0].provider.icon);
+                    add_result_section (
+                        provider_name,
+                        results[0].provider.icon,
+                        results[0].provider
+                    );
 
                     for (uint j = 0; j < results.length; j++) {
-                        add_provider_result (results[j], query);
+                        add_provider_result (results[j]);
                     }
                 }
             }
@@ -153,7 +157,7 @@ namespace XimperShellTileMenu {
             }
         }
 
-        private void add_result_section (string title, Icon? icon) {
+        private void add_result_section (string title, Icon? icon, SearchProviderInfo? provider = null) {
             var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
             header.add_css_class ("search-section-header");
             header.margin_top = 8;
@@ -170,7 +174,25 @@ namespace XimperShellTileMenu {
             label.halign = Gtk.Align.START;
             header.append (label);
 
-            results_box.append (header);
+            if (provider == null) {
+                results_box.append (header);
+                return;
+            }
+
+            var header_button = new Gtk.Button ();
+            header_button.add_css_class ("search-section-header-button");
+            header_button.add_css_class ("flat");
+            header_button.set_child (header);
+            header_button.tooltip_text = "Открыть в приложении";
+
+            header_button.clicked.connect (() => {
+                launch_provider_search.begin (
+                    provider,
+                    current_search_terms (),
+                    fallback_event_time ()
+                );
+            });
+            results_box.append (header_button);
         }
 
         private void add_app_result (AppEntry entry) {
@@ -223,7 +245,7 @@ namespace XimperShellTileMenu {
             results_box.append (row);
         }
 
-        private void add_provider_result (SearchResult result, string query) {
+        private void add_provider_result (SearchResult result) {
             var row = new Gtk.Button ();
             row.add_css_class ("search-result-row");
             row.add_css_class ("flat");
@@ -269,48 +291,53 @@ namespace XimperShellTileMenu {
                     var clipboard = Gdk.Display.get_default ().get_clipboard ();
                     clipboard.set_text (result.clipboard_text);
                     result_activated ();
+                } else if (result.id.has_prefix ("open-in-")) {
+                    // Some providers expose a synthetic “open in application”
+                    // row. It is not a content result, so forward the search
+                    // terms through LaunchSearch instead of ActivateResult.
+                    launch_provider_search.begin (
+                        result.provider,
+                        current_search_terms (),
+                        fallback_event_time ()
+                    );
                 } else {
-                    // Capture query as owned string for the timeout closure
-                    var saved_query = query + "";
-                    var saved_provider = result.provider;
-                    // Launch app first to ensure window is created
-                    var launch_info = new DesktopAppInfo (saved_provider.desktop_id);
-                    if (launch_info != null) {
-                        try {
-                            var ctx = Gdk.Display.get_default ().get_app_launch_context ();
-                            launch_info.launch (null, ctx);
-                        } catch (Error e) {}
-                    }
-                    result_activated ();
-                    // Call LaunchSearch directly via synchronous D-Bus
-                    try {
-                        var conn = Bus.get_sync (BusType.SESSION, null);
-                        var terms_builder = new VariantBuilder (new VariantType ("as"));
-                        foreach (var t in saved_query.split (" ")) {
-                            terms_builder.add ("s", t);
-                        }
-                        var call_params = new Variant.tuple ({
-                            terms_builder.end (),
-                            new Variant.uint32 (0)
-                        });
-                        conn.call_sync (
-                            saved_provider.bus_name,
-                            saved_provider.object_path,
-                            "org.gnome.Shell.SearchProvider2",
-                            "LaunchSearch",
-                            call_params,
-                            null,
-                            DBusCallFlags.NONE,
-                            2000,
-                            null
-                        );
-                    } catch (Error e) {
-                        print ("DEBUG sync LaunchSearch failed: %s\n", e.message);
-                    }
+                    activate_provider_result.begin (
+                        result,
+                        current_search_terms (),
+                        fallback_event_time ()
+                    );
                 }
             });
 
             results_box.append (row);
+        }
+
+        private async void launch_provider_search (
+            SearchProviderInfo provider,
+            owned string[] terms,
+            uint32 timestamp
+        ) {
+            yield provider_manager.launch_search (provider, terms, timestamp);
+            result_activated ();
+        }
+
+        private async void activate_provider_result (
+            SearchResult result,
+            owned string[] terms,
+            uint32 timestamp
+        ) {
+            yield provider_manager.activate_result (result, terms, timestamp);
+            result_activated ();
+        }
+
+        private string[] current_search_terms () {
+            return search_entry.text.strip ().split (" ");
+        }
+
+        private static uint32 fallback_event_time () {
+            // Keyboard activation has no pointer event. GDK event timestamps
+            // are monotonic milliseconds and wrap at uint32, just like this.
+            return (uint32) (get_monotonic_time () / 1000);
         }
 
         public bool is_searching () {
