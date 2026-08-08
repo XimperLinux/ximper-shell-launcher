@@ -5,6 +5,8 @@ namespace XimperShellTileMenu {
 
     public class AppEntry : Object {
 
+        private const string DBUS_APPLICATION_OBJECT_PATH = "/org/freedesktop/Application";
+
         public string desktop_id { get; private set; }
         public string name { get; private set; }
         public string? generic_name { get; private set; }
@@ -27,21 +29,27 @@ namespace XimperShellTileMenu {
         }
 
         public bool launch () {
-            // DBusActivatable — launch via D-Bus, process owned by dbus/systemd
+            // DBusActivatable applications use the standard GApplication object.
+            // Some third-party desktop files declare D-Bus activation without
+            // providing an activatable service, so retain an Exec fallback.
             if (app_info.get_boolean ("DBusActivatable")) {
                 try {
-                    var bus_name = desktop_id.replace (".desktop", "");
-                    var object_path = "/" + bus_name.replace (".", "/");
+                    var bus_name = get_dbus_name ();
                     var conn = Bus.get_sync (BusType.SESSION, null);
+                    if (!has_dbus_owner (conn, bus_name)) {
+                        warning ("No D-Bus owner for %s; launching Exec directly", bus_name);
+                        return launch_exec_fallback ();
+                    }
                     conn.call_sync (
-                        bus_name, object_path,
+                        bus_name, DBUS_APPLICATION_OBJECT_PATH,
                         "org.freedesktop.Application", "Activate",
                         new Variant.tuple ({ new Variant ("a{sv}", null) }),
                         null, DBusCallFlags.NONE, 2000, null
                     );
                     return true;
                 } catch (Error e) {
-                    // D-Bus activation failed, fall through to spawn
+                    warning ("D-Bus activation failed for %s: %s; falling back to Exec", desktop_id, e.message);
+                    return launch_exec_fallback ();
                 }
             }
 
@@ -56,6 +64,49 @@ namespace XimperShellTileMenu {
                 );
             } catch (Error e) {
                 warning ("Failed to launch %s: %s", name, e.message);
+                return false;
+            }
+        }
+
+        private string get_dbus_name () {
+            return desktop_id.has_suffix (".desktop")
+                ? desktop_id.substring (0, desktop_id.length - ".desktop".length)
+                : desktop_id;
+        }
+
+        private bool has_dbus_owner (DBusConnection conn, string bus_name) throws Error {
+            var result = conn.call_sync (
+                "org.freedesktop.DBus",
+                "/org/freedesktop/DBus",
+                "org.freedesktop.DBus",
+                "NameHasOwner",
+                new Variant.tuple ({ new Variant.string (bus_name) }),
+                new VariantType ("(b)"),
+                DBusCallFlags.NONE, 500, null
+            );
+            bool owned;
+            result.get ("(b)", out owned);
+            return owned;
+        }
+
+        private bool launch_exec_fallback () {
+            try {
+                var exec_line = app_info.get_commandline ();
+                if (exec_line == null || exec_line.strip ().length == 0) {
+                    warning ("Cannot fall back to Exec for %s: Exec is empty", desktop_id);
+                    return false;
+                }
+
+                string[] argv;
+                Shell.parse_argv (strip_field_codes (exec_line), out argv);
+                Process.spawn_async (
+                    app_info.get_string ("Path"), argv, null,
+                    SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+                    () => { c_setsid (); }, null
+                );
+                return true;
+            } catch (Error e) {
+                warning ("Failed to launch %s via Exec fallback: %s", name, e.message);
                 return false;
             }
         }
