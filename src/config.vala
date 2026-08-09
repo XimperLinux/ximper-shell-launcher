@@ -248,37 +248,37 @@ namespace XimperShellTileMenu {
             groups = new GenericArray<GroupConfig> ();
 
             var category_map = new HashTable<string, string> (str_hash, str_equal);
-            category_map.insert ("Game", "Games");
-            category_map.insert ("Network", "Internet");
-            category_map.insert ("WebBrowser", "Internet");
-            category_map.insert ("Email", "Internet");
-            category_map.insert ("Chat", "Internet");
-            category_map.insert ("InstantMessaging", "Internet");
-            category_map.insert ("Graphics", "Graphics");
-            category_map.insert ("Photography", "Graphics");
-            category_map.insert ("Audio", "Multimedia");
-            category_map.insert ("Video", "Multimedia");
-            category_map.insert ("AudioVideo", "Multimedia");
-            category_map.insert ("Music", "Multimedia");
-            category_map.insert ("Player", "Multimedia");
-            category_map.insert ("Development", "Development");
-            category_map.insert ("IDE", "Development");
-            category_map.insert ("TextEditor", "Development");
-            category_map.insert ("Office", "Office");
-            category_map.insert ("WordProcessor", "Office");
-            category_map.insert ("Spreadsheet", "Office");
-            category_map.insert ("Presentation", "Office");
-            category_map.insert ("System", "System");
-            category_map.insert ("Settings", "System");
-            category_map.insert ("Monitor", "System");
-            category_map.insert ("TerminalEmulator", "System");
-            category_map.insert ("FileManager", "System");
-            category_map.insert ("Utility", "Utilities");
-            category_map.insert ("Accessibility", "Utilities");
-            category_map.insert ("Calculator", "Utilities");
-            category_map.insert ("Archiving", "Utilities");
-            category_map.insert ("Education", "Education");
-            category_map.insert ("Science", "Education");
+            category_map.insert ("Game", _("Games"));
+            category_map.insert ("Network", _("Internet"));
+            category_map.insert ("WebBrowser", _("Internet"));
+            category_map.insert ("Email", _("Internet"));
+            category_map.insert ("Chat", _("Internet"));
+            category_map.insert ("InstantMessaging", _("Internet"));
+            category_map.insert ("Graphics", _("Graphics"));
+            category_map.insert ("Photography", _("Graphics"));
+            category_map.insert ("Audio", _("Multimedia"));
+            category_map.insert ("Video", _("Multimedia"));
+            category_map.insert ("AudioVideo", _("Multimedia"));
+            category_map.insert ("Music", _("Multimedia"));
+            category_map.insert ("Player", _("Multimedia"));
+            category_map.insert ("Development", _("Development"));
+            category_map.insert ("IDE", _("Development"));
+            category_map.insert ("TextEditor", _("Development"));
+            category_map.insert ("Office", _("Office"));
+            category_map.insert ("WordProcessor", _("Office"));
+            category_map.insert ("Spreadsheet", _("Office"));
+            category_map.insert ("Presentation", _("Office"));
+            category_map.insert ("System", _("System"));
+            category_map.insert ("Settings", _("System"));
+            category_map.insert ("Monitor", _("System"));
+            category_map.insert ("TerminalEmulator", _("System"));
+            category_map.insert ("FileManager", _("System"));
+            category_map.insert ("Utility", _("Utilities"));
+            category_map.insert ("Accessibility", _("Utilities"));
+            category_map.insert ("Calculator", _("Utilities"));
+            category_map.insert ("Archiving", _("Utilities"));
+            category_map.insert ("Education", _("Education"));
+            category_map.insert ("Science", _("Education"));
 
             var folders = new HashTable<string, GenericArray<string>> (str_hash, str_equal);
             var assigned = new HashTable<string, bool> (str_hash, str_equal);
@@ -313,7 +313,7 @@ namespace XimperShellTileMenu {
                 }
             }
 
-            var main_group = new GroupConfig ("Apps");
+            var main_group = new GroupConfig (_("Apps"));
 
             var folder_names = new GenericArray<string> ();
             folders.foreach ((name, items) => {

@@ -1,0 +1,246 @@
+# Russian translations for PACKAGE package.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ximper-shell-tile-menu\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-09 20:01+0300\n"
+"PO-Revision-Date: 2026-08-09 19:59+0300\n"
+"Last-Translator: Ximper Shell contributors\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: src/application.vala:15
+msgid "Toggle the grid overlay"
+msgstr "Переключить оверлей сетки"
+
+#: src/application.vala:84
+msgid "Gamepad connected: "
+msgstr "Подключён геймпад: "
+
+#: src/config.vala:251
+msgid "Games"
+msgstr "Игры"
+
+#: src/config.vala:252 src/config.vala:253 src/config.vala:254
+#: src/config.vala:255 src/config.vala:256
+msgid "Internet"
+msgstr "Интернет"
+
+#: src/config.vala:257 src/config.vala:258
+msgid "Graphics"
+msgstr "Графика"
+
+#: src/config.vala:259 src/config.vala:260 src/config.vala:261
+#: src/config.vala:262 src/config.vala:263
+msgid "Multimedia"
+msgstr "Мультимедиа"
+
+#: src/config.vala:264 src/config.vala:265 src/config.vala:266
+msgid "Development"
+msgstr "Разработка"
+
+#: src/config.vala:267 src/config.vala:268 src/config.vala:269
+#: src/config.vala:270
+msgid "Office"
+msgstr "Офис"
+
+#: src/config.vala:271 src/config.vala:272 src/config.vala:273
+#: src/config.vala:274 src/config.vala:275
+msgid "System"
+msgstr "Система"
+
+#: src/config.vala:276 src/config.vala:277 src/config.vala:278
+#: src/config.vala:279
+msgid "Utilities"
+msgstr "Утилиты"
+
+#: src/config.vala:280 src/config.vala:281
+msgid "Education"
+msgstr "Образование"
+
+#: src/config.vala:316
+msgid "Apps"
+msgstr "Приложения"
+
+#: src/folder-tile.vala:134
+msgid "Rename"
+msgstr "Переименовать"
+
+#: src/folder-tile.vala:143
+msgid "Ungroup"
+msgstr "Разгруппировать"
+
+#: src/folder-tile.vala:178
+msgid "OK"
+msgstr "ОК"
+
+#: src/grid-window.vala:53
+msgid "Settings"
+msgstr "Настройки"
+
+#: src/search-bar.vala:39
+msgid "Search applications…"
+msgstr "Поиск приложений…"
+
+#: src/search-bar.vala:99
+msgid "Applications"
+msgstr "Приложения"
+
+#: src/settings-window.vala:9
+msgid "Tile Menu Settings"
+msgstr "Настройки меню плиток"
+
+#: src/settings-window.vala:19
+msgid "Grid"
+msgstr "Сетка"
+
+#: src/settings-window.vala:23
+msgid "Layout"
+msgstr "Расположение"
+
+#: src/settings-window.vala:26
+msgid "Window Mode"
+msgstr "Режим окна"
+
+#: src/settings-window.vala:27
+msgid "Fullscreen overlay or floating panel"
+msgstr "Полноэкранный оверлей или плавающая панель"
+
+#: src/settings-window.vala:28
+msgid "Fullscreen"
+msgstr "Во весь экран"
+
+#: src/settings-window.vala:28
+msgid "Floating"
+msgstr "Плавающий"
+
+#: src/settings-window.vala:38
+msgid "Monitor"
+msgstr "Монитор"
+
+#: src/settings-window.vala:39
+msgid "Active Monitor uses the monitor under the pointer"
+msgstr "Активный монитор — монитор под указателем"
+
+#: src/settings-window.vala:53
+msgid "Floating X (%)"
+msgstr "X плавающего окна (%)"
+
+#: src/settings-window.vala:54
+msgid "Horizontal position as percent of screen width"
+msgstr "Горизонтальное положение в процентах от ширины экрана"
+
+#: src/settings-window.vala:63
+msgid "Floating Y (%)"
+msgstr "Y плавающего окна (%)"
+
+#: src/settings-window.vala:64
+msgid "Vertical position as percent of screen height"
+msgstr "Вертикальное положение в процентах от высоты экрана"
+
+#: src/settings-window.vala:73
+msgid "Floating Width"
+msgstr "Ширина плавающего окна"
+
+#: src/settings-window.vala:74
+msgid "Window width in pixels"
+msgstr "Ширина окна в пикселях"
+
+#: src/settings-window.vala:83
+msgid "Floating Height"
+msgstr "Высота плавающего окна"
+
+#: src/settings-window.vala:84
+msgid "Window height in pixels"
+msgstr "Высота окна в пикселях"
+
+#: src/settings-window.vala:94
+msgid "Max Columns"
+msgstr "Максимум столбцов"
+
+#: src/settings-window.vala:95
+msgid "0 = automatic"
+msgstr "0 = автоматически"
+
+#: src/settings-window.vala:105
+msgid "Cell Size"
+msgstr "Размер ячейки"
+
+#: src/settings-window.vala:106
+msgid "0 = automatic (derived from Max Rows or screen)"
+msgstr "0 = автоматически (по максимальному числу строк или размеру экрана)"
+
+#: src/settings-window.vala:116
+msgid "Layer"
+msgstr "Слой"
+
+#: src/settings-window.vala:117
+msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
+msgstr "0 = фон, 1 = нижний, 2 = верхний, 3 = наложение"
+
+#: src/settings-window.vala:129
+msgid "Data"
+msgstr "Данные"
+
+#: src/settings-window.vala:133
+msgid "Reset Layout"
+msgstr "Сбросить расположение"
+
+#: src/settings-window.vala:134
+msgid "Regenerate folders from app categories"
+msgstr "Повторно создать папки по категориям приложений"
+
+#: src/settings-window.vala:135
+msgid "Reset"
+msgstr "Сбросить"
+
+#: src/settings-window.vala:155
+msgid "Active Monitor"
+msgstr "Активный монитор"
+
+#: src/settings-window.vala:167
+#, c-format
+msgid "Monitor %u: %s (%dx%d)"
+msgstr "Монитор %u: %s (%dx%d)"
+
+#: src/settings-window.vala:175
+#, c-format
+msgid "Monitor %u (%dx%d)"
+msgstr "Монитор %u (%dx%d)"
+
+#: src/tile.vala:137
+msgid "Small"
+msgstr "Маленькая"
+
+#: src/tile.vala:144
+msgid "Medium"
+msgstr "Средняя"
+
+#: src/tile.vala:151
+msgid "Large"
+msgstr "Большая"
+
+#: src/tile.vala:165
+msgid "Unpin from Dock"
+msgstr "Открепить от дока"
+
+#: src/tile.vala:172
+msgid "Pin to Dock"
+msgstr "Закрепить в доке"
+
+#: src/tile.vala:181
+msgid "Create Folder"
+msgstr "Создать папку"
+
+#: src/tile.vala:190
+msgid "Remove"
+msgstr "Удалить"

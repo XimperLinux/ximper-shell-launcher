@@ -131,7 +131,7 @@ namespace XimperShellTileMenu {
 
             var rename_btn = new Gtk.Button ();
             rename_btn.add_css_class ("flat");
-            rename_btn.label = "Rename";
+            rename_btn.label = _("Rename");
             rename_btn.clicked.connect (() => {
                 popover.popdown ();
                 show_rename_dialog ();
@@ -140,7 +140,7 @@ namespace XimperShellTileMenu {
 
             var ungroup_btn = new Gtk.Button ();
             ungroup_btn.add_css_class ("flat");
-            ungroup_btn.label = "Ungroup";
+            ungroup_btn.label = _("Ungroup");
             ungroup_btn.clicked.connect (() => {
                 popover.popdown ();
                 ungroup_requested (this);
@@ -175,7 +175,7 @@ namespace XimperShellTileMenu {
             entry.activates_default = true;
             box.append (entry);
 
-            var ok_btn = new Gtk.Button.with_label ("OK");
+            var ok_btn = new Gtk.Button.with_label (_("OK"));
             ok_btn.add_css_class ("suggested-action");
             box.append (ok_btn);
 

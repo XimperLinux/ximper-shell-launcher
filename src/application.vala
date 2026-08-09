@@ -11,17 +11,18 @@ namespace XimperShellTileMenu {
         private GridDBusService? dbus_service;
         private GamepadController? gamepad;
 
-        private const OptionEntry[] OPTIONS = {
-            { "toggle", 't', 0, OptionArg.NONE, null, "Toggle the grid overlay", null },
-            { null }
-        };
+        private OptionEntry[] options;
 
         public Application () {
             Object (
                 application_id: "ru.ximperlinux.shell.TileMenu",
                 flags: ApplicationFlags.HANDLES_COMMAND_LINE
             );
-            add_main_option_entries (OPTIONS);
+            options = {
+                { "toggle", 't', 0, OptionArg.NONE, null, _("Toggle the grid overlay"), null },
+                { null }
+            };
+            add_main_option_entries (options);
         }
 
         protected override void startup () {
@@ -81,7 +82,7 @@ namespace XimperShellTileMenu {
 
             gamepad = new GamepadController (grid_window);
             gamepad.device_connected_notify.connect ((name) => {
-                grid_window.show_toast ("Gamepad connected: " + name);
+                grid_window.show_toast (_("Gamepad connected: ") + name);
             });
         }
 

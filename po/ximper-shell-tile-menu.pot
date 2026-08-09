@@ -1,0 +1,245 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-09 20:01+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/application.vala:15
+msgid "Toggle the grid overlay"
+msgstr ""
+
+#: src/application.vala:84
+msgid "Gamepad connected: "
+msgstr ""
+
+#: src/config.vala:251
+msgid "Games"
+msgstr ""
+
+#: src/config.vala:252 src/config.vala:253 src/config.vala:254
+#: src/config.vala:255 src/config.vala:256
+msgid "Internet"
+msgstr ""
+
+#: src/config.vala:257 src/config.vala:258
+msgid "Graphics"
+msgstr ""
+
+#: src/config.vala:259 src/config.vala:260 src/config.vala:261
+#: src/config.vala:262 src/config.vala:263
+msgid "Multimedia"
+msgstr ""
+
+#: src/config.vala:264 src/config.vala:265 src/config.vala:266
+msgid "Development"
+msgstr ""
+
+#: src/config.vala:267 src/config.vala:268 src/config.vala:269
+#: src/config.vala:270
+msgid "Office"
+msgstr ""
+
+#: src/config.vala:271 src/config.vala:272 src/config.vala:273
+#: src/config.vala:274 src/config.vala:275
+msgid "System"
+msgstr ""
+
+#: src/config.vala:276 src/config.vala:277 src/config.vala:278
+#: src/config.vala:279
+msgid "Utilities"
+msgstr ""
+
+#: src/config.vala:280 src/config.vala:281
+msgid "Education"
+msgstr ""
+
+#: src/config.vala:316
+msgid "Apps"
+msgstr ""
+
+#: src/folder-tile.vala:134
+msgid "Rename"
+msgstr ""
+
+#: src/folder-tile.vala:143
+msgid "Ungroup"
+msgstr ""
+
+#: src/folder-tile.vala:178
+msgid "OK"
+msgstr ""
+
+#: src/grid-window.vala:53
+msgid "Settings"
+msgstr ""
+
+#: src/search-bar.vala:39
+msgid "Search applications…"
+msgstr ""
+
+#: src/search-bar.vala:99
+msgid "Applications"
+msgstr ""
+
+#: src/settings-window.vala:9
+msgid "Tile Menu Settings"
+msgstr ""
+
+#: src/settings-window.vala:19
+msgid "Grid"
+msgstr ""
+
+#: src/settings-window.vala:23
+msgid "Layout"
+msgstr ""
+
+#: src/settings-window.vala:26
+msgid "Window Mode"
+msgstr ""
+
+#: src/settings-window.vala:27
+msgid "Fullscreen overlay or floating panel"
+msgstr ""
+
+#: src/settings-window.vala:28
+msgid "Fullscreen"
+msgstr ""
+
+#: src/settings-window.vala:28
+msgid "Floating"
+msgstr ""
+
+#: src/settings-window.vala:38
+msgid "Monitor"
+msgstr ""
+
+#: src/settings-window.vala:39
+msgid "Active Monitor uses the monitor under the pointer"
+msgstr ""
+
+#: src/settings-window.vala:53
+msgid "Floating X (%)"
+msgstr ""
+
+#: src/settings-window.vala:54
+msgid "Horizontal position as percent of screen width"
+msgstr ""
+
+#: src/settings-window.vala:63
+msgid "Floating Y (%)"
+msgstr ""
+
+#: src/settings-window.vala:64
+msgid "Vertical position as percent of screen height"
+msgstr ""
+
+#: src/settings-window.vala:73
+msgid "Floating Width"
+msgstr ""
+
+#: src/settings-window.vala:74
+msgid "Window width in pixels"
+msgstr ""
+
+#: src/settings-window.vala:83
+msgid "Floating Height"
+msgstr ""
+
+#: src/settings-window.vala:84
+msgid "Window height in pixels"
+msgstr ""
+
+#: src/settings-window.vala:94
+msgid "Max Columns"
+msgstr ""
+
+#: src/settings-window.vala:95
+msgid "0 = automatic"
+msgstr ""
+
+#: src/settings-window.vala:105
+msgid "Cell Size"
+msgstr ""
+
+#: src/settings-window.vala:106
+msgid "0 = automatic (derived from Max Rows or screen)"
+msgstr ""
+
+#: src/settings-window.vala:116
+msgid "Layer"
+msgstr ""
+
+#: src/settings-window.vala:117
+msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
+msgstr ""
+
+#: src/settings-window.vala:129
+msgid "Data"
+msgstr ""
+
+#: src/settings-window.vala:133
+msgid "Reset Layout"
+msgstr ""
+
+#: src/settings-window.vala:134
+msgid "Regenerate folders from app categories"
+msgstr ""
+
+#: src/settings-window.vala:135
+msgid "Reset"
+msgstr ""
+
+#: src/settings-window.vala:155
+msgid "Active Monitor"
+msgstr ""
+
+#: src/settings-window.vala:167
+#, c-format
+msgid "Monitor %u: %s (%dx%d)"
+msgstr ""
+
+#: src/settings-window.vala:175
+#, c-format
+msgid "Monitor %u (%dx%d)"
+msgstr ""
+
+#: src/tile.vala:137
+msgid "Small"
+msgstr ""
+
+#: src/tile.vala:144
+msgid "Medium"
+msgstr ""
+
+#: src/tile.vala:151
+msgid "Large"
+msgstr ""
+
+#: src/tile.vala:165
+msgid "Unpin from Dock"
+msgstr ""
+
+#: src/tile.vala:172
+msgid "Pin to Dock"
+msgstr ""
+
+#: src/tile.vala:181
+msgid "Create Folder"
+msgstr ""
+
+#: src/tile.vala:190
+msgid "Remove"
+msgstr ""

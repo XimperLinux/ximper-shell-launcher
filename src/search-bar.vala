@@ -36,7 +36,7 @@ namespace XimperShellTileMenu {
             clamp.margin_end = 24;
 
             search_entry = new Gtk.SearchEntry ();
-            search_entry.placeholder_text = "Search applications…";
+            search_entry.placeholder_text = _("Search applications…");
             search_entry.add_css_class ("search-entry");
             search_entry.hexpand = true;
 
@@ -96,7 +96,7 @@ namespace XimperShellTileMenu {
             // Local app search
             var local_results = app.app_provider.search (query);
             if (local_results.length > 0) {
-                add_result_section ("Applications", null);
+                add_result_section (_("Applications"), null);
                 for (uint i = 0; i < local_results.length && i < 8; i++) {
                     add_app_result (local_results[i]);
                 }

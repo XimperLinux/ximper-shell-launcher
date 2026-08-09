@@ -50,7 +50,7 @@ namespace XimperShellTileMenu {
             var settings_btn = new Gtk.Button.from_icon_name ("emblem-system-symbolic");
             settings_btn.add_css_class ("flat");
             settings_btn.add_css_class ("circular");
-            settings_btn.tooltip_text = "Settings";
+            settings_btn.tooltip_text = _("Settings");
             settings_btn.halign = Gtk.Align.END;
             settings_btn.valign = Gtk.Align.START;
             settings_btn.margin_top = 24;

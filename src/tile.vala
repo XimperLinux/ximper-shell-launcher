@@ -134,21 +134,21 @@ namespace XimperShellTileMenu {
             }
 
             // Size options
-            var small_btn = make_menu_item ("Small");
+            var small_btn = make_menu_item (_("Small"));
             small_btn.clicked.connect (() => {
                 popover.popdown ();
                 size_change_requested (this, TileSize.SMALL);
             });
             menu_box.append (small_btn);
 
-            var medium_btn = make_menu_item ("Medium");
+            var medium_btn = make_menu_item (_("Medium"));
             medium_btn.clicked.connect (() => {
                 popover.popdown ();
                 size_change_requested (this, TileSize.MEDIUM);
             });
             menu_box.append (medium_btn);
 
-            var large_btn = make_menu_item ("Large");
+            var large_btn = make_menu_item (_("Large"));
             large_btn.clicked.connect (() => {
                 popover.popdown ();
                 size_change_requested (this, TileSize.LARGE);
@@ -162,14 +162,14 @@ namespace XimperShellTileMenu {
             if (grid_app.is_dock_running ()) {
                 bool pinned = grid_app.is_pinned_in_dock (app_entry.desktop_id);
                 if (pinned) {
-                    var unpin_btn = make_menu_item ("Unpin from Dock");
+                    var unpin_btn = make_menu_item (_("Unpin from Dock"));
                     unpin_btn.clicked.connect (() => {
                         popover.popdown ();
                         unpin_from_dock_requested (this);
                     });
                     menu_box.append (unpin_btn);
                 } else {
-                    var pin_btn = make_menu_item ("Pin to Dock");
+                    var pin_btn = make_menu_item (_("Pin to Dock"));
                     pin_btn.clicked.connect (() => {
                         popover.popdown ();
                         pin_to_dock_requested (this);
@@ -178,7 +178,7 @@ namespace XimperShellTileMenu {
                 }
             }
 
-            var folder_btn = make_menu_item ("Create Folder");
+            var folder_btn = make_menu_item (_("Create Folder"));
             folder_btn.clicked.connect (() => {
                 popover.popdown ();
                 create_folder_requested (this);
@@ -187,7 +187,7 @@ namespace XimperShellTileMenu {
 
             menu_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
 
-            var remove_btn = make_menu_item ("Remove");
+            var remove_btn = make_menu_item (_("Remove"));
             remove_btn.clicked.connect (() => {
                 popover.popdown ();
                 remove_requested (this);

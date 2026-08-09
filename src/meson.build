@@ -8,6 +8,7 @@ grid_deps = [
 ]
 
 grid_sources = files(
+  'config.vapi',
   'main.vala',
   'application.vala',
   'config.vala',
@@ -35,6 +36,7 @@ grid_sources = files(
 
 executable('ximper-shell-tile-menu', grid_sources,
   dependencies: grid_deps,
-  c_args: ['-w'],
+  include_directories: include_directories('..'),
+  c_args: ['-DGETTEXT_PACKAGE="ximper-shell-tile-menu"', '-w'],
   install: true,
 )
