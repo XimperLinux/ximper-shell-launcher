@@ -2,8 +2,34 @@ namespace XimperShellTileMenu {
 
     public class LayerShellHelper {
 
-        public static GtkLayerShell.Layer parse_layer (int val) {
-            return (GtkLayerShell.Layer) val.clamp (0, 3);
+        public static string normalize_layer_name (string value) {
+            switch (value) {
+                case "background":
+                case "bottom":
+                case "top":
+                case "overlay":
+                    return value;
+                default:
+                    return "overlay";
+            }
+        }
+
+        public static string layer_name_from_legacy (int value) {
+            switch (value.clamp (0, 3)) {
+                case 0: return "background";
+                case 1: return "bottom";
+                case 2: return "top";
+                default: return "overlay";
+            }
+        }
+
+        public static GtkLayerShell.Layer parse_layer (string value) {
+            switch (normalize_layer_name (value)) {
+                case "background": return GtkLayerShell.Layer.BACKGROUND;
+                case "bottom": return GtkLayerShell.Layer.BOTTOM;
+                case "top": return GtkLayerShell.Layer.TOP;
+                default: return GtkLayerShell.Layer.OVERLAY;
+            }
         }
 
         public static void setup_overlay (Gtk.Window window, GtkLayerShell.Layer layer) {

@@ -73,7 +73,7 @@ namespace XimperShellTileMenu {
 
         public int max_columns { get; set; default = 0; }
         public int cell_size { get; set; default = 0; }
-        public int layer { get; set; default = 3; }
+        public string layer { get; set; default = "overlay"; }
         public WindowMode window_mode { get; set; default = WindowMode.FULLSCREEN; }
         public int floating_x { get; set; default = 0; }
         public int floating_y { get; set; default = 24; }
@@ -110,13 +110,21 @@ namespace XimperShellTileMenu {
                 parser.load_from_file (config_path);
 
                 var root = parser.get_root ().get_object ();
+                bool config_migrated = false;
 
                 if (root.has_member ("max_columns"))
                     max_columns = (int) root.get_int_member ("max_columns");
                 if (root.has_member ("cell_size"))
                     cell_size = (int) root.get_int_member ("cell_size");
-                if (root.has_member ("layer"))
-                    layer = (int) root.get_int_member ("layer");
+                if (root.has_member ("layer")) {
+                    var layer_node = root.get_member ("layer");
+                    if (layer_node.get_value_type () == typeof (string))
+                        layer = LayerShellHelper.normalize_layer_name (layer_node.get_string ());
+                    else {
+                        layer = LayerShellHelper.layer_name_from_legacy ((int) layer_node.get_int ());
+                        config_migrated = true;
+                    }
+                }
                 if (root.has_member ("window_mode"))
                     window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
                 if (root.has_member ("floating_x"))
@@ -174,6 +182,7 @@ namespace XimperShellTileMenu {
                         groups.add (group);
                     });
                 }
+                if (config_migrated) save ();
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
                 create_default ();
@@ -190,7 +199,7 @@ namespace XimperShellTileMenu {
             builder.set_member_name ("cell_size");
             builder.add_int_value (cell_size);
             builder.set_member_name ("layer");
-            builder.add_int_value (layer);
+            builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("window_mode");
             builder.add_string_value (window_mode.to_string ());
             builder.set_member_name ("floating_x");

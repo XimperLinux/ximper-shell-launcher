@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-tile-menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 21:25+0300\n"
+"POT-Creation-Date: 2026-08-11 21:42+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,48 +25,48 @@ msgstr ""
 msgid "Gamepad connected: "
 msgstr ""
 
-#: src/config.vala:276
+#: src/config.vala:285
 msgid "Games"
 msgstr ""
 
-#: src/config.vala:277 src/config.vala:278 src/config.vala:279
-#: src/config.vala:280 src/config.vala:281
+#: src/config.vala:286 src/config.vala:287 src/config.vala:288
+#: src/config.vala:289 src/config.vala:290
 msgid "Internet"
 msgstr ""
 
-#: src/config.vala:282 src/config.vala:283
+#: src/config.vala:291 src/config.vala:292
 msgid "Graphics"
 msgstr ""
 
-#: src/config.vala:284 src/config.vala:285 src/config.vala:286
-#: src/config.vala:287 src/config.vala:288
+#: src/config.vala:293 src/config.vala:294 src/config.vala:295
+#: src/config.vala:296 src/config.vala:297
 msgid "Multimedia"
 msgstr ""
 
-#: src/config.vala:289 src/config.vala:290 src/config.vala:291
+#: src/config.vala:298 src/config.vala:299 src/config.vala:300
 msgid "Development"
-msgstr ""
-
-#: src/config.vala:292 src/config.vala:293 src/config.vala:294
-#: src/config.vala:295
-msgid "Office"
-msgstr ""
-
-#: src/config.vala:296 src/config.vala:297 src/config.vala:298
-#: src/config.vala:299 src/config.vala:300
-msgid "System"
 msgstr ""
 
 #: src/config.vala:301 src/config.vala:302 src/config.vala:303
 #: src/config.vala:304
+msgid "Office"
+msgstr ""
+
+#: src/config.vala:305 src/config.vala:306 src/config.vala:307
+#: src/config.vala:308 src/config.vala:309
+msgid "System"
+msgstr ""
+
+#: src/config.vala:310 src/config.vala:311 src/config.vala:312
+#: src/config.vala:313
 msgid "Utilities"
 msgstr ""
 
-#: src/config.vala:305 src/config.vala:306
+#: src/config.vala:314 src/config.vala:315
 msgid "Education"
 msgstr ""
 
-#: src/config.vala:341
+#: src/config.vala:350
 msgid "Apps"
 msgstr ""
 
@@ -186,93 +186,109 @@ msgid "Layer"
 msgstr ""
 
 #: src/settings-window.vala:117
-msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
+msgid "Choose the layer where the tile menu is displayed"
 msgstr ""
 
-#: src/settings-window.vala:128
-msgid "Appearance"
+#: src/settings-window.vala:119
+msgid "Background"
+msgstr ""
+
+#: src/settings-window.vala:119
+msgid "Bottom"
+msgstr ""
+
+#: src/settings-window.vala:119
+msgid "Top"
+msgstr ""
+
+#: src/settings-window.vala:119
+msgid "Overlay"
 msgstr ""
 
 #: src/settings-window.vala:131
+msgid "Appearance"
+msgstr ""
+
+#: src/settings-window.vala:134
 msgid "Background Opacity (%)"
 msgstr ""
 
-#: src/settings-window.vala:140
+#: src/settings-window.vala:143
 msgid "Wallpaper"
 msgstr ""
 
-#: src/settings-window.vala:142
+#: src/settings-window.vala:145
 msgid "Choose…"
 msgstr ""
 
-#: src/settings-window.vala:149 src/settings-window.vala:196
+#: src/settings-window.vala:152 src/settings-window.vala:199
 msgid "Reset"
 msgstr ""
 
-#: src/settings-window.vala:160
+#: src/settings-window.vala:163
 msgid "Wallpaper Scale"
 msgstr ""
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:164
 msgid "Fill"
 msgstr ""
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:164
 msgid "Contain"
 msgstr ""
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:164
 msgid "Cover"
 msgstr ""
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:164
 msgid "Scale Down"
 msgstr ""
 
-#: src/settings-window.vala:170
+#: src/settings-window.vala:173
 msgid "Wallpaper Opacity (%)"
 msgstr ""
 
-#: src/settings-window.vala:179
+#: src/settings-window.vala:182
 msgid "Wallpaper Dim (%)"
 msgstr ""
 
 #. Data group
-#: src/settings-window.vala:190
+#: src/settings-window.vala:193
 msgid "Data"
 msgstr ""
 
 #. Reset layout
-#: src/settings-window.vala:194
+#: src/settings-window.vala:197
 msgid "Reset Layout"
 msgstr ""
 
-#: src/settings-window.vala:195
+#: src/settings-window.vala:198
 msgid "Regenerate folders from app categories"
 msgstr ""
 
-#: src/settings-window.vala:217
+#: src/settings-window.vala:220
 msgid "No wallpaper selected"
 msgstr ""
 
-#: src/settings-window.vala:222
+#: src/settings-window.vala:225
 msgid "Choose Wallpaper"
 msgstr ""
 
-#: src/settings-window.vala:225
+#: src/settings-window.vala:228
 msgid "Images"
 msgstr ""
 
-#: src/settings-window.vala:257
+#: src/settings-window.vala:260
 msgid "Active Monitor"
 msgstr ""
 
-#: src/settings-window.vala:269
+#: src/settings-window.vala:272
 #, c-format
 msgid "Monitor %u: %s (%dx%d)"
 msgstr ""
 
-#: src/settings-window.vala:277
+#: src/settings-window.vala:280
 #, c-format
 msgid "Monitor %u (%dx%d)"
 msgstr ""
