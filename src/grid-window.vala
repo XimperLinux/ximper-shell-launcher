@@ -1,5 +1,31 @@
 namespace XimperShellTileMenu {
 
+    private class NonMeasuringBackground : Gtk.Widget {
+        private Gtk.Picture picture;
+
+        public NonMeasuringBackground (Gtk.Picture picture) {
+            this.picture = picture;
+            picture.set_parent (this);
+        }
+
+        public override void measure (Gtk.Orientation orientation, int for_size,
+                                     out int minimum, out int natural,
+                                     out int minimum_baseline, out int natural_baseline) {
+            minimum = 0;
+            natural = 0;
+            minimum_baseline = -1;
+            natural_baseline = -1;
+        }
+
+        public override void size_allocate (int width, int height, int baseline) {
+            picture.allocate (width, height, baseline, null);
+        }
+
+        public override void snapshot (Gtk.Snapshot snapshot) {
+            snapshot_child (picture, snapshot);
+        }
+    }
+
     public class GridWindow : Gtk.Window {
 
         private weak Application app;
@@ -8,6 +34,8 @@ namespace XimperShellTileMenu {
         private Gtk.ScrolledWindow scrolled;
         private Gtk.Stack content_stack;
         private Adw.ToastOverlay toast_overlay;
+        private Gtk.Picture wallpaper;
+        private Gtk.Box wallpaper_dimmer;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
         private Gdk.Monitor? floating_monitor;
@@ -107,7 +135,62 @@ namespace XimperShellTileMenu {
 
             toast_overlay = new Adw.ToastOverlay ();
             toast_overlay.set_child (main_box);
-            set_child (toast_overlay);
+            toast_overlay.hexpand = true;
+            toast_overlay.vexpand = true;
+
+            wallpaper = new Gtk.Picture ();
+            wallpaper.content_fit = Gtk.ContentFit.COVER;
+            wallpaper.hexpand = true;
+            wallpaper.vexpand = true;
+            wallpaper.can_target = false;
+            wallpaper.add_css_class ("wallpaper");
+
+            var wallpaper_layer = new NonMeasuringBackground (wallpaper);
+
+            wallpaper_dimmer = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            wallpaper_dimmer.hexpand = true;
+            wallpaper_dimmer.vexpand = true;
+            wallpaper_dimmer.can_target = false;
+            wallpaper_dimmer.add_css_class ("wallpaper-dimmer");
+            update_wallpaper ();
+
+            var root_overlay = new Gtk.Overlay ();
+            root_overlay.set_child (wallpaper_layer);
+            root_overlay.add_overlay (wallpaper_dimmer);
+            root_overlay.add_overlay (toast_overlay);
+            root_overlay.set_measure_overlay (toast_overlay, true);
+            set_child (root_overlay);
+        }
+
+        private void update_wallpaper () {
+            var path = app.config.wallpaper_path;
+            if (path.length == 0) {
+                wallpaper.file = null;
+                wallpaper_dimmer.opacity = 0;
+                remove_css_class ("has-wallpaper");
+                return;
+            }
+
+            if (!Path.is_absolute (path) || !FileUtils.test (path, FileTest.IS_REGULAR)) {
+                warning ("Wallpaper path must be an absolute regular local file: %s", path);
+                wallpaper.file = null;
+                wallpaper_dimmer.opacity = 0;
+                remove_css_class ("has-wallpaper");
+                return;
+            }
+
+            wallpaper.file = File.new_for_path (path);
+            wallpaper.content_fit = (Gtk.ContentFit) app.config.wallpaper_fit.clamp (0, 3);
+            wallpaper.opacity = app.config.wallpaper_opacity.clamp (0, 100) / 100.0;
+            wallpaper_dimmer.opacity = app.config.wallpaper_dim.clamp (0, 100) / 100.0;
+            add_css_class ("has-wallpaper");
+        }
+
+        private void update_wallpaper_appearance () {
+            if (!has_css_class ("has-wallpaper")) return;
+            wallpaper.content_fit = (Gtk.ContentFit) app.config.wallpaper_fit.clamp (0, 3);
+            wallpaper.opacity = app.config.wallpaper_opacity.clamp (0, 100) / 100.0;
+            wallpaper_dimmer.opacity = app.config.wallpaper_dim.clamp (0, 100) / 100.0;
         }
 
         private void setup_keys () {
@@ -149,6 +232,12 @@ namespace XimperShellTileMenu {
         }
 
         private void setup_config_updates () {
+            app.config.notify["wallpaper-path"].connect (() => {
+                update_wallpaper ();
+            });
+            app.config.notify["wallpaper-fit"].connect (() => { update_wallpaper_appearance (); });
+            app.config.notify["wallpaper-opacity"].connect (() => { update_wallpaper_appearance (); });
+            app.config.notify["wallpaper-dim"].connect (() => { update_wallpaper_appearance (); });
             app.config.notify["layer"].connect (() => {
                 apply_window_mode ();
             });

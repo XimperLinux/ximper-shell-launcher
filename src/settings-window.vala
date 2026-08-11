@@ -124,6 +124,58 @@ namespace XimperShellTileMenu {
 
             page.add (layout_group);
 
+            var appearance_group = new Adw.PreferencesGroup ();
+            appearance_group.title = _("Appearance");
+
+            var wallpaper_row = new Adw.ActionRow ();
+            wallpaper_row.title = _("Wallpaper");
+            wallpaper_row.subtitle = wallpaper_subtitle ();
+            var choose_wallpaper_btn = new Gtk.Button.with_label (_("Choose…"));
+            choose_wallpaper_btn.valign = Gtk.Align.CENTER;
+            choose_wallpaper_btn.clicked.connect (() => {
+                choose_wallpaper (wallpaper_row);
+            });
+            wallpaper_row.add_suffix (choose_wallpaper_btn);
+
+            var clear_wallpaper_btn = new Gtk.Button.with_label (_("Reset"));
+            clear_wallpaper_btn.valign = Gtk.Align.CENTER;
+            clear_wallpaper_btn.clicked.connect (() => {
+                app.config.wallpaper_path = "";
+                app.config.save ();
+                wallpaper_row.subtitle = wallpaper_subtitle ();
+            });
+            wallpaper_row.add_suffix (clear_wallpaper_btn);
+            appearance_group.add (wallpaper_row);
+
+            var fit_row = new Adw.ComboRow ();
+            fit_row.title = _("Wallpaper Scale");
+            fit_row.model = new Gtk.StringList ({_("Fill"), _("Contain"), _("Cover"), _("Scale Down")});
+            fit_row.selected = (uint) app.config.wallpaper_fit.clamp (0, 3);
+            fit_row.notify["selected"].connect (() => {
+                app.config.wallpaper_fit = (int) fit_row.selected;
+                app.config.save ();
+            });
+            appearance_group.add (fit_row);
+
+            var opacity_row = new Adw.SpinRow.with_range (0, 100, 1);
+            opacity_row.title = _("Wallpaper Opacity (%)");
+            opacity_row.value = app.config.wallpaper_opacity;
+            opacity_row.notify["value"].connect (() => {
+                app.config.wallpaper_opacity = (int) opacity_row.value;
+                app.config.save ();
+            });
+            appearance_group.add (opacity_row);
+
+            var dim_row = new Adw.SpinRow.with_range (0, 100, 1);
+            dim_row.title = _("Wallpaper Dim (%)");
+            dim_row.value = app.config.wallpaper_dim;
+            dim_row.notify["value"].connect (() => {
+                app.config.wallpaper_dim = (int) dim_row.value;
+                app.config.save ();
+            });
+            appearance_group.add (dim_row);
+            page.add (appearance_group);
+
             // Data group
             var data_group = new Adw.PreferencesGroup ();
             data_group.title = _("Data");
@@ -148,6 +200,47 @@ namespace XimperShellTileMenu {
             page.add (data_group);
 
             add (page);
+        }
+
+        private string wallpaper_subtitle () {
+            return app.config.wallpaper_path.length > 0
+                ? app.config.wallpaper_path
+                : _("No wallpaper selected");
+        }
+
+        private void choose_wallpaper (Adw.ActionRow wallpaper_row) {
+            var dialog = new Gtk.FileDialog ();
+            dialog.title = _("Choose Wallpaper");
+
+            var image_filter = new Gtk.FileFilter ();
+            image_filter.name = _("Images");
+            image_filter.add_mime_type ("image/jpeg");
+            image_filter.add_mime_type ("image/png");
+            image_filter.add_mime_type ("image/webp");
+            image_filter.add_mime_type ("image/gif");
+            image_filter.add_mime_type ("image/bmp");
+
+            var filters = new ListStore (typeof (Gtk.FileFilter));
+            filters.append (image_filter);
+            dialog.filters = filters;
+            dialog.default_filter = image_filter;
+
+            dialog.open.begin (this, null, (obj, result) => {
+                try {
+                    var file = dialog.open.end (result);
+                    var path = file.get_path ();
+                    if (path == null || !Path.is_absolute (path) ||
+                        !FileUtils.test (path, FileTest.IS_REGULAR)) return;
+
+                    app.config.wallpaper_path = path;
+                    app.config.save ();
+                    wallpaper_row.subtitle = wallpaper_subtitle ();
+                } catch (Error e) {
+                    if (e.code != Gtk.DialogError.DISMISSED) {
+                        warning ("Failed to choose wallpaper: %s", e.message);
+                    }
+                }
+            });
         }
 
         private Gtk.StringList build_monitor_list () {

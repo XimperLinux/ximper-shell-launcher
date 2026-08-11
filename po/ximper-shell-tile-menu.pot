@@ -1,14 +1,14 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the ximper-shell-tile-menu package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: ximper-shell-tile-menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-09 20:01+0300\n"
+"POT-Creation-Date: 2026-08-11 21:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,56 +17,56 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/application.vala:15
+#: src/application.vala:22
 msgid "Toggle the grid overlay"
 msgstr ""
 
-#: src/application.vala:84
+#: src/application.vala:85
 msgid "Gamepad connected: "
 msgstr ""
 
-#: src/config.vala:251
+#: src/config.vala:271
 msgid "Games"
 msgstr ""
 
-#: src/config.vala:252 src/config.vala:253 src/config.vala:254
-#: src/config.vala:255 src/config.vala:256
+#: src/config.vala:272 src/config.vala:273 src/config.vala:274
+#: src/config.vala:275 src/config.vala:276
 msgid "Internet"
 msgstr ""
 
-#: src/config.vala:257 src/config.vala:258
+#: src/config.vala:277 src/config.vala:278
 msgid "Graphics"
 msgstr ""
 
-#: src/config.vala:259 src/config.vala:260 src/config.vala:261
-#: src/config.vala:262 src/config.vala:263
+#: src/config.vala:279 src/config.vala:280 src/config.vala:281
+#: src/config.vala:282 src/config.vala:283
 msgid "Multimedia"
 msgstr ""
 
-#: src/config.vala:264 src/config.vala:265 src/config.vala:266
+#: src/config.vala:284 src/config.vala:285 src/config.vala:286
 msgid "Development"
 msgstr ""
 
-#: src/config.vala:267 src/config.vala:268 src/config.vala:269
-#: src/config.vala:270
+#: src/config.vala:287 src/config.vala:288 src/config.vala:289
+#: src/config.vala:290
 msgid "Office"
 msgstr ""
 
-#: src/config.vala:271 src/config.vala:272 src/config.vala:273
-#: src/config.vala:274 src/config.vala:275
+#: src/config.vala:291 src/config.vala:292 src/config.vala:293
+#: src/config.vala:294 src/config.vala:295
 msgid "System"
 msgstr ""
 
-#: src/config.vala:276 src/config.vala:277 src/config.vala:278
-#: src/config.vala:279
+#: src/config.vala:296 src/config.vala:297 src/config.vala:298
+#: src/config.vala:299
 msgid "Utilities"
 msgstr ""
 
-#: src/config.vala:280 src/config.vala:281
+#: src/config.vala:300 src/config.vala:301
 msgid "Education"
 msgstr ""
 
-#: src/config.vala:316
+#: src/config.vala:336
 msgid "Apps"
 msgstr ""
 
@@ -82,7 +82,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: src/grid-window.vala:53
+#: src/grid-window.vala:81
 msgid "Settings"
 msgstr ""
 
@@ -162,6 +162,7 @@ msgstr ""
 msgid "Window height in pixels"
 msgstr ""
 
+#. Max columns
 #: src/settings-window.vala:94
 msgid "Max Columns"
 msgstr ""
@@ -170,6 +171,7 @@ msgstr ""
 msgid "0 = automatic"
 msgstr ""
 
+#. Cell size
 #: src/settings-window.vala:105
 msgid "Cell Size"
 msgstr ""
@@ -178,6 +180,7 @@ msgstr ""
 msgid "0 = automatic (derived from Max Rows or screen)"
 msgstr ""
 
+#. Layer
 #: src/settings-window.vala:116
 msgid "Layer"
 msgstr ""
@@ -186,36 +189,91 @@ msgstr ""
 msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
 msgstr ""
 
-#: src/settings-window.vala:129
-msgid "Data"
+#: src/settings-window.vala:128
+msgid "Appearance"
+msgstr ""
+
+#: src/settings-window.vala:131
+msgid "Wallpaper"
 msgstr ""
 
 #: src/settings-window.vala:133
-msgid "Reset Layout"
+msgid "Choose…"
 msgstr ""
 
-#: src/settings-window.vala:134
-msgid "Regenerate folders from app categories"
-msgstr ""
-
-#: src/settings-window.vala:135
+#: src/settings-window.vala:140 src/settings-window.vala:187
 msgid "Reset"
 msgstr ""
 
-#: src/settings-window.vala:155
+#: src/settings-window.vala:151
+msgid "Wallpaper Scale"
+msgstr ""
+
+#: src/settings-window.vala:152
+msgid "Fill"
+msgstr ""
+
+#: src/settings-window.vala:152
+msgid "Contain"
+msgstr ""
+
+#: src/settings-window.vala:152
+msgid "Cover"
+msgstr ""
+
+#: src/settings-window.vala:152
+msgid "Scale Down"
+msgstr ""
+
+#: src/settings-window.vala:161
+msgid "Wallpaper Opacity (%)"
+msgstr ""
+
+#: src/settings-window.vala:170
+msgid "Wallpaper Dim (%)"
+msgstr ""
+
+#. Data group
+#: src/settings-window.vala:181
+msgid "Data"
+msgstr ""
+
+#. Reset layout
+#: src/settings-window.vala:185
+msgid "Reset Layout"
+msgstr ""
+
+#: src/settings-window.vala:186
+msgid "Regenerate folders from app categories"
+msgstr ""
+
+#: src/settings-window.vala:208
+msgid "No wallpaper selected"
+msgstr ""
+
+#: src/settings-window.vala:213
+msgid "Choose Wallpaper"
+msgstr ""
+
+#: src/settings-window.vala:216
+msgid "Images"
+msgstr ""
+
+#: src/settings-window.vala:248
 msgid "Active Monitor"
 msgstr ""
 
-#: src/settings-window.vala:167
+#: src/settings-window.vala:260
 #, c-format
 msgid "Monitor %u: %s (%dx%d)"
 msgstr ""
 
-#: src/settings-window.vala:175
+#: src/settings-window.vala:268
 #, c-format
 msgid "Monitor %u (%dx%d)"
 msgstr ""
 
+#. Size options
 #: src/tile.vala:137
 msgid "Small"
 msgstr ""

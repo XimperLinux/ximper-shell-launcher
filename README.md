@@ -37,6 +37,10 @@ The tile menu uses compositor helpers for compositor-specific behavior:
   "max_columns": 0,
   "cell_size": 0,
   "layer": 3,
+  "wallpaper_path": "",
+  "wallpaper_fit": 2,
+  "wallpaper_opacity": 100,
+  "wallpaper_dim": 0,
   "groups": [{
     "name": "",
     "tiles": [
@@ -54,6 +58,10 @@ The tile menu uses compositor helpers for compositor-specific behavior:
 | `max_columns` | int | `0` | Max tile columns (0 = auto, up to 18) |
 | `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
 | `layer` | int | `3` | Layer shell layer (0=background, 1=bottom, 2=top, 3=overlay) |
+| `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
+| `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |
+| `wallpaper_opacity` | int | `100` | Wallpaper opacity, 0–100% |
+| `wallpaper_dim` | int | `0` | Black dimmer above wallpaper, 0–100% |
 | `groups` | array | | Tile groups with tiles and folders |
 
 ## Gamepad

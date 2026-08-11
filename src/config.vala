@@ -82,6 +82,10 @@ namespace XimperShellTileMenu {
         public int floating_x_percent { get; set; default = 0; }
         public int floating_y_percent { get; set; default = 0; }
         public int monitor_index { get; set; default = -1; }
+        public string wallpaper_path { get; set; default = ""; }
+        public int wallpaper_fit { get; set; default = 2; }
+        public int wallpaper_opacity { get; set; default = 100; }
+        public int wallpaper_dim { get; set; default = 0; }
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -128,6 +132,14 @@ namespace XimperShellTileMenu {
                     floating_y_percent = (int) root.get_int_member ("floating_y_percent");
                 if (root.has_member ("monitor_index"))
                     monitor_index = (int) root.get_int_member ("monitor_index");
+                if (root.has_member ("wallpaper_path"))
+                    wallpaper_path = root.get_string_member ("wallpaper_path");
+                if (root.has_member ("wallpaper_fit"))
+                    wallpaper_fit = (int) root.get_int_member ("wallpaper_fit");
+                if (root.has_member ("wallpaper_opacity"))
+                    wallpaper_opacity = (int) root.get_int_member ("wallpaper_opacity");
+                if (root.has_member ("wallpaper_dim"))
+                    wallpaper_dim = (int) root.get_int_member ("wallpaper_dim");
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -192,6 +204,14 @@ namespace XimperShellTileMenu {
             builder.add_int_value (floating_y_percent);
             builder.set_member_name ("monitor_index");
             builder.add_int_value (monitor_index);
+            builder.set_member_name ("wallpaper_path");
+            builder.add_string_value (wallpaper_path);
+            builder.set_member_name ("wallpaper_fit");
+            builder.add_int_value (wallpaper_fit);
+            builder.set_member_name ("wallpaper_opacity");
+            builder.add_int_value (wallpaper_opacity);
+            builder.set_member_name ("wallpaper_dim");
+            builder.add_int_value (wallpaper_dim);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();
