@@ -1,5 +1,18 @@
 namespace XimperShellTileMenu {
 
+    public enum LauncherMode {
+        TILES,
+        WOFI;
+
+        public static LauncherMode from_string (string val) {
+            return val == "wofi" ? WOFI : TILES;
+        }
+
+        public string to_string () {
+            return this == WOFI ? "wofi" : "tiles";
+        }
+    }
+
     public enum WindowMode {
         FULLSCREEN,
         FLOATING;
@@ -74,11 +87,14 @@ namespace XimperShellTileMenu {
         public int max_columns { get; set; default = 0; }
         public int cell_size { get; set; default = 0; }
         public string layer { get; set; default = "overlay"; }
+        public LauncherMode launcher_mode { get; set; default = LauncherMode.TILES; }
         public WindowMode window_mode { get; set; default = WindowMode.FULLSCREEN; }
         public int floating_x { get; set; default = 0; }
         public int floating_y { get; set; default = 24; }
         public int floating_width { get; set; default = 960; }
         public int floating_height { get; set; default = 720; }
+        public int wofi_width { get; set; default = 600; }
+        public int wofi_height { get; set; default = 640; }
         public int floating_x_percent { get; set; default = 0; }
         public int floating_y_percent { get; set; default = 0; }
         public int monitor_index { get; set; default = -1; }
@@ -125,6 +141,8 @@ namespace XimperShellTileMenu {
                         config_migrated = true;
                     }
                 }
+                if (root.has_member ("launcher_mode"))
+                    launcher_mode = LauncherMode.from_string (root.get_string_member ("launcher_mode"));
                 if (root.has_member ("window_mode"))
                     window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
                 if (root.has_member ("floating_x"))
@@ -135,6 +153,10 @@ namespace XimperShellTileMenu {
                     floating_width = (int) root.get_int_member ("floating_width");
                 if (root.has_member ("floating_height"))
                     floating_height = (int) root.get_int_member ("floating_height");
+                if (root.has_member ("wofi_width"))
+                    wofi_width = (int) root.get_int_member ("wofi_width");
+                if (root.has_member ("wofi_height"))
+                    wofi_height = (int) root.get_int_member ("wofi_height");
                 if (root.has_member ("floating_x_percent"))
                     floating_x_percent = (int) root.get_int_member ("floating_x_percent");
                 if (root.has_member ("floating_y_percent"))
@@ -200,6 +222,8 @@ namespace XimperShellTileMenu {
             builder.add_int_value (cell_size);
             builder.set_member_name ("layer");
             builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
+            builder.set_member_name ("launcher_mode");
+            builder.add_string_value (launcher_mode.to_string ());
             builder.set_member_name ("window_mode");
             builder.add_string_value (window_mode.to_string ());
             builder.set_member_name ("floating_x");
@@ -210,6 +234,10 @@ namespace XimperShellTileMenu {
             builder.add_int_value (floating_width);
             builder.set_member_name ("floating_height");
             builder.add_int_value (floating_height);
+            builder.set_member_name ("wofi_width");
+            builder.add_int_value (wofi_width);
+            builder.set_member_name ("wofi_height");
+            builder.add_int_value (wofi_height);
             builder.set_member_name ("floating_x_percent");
             builder.add_int_value (floating_x_percent);
             builder.set_member_name ("floating_y_percent");

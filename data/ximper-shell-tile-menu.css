@@ -43,8 +43,13 @@
     transition: background 150ms ease;
 }
 
-.search-result-row:hover {
-    background: alpha(@accent_bg_color, 0.1);
+.search-result-row:hover,
+.search-result-selected {
+    background: alpha(@accent_bg_color, 0.15);
+}
+
+.wofi-mode .search-results {
+    margin-top: 16px;
 }
 
 .search-result-name {
@@ -59,6 +64,17 @@
 
 .search-results {
     margin-top: 8px;
+}
+
+.search-provider-header {
+    padding-left: 2px;
+}
+
+.search-provider-card {
+    padding: 6px;
+    border-radius: 16px;
+    background: alpha(@card_bg_color, 0.72);
+    box-shadow: 0 0 0 1px alpha(@card_shade_color, 0.8);
 }
 
 /* Tiles */

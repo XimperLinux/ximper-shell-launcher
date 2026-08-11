@@ -37,6 +37,11 @@ namespace XimperShellTileMenu {
         private Gtk.Box background;
         private Gtk.Picture wallpaper;
         private Gtk.Box wallpaper_dimmer;
+        private Gtk.Overlay top_overlay;
+        private Gtk.Overlay root_overlay;
+        private Gtk.Button settings_btn;
+        private bool settings_in_root_overlay = false;
+        private bool wofi_mode = false;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
         private Gdk.Monitor? floating_monitor;
@@ -65,7 +70,7 @@ namespace XimperShellTileMenu {
             var main_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
 
             // Top bar: search + settings button
-            var top_overlay = new Gtk.Overlay ();
+            top_overlay = new Gtk.Overlay ();
 
             search_bar = new SearchBar (app);
             search_bar.result_activated.connect (() => {
@@ -76,7 +81,7 @@ namespace XimperShellTileMenu {
             });
             top_overlay.set_child (search_bar);
 
-            var settings_btn = new Gtk.Button.from_icon_name ("emblem-system-symbolic");
+            settings_btn = new Gtk.Button.from_icon_name ("emblem-system-symbolic");
             settings_btn.add_css_class ("flat");
             settings_btn.add_css_class ("circular");
             settings_btn.tooltip_text = _("Settings");
@@ -161,7 +166,7 @@ namespace XimperShellTileMenu {
             wallpaper_dimmer.add_css_class ("wallpaper-dimmer");
             update_wallpaper ();
 
-            var root_overlay = new Gtk.Overlay ();
+            root_overlay = new Gtk.Overlay ();
             root_overlay.set_child (background);
             root_overlay.add_overlay (wallpaper_layer);
             root_overlay.add_overlay (wallpaper_dimmer);
@@ -217,6 +222,14 @@ namespace XimperShellTileMenu {
                 if (keyval == Gdk.Key.Escape) {
                     close_grid ();
                     return true;
+                }
+                if ((keyval == Gdk.Key.Down || keyval == Gdk.Key.Up) &&
+                    search_bar.is_searching () && content_stack.visible_child_name == "search") {
+                    return search_bar.navigate_results (keyval == Gdk.Key.Down ? 1 : -1);
+                }
+                if ((keyval == Gdk.Key.Return || keyval == Gdk.Key.KP_Enter) &&
+                    search_bar.is_searching () && content_stack.visible_child_name == "search") {
+                    return search_bar.activate_selected_result ();
                 }
                 // Arrow down from search → focus first tile
                 if (keyval == Gdk.Key.Down && search_bar.search_entry.has_focus &&
@@ -278,6 +291,12 @@ namespace XimperShellTileMenu {
             app.config.notify["floating-height"].connect (() => {
                 apply_window_mode ();
             });
+            app.config.notify["wofi-width"].connect (() => {
+                apply_window_mode ();
+            });
+            app.config.notify["wofi-height"].connect (() => {
+                apply_window_mode ();
+            });
             app.config.notify["floating-x-percent"].connect (() => {
                 apply_window_mode ();
             });
@@ -289,12 +308,12 @@ namespace XimperShellTileMenu {
         private void setup_focus_close () {
             var focus = new Gtk.EventControllerFocus ();
             focus.enter.connect (() => {
-                if (app.config.window_mode != WindowMode.FLOATING) return;
+                if (app.config.window_mode != WindowMode.FLOATING && !wofi_mode) return;
                 focus_leave_armed = true;
             });
             focus.leave.connect (() => {
                 if (!visible) return;
-                if (app.config.window_mode != WindowMode.FLOATING) return;
+                if (app.config.window_mode != WindowMode.FLOATING && !wofi_mode) return;
                 if (!focus_leave_armed) return;
                 if (ignore_next_focus_leave) {
                     ignore_next_focus_leave = false;
@@ -306,7 +325,8 @@ namespace XimperShellTileMenu {
         }
 
         private void apply_window_mode () {
-            if (app.config.window_mode == WindowMode.FLOATING) {
+            var effective_mode = wofi_mode ? WindowMode.FLOATING : app.config.window_mode;
+            if (effective_mode == WindowMode.FLOATING) {
                 var monitor = get_floating_monitor ();
                 if (monitor != null) {
                     GtkLayerShell.set_monitor (this, monitor);
@@ -321,13 +341,13 @@ namespace XimperShellTileMenu {
 
             LayerShellHelper.apply_window_mode (
                 this,
-                app.config.window_mode,
+                effective_mode,
                 LayerShellHelper.parse_layer (app.config.layer),
                 floating_x,
                 floating_y
             );
 
-            if (app.config.window_mode == WindowMode.FLOATING) {
+            if (effective_mode == WindowMode.FLOATING) {
                 toast_overlay.width_request = floating_width;
                 toast_overlay.height_request = floating_height;
             } else {
@@ -354,16 +374,21 @@ namespace XimperShellTileMenu {
                 screen_height = geometry.height;
             }
 
-            width = app.config.floating_width.clamp (320, 4096);
-            height = app.config.floating_height.clamp (240, 4096);
+            width = (wofi_mode ? app.config.wofi_width : app.config.floating_width).clamp (320, 4096);
+            height = (wofi_mode ? app.config.wofi_height : app.config.floating_height).clamp (240, 4096);
 
             int available_width = screen_width - width;
             int available_height = screen_height - height;
             if (available_width < 0) available_width = 0;
             if (available_height < 0) available_height = 0;
 
-            x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
-            y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
+            if (wofi_mode) {
+                x = available_width / 2;
+                y = available_height / 4;
+            } else {
+                x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
+                y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
+            }
         }
 
         private Gdk.Monitor? get_floating_monitor () {
@@ -427,6 +452,11 @@ namespace XimperShellTileMenu {
         }
 
         public void open_grid () {
+            wofi_mode = false;
+            move_settings_button (false);
+            remove_css_class ("wofi-mode");
+            settings_btn.visible = true;
+            search_bar.set_wofi_mode (false);
             search_bar.reset ();
             tile_grid.build_from_config ();
             content_stack.visible_child_name = "tiles";
@@ -439,6 +469,47 @@ namespace XimperShellTileMenu {
             present ();
 
             search_bar.search_entry.grab_focus ();
+        }
+
+        public void open_wofi () {
+            wofi_mode = true;
+            move_settings_button (true);
+            add_css_class ("wofi-mode");
+            settings_btn.visible = true;
+            search_bar.set_wofi_mode (true);
+            search_bar.reset ();
+            content_stack.visible_child_name = "search";
+            ignore_next_focus_leave = true;
+            focus_leave_armed = false;
+            floating_monitor = null;
+            apply_window_mode ();
+
+            set_visible (true);
+            present ();
+            search_bar.search_entry.grab_focus ();
+        }
+
+        private void move_settings_button (bool to_bottom_corner) {
+            if (to_bottom_corner == settings_in_root_overlay) return;
+
+            if (to_bottom_corner) {
+                top_overlay.remove_overlay (settings_btn);
+                root_overlay.add_overlay (settings_btn);
+                settings_btn.halign = Gtk.Align.END;
+                settings_btn.valign = Gtk.Align.END;
+                settings_btn.margin_top = 0;
+                settings_btn.margin_end = 16;
+                settings_btn.margin_bottom = 16;
+            } else {
+                root_overlay.remove_overlay (settings_btn);
+                top_overlay.add_overlay (settings_btn);
+                settings_btn.halign = Gtk.Align.END;
+                settings_btn.valign = Gtk.Align.START;
+                settings_btn.margin_top = 24;
+                settings_btn.margin_end = 24;
+                settings_btn.margin_bottom = 0;
+            }
+            settings_in_root_overlay = to_bottom_corner;
         }
 
         private void pin_to_dock (string desktop_id) {

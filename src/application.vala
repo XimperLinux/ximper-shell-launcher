@@ -19,7 +19,7 @@ namespace XimperShellTileMenu {
                 flags: ApplicationFlags.HANDLES_COMMAND_LINE
             );
             options = {
-                { "toggle", 't', 0, OptionArg.NONE, null, _("Toggle the grid overlay"), null },
+                { "toggle", 't', 0, OptionArg.NONE, null, _("Toggle the application launcher"), null },
                 { null }
             };
             add_main_option_entries (options);
@@ -69,6 +69,8 @@ namespace XimperShellTileMenu {
             if (grid_window == null) return;
             if (grid_window.visible) {
                 grid_window.set_visible (false);
+            } else if (config.launcher_mode == LauncherMode.WOFI) {
+                grid_window.open_wofi ();
             } else {
                 grid_window.open_grid ();
             }

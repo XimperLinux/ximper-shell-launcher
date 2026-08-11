@@ -10,6 +10,9 @@ namespace XimperShellTileMenu {
         private Gtk.Box results_box;
         private Cancellable? search_cancellable;
         private uint search_timeout_id = 0;
+        private bool wofi_mode = false;
+        private GenericArray<Gtk.Button> result_rows = new GenericArray<Gtk.Button> ();
+        private int selected_result = -1;
 
         private const uint DEBOUNCE_MS = 200;
 
@@ -87,20 +90,16 @@ namespace XimperShellTileMenu {
             clear_results ();
 
             if (query.length == 0) {
-                search_changed (false);
+                if (wofi_mode) {
+                    add_local_results (query, false, 0);
+                    search_changed (true);
+                } else {
+                    search_changed (false);
+                }
                 return;
             }
 
             search_changed (true);
-
-            // Local app search
-            var local_results = app.app_provider.search (query);
-            if (local_results.length > 0) {
-                add_result_section (_("Applications"), null);
-                for (uint i = 0; i < local_results.length && i < 8; i++) {
-                    add_app_result (local_results[i]);
-                }
-            }
 
             // GNOME Search Providers
             var my_cancellable = search_cancellable;
@@ -135,20 +134,34 @@ namespace XimperShellTileMenu {
                 var results = provider_groups[i];
                 if (results.length > 0) {
                     var provider_name = results[0].provider.name ?? provider_keys[i];
-                    add_result_section (
+                    var provider_box = add_provider_section (
                         provider_name,
                         results[0].provider.icon,
                         results[0].provider
                     );
 
                     for (uint j = 0; j < results.length; j++) {
-                        add_provider_result (results[j]);
+                        add_provider_result (results[j], provider_box);
                     }
                 }
+            }
+
+            add_local_results (query, !wofi_mode, wofi_mode ? 0 : 8);
+        }
+
+        private void add_local_results (string query, bool with_section, uint limit) {
+            var local_results = query.length == 0 ? app.app_provider.apps : app.app_provider.search (query);
+            if (local_results.length == 0) return;
+
+            if (with_section) add_result_section (_("Applications"), null);
+            for (uint i = 0; i < local_results.length && (limit == 0 || i < limit); i++) {
+                add_app_result (local_results[i]);
             }
         }
 
         private void clear_results () {
+            result_rows = new GenericArray<Gtk.Button> ();
+            selected_result = -1;
             var child = results_box.get_first_child ();
             while (child != null) {
                 var next = child.get_next_sibling ();
@@ -193,6 +206,47 @@ namespace XimperShellTileMenu {
                 );
             });
             results_box.append (header_button);
+        }
+
+        private Gtk.Box add_provider_section (
+            string title,
+            Icon? icon,
+            SearchProviderInfo provider
+        ) {
+            var card = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
+            card.add_css_class ("search-provider-card");
+
+            var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
+            header.add_css_class ("search-section-header");
+            header.add_css_class ("search-provider-header");
+            if (icon != null) {
+                var image = new Gtk.Image ();
+                image.gicon = icon;
+                image.pixel_size = 16;
+                header.append (image);
+            }
+            var label = new Gtk.Label (title);
+            label.add_css_class ("search-section-title");
+            header.append (label);
+
+            var header_button = new Gtk.Button ();
+            header_button.add_css_class ("flat");
+            header_button.add_css_class ("search-section-header-button");
+            header_button.tooltip_text = _("Open in application");
+            header_button.set_child (header);
+            header_button.clicked.connect (() => {
+                launch_provider_search.begin (
+                    provider,
+                    current_search_terms (),
+                    fallback_event_time ()
+                );
+            });
+            card.append (header_button);
+
+            var provider_results = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
+            card.append (provider_results);
+            results_box.append (card);
+            return provider_results;
         }
 
         private void add_app_result (AppEntry entry) {
@@ -242,10 +296,10 @@ namespace XimperShellTileMenu {
                 result_activated ();
             });
 
-            results_box.append (row);
+            add_result_row (row);
         }
 
-        private void add_provider_result (SearchResult result) {
+        private void add_provider_result (SearchResult result, Gtk.Box target) {
             var row = new Gtk.Button ();
             row.add_css_class ("search-result-row");
             row.add_css_class ("flat");
@@ -309,7 +363,56 @@ namespace XimperShellTileMenu {
                 }
             });
 
-            results_box.append (row);
+            add_result_row (row, target);
+        }
+
+        private void add_result_row (Gtk.Button row, Gtk.Box? target = null) {
+            (target ?? results_box).append (row);
+            result_rows.add (row);
+            if (selected_result < 0) {
+                selected_result = 0;
+                update_result_selection ();
+            }
+        }
+
+        private void update_result_selection () {
+            for (uint i = 0; i < result_rows.length; i++) {
+                if ((int) i == selected_result) {
+                    result_rows[i].add_css_class ("search-result-selected");
+                } else {
+                    result_rows[i].remove_css_class ("search-result-selected");
+                }
+            }
+            scroll_selected_result_into_view ();
+        }
+
+        private void scroll_selected_result_into_view () {
+            Idle.add (() => {
+                if (selected_result < 0 || selected_result >= (int) result_rows.length) {
+                    return Source.REMOVE;
+                }
+
+                Graphene.Rect bounds;
+                var row = result_rows[selected_result];
+                if (!row.compute_bounds (results_widget, out bounds)) return Source.REMOVE;
+
+                var adjustment = results_widget.vadjustment;
+                double target = adjustment.value;
+                if (bounds.origin.y < 0) {
+                    target += bounds.origin.y;
+                } else if (bounds.origin.y + bounds.size.height > results_widget.get_allocated_height ()) {
+                    target += bounds.origin.y + bounds.size.height - results_widget.get_allocated_height ();
+                } else {
+                    return Source.REMOVE;
+                }
+
+                target = target.clamp (
+                    adjustment.lower,
+                    adjustment.upper - adjustment.page_size
+                );
+                adjustment.value = target;
+                return Source.REMOVE;
+            });
         }
 
         private async void launch_provider_search (
@@ -341,13 +444,34 @@ namespace XimperShellTileMenu {
         }
 
         public bool is_searching () {
-            return search_entry.text.strip ().length > 0;
+            return wofi_mode || search_entry.text.strip ().length > 0;
+        }
+
+        public void set_wofi_mode (bool enabled) {
+            wofi_mode = enabled;
+        }
+
+        public bool navigate_results (int direction) {
+            if (result_rows.length == 0) return false;
+
+            selected_result += direction;
+            if (selected_result < 0) selected_result = (int) result_rows.length - 1;
+            if (selected_result >= (int) result_rows.length) selected_result = 0;
+            update_result_selection ();
+            return true;
+        }
+
+        public bool activate_selected_result () {
+            if (selected_result < 0 || selected_result >= (int) result_rows.length) return false;
+            result_rows[selected_result].activate ();
+            return true;
         }
 
         public void reset () {
             search_entry.text = "";
             clear_results ();
             provider_manager.reset_search ();
+            if (wofi_mode) perform_search.begin ();
         }
     }
 }

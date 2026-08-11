@@ -3,6 +3,8 @@ namespace XimperShellTileMenu {
     public class SettingsWindow : Adw.PreferencesWindow {
 
         private weak Application app;
+        private GenericArray<Gtk.Widget> tile_only_widgets = new GenericArray<Gtk.Widget> ();
+        private GenericArray<Gtk.Widget> wofi_only_widgets = new GenericArray<Gtk.Widget> ();
 
         public SettingsWindow (Application app) {
             this.app = app;
@@ -22,6 +24,13 @@ namespace XimperShellTileMenu {
             var layout_group = new Adw.PreferencesGroup ();
             layout_group.title = _("Layout");
 
+            var launcher_row = new Adw.ComboRow ();
+            launcher_row.title = _("Launcher Mode");
+            launcher_row.subtitle = _("Tile grid or compact application launcher");
+            launcher_row.model = new Gtk.StringList ({_("Tiles"), "Wofi"});
+            launcher_row.selected = app.config.launcher_mode == LauncherMode.WOFI ? 1 : 0;
+            layout_group.add (launcher_row);
+
             var mode_row = new Adw.ComboRow ();
             mode_row.title = _("Window Mode");
             mode_row.subtitle = _("Fullscreen overlay or floating panel");
@@ -33,6 +42,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (mode_row);
+            tile_only_widgets.add (mode_row);
 
             var monitor_row = new Adw.ComboRow ();
             monitor_row.title = _("Monitor");
@@ -58,6 +68,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_x_row);
+            tile_only_widgets.add (floating_x_row);
 
             var floating_y_row = new Adw.SpinRow.with_range (0, 100, 1);
             floating_y_row.title = _("Floating Y (%)");
@@ -68,6 +79,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_y_row);
+            tile_only_widgets.add (floating_y_row);
 
             var floating_width_row = new Adw.SpinRow.with_range (320, 4096, 10);
             floating_width_row.title = _("Floating Width");
@@ -78,6 +90,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_width_row);
+            tile_only_widgets.add (floating_width_row);
 
             var floating_height_row = new Adw.SpinRow.with_range (240, 4096, 10);
             floating_height_row.title = _("Floating Height");
@@ -88,6 +101,29 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_height_row);
+            tile_only_widgets.add (floating_height_row);
+
+            var wofi_width_row = new Adw.SpinRow.with_range (320, 4096, 10);
+            wofi_width_row.title = _("Launcher Width");
+            wofi_width_row.subtitle = _("Compact launcher width in pixels");
+            wofi_width_row.value = app.config.wofi_width;
+            wofi_width_row.notify["value"].connect (() => {
+                app.config.wofi_width = (int) wofi_width_row.value;
+                app.config.save ();
+            });
+            layout_group.add (wofi_width_row);
+            wofi_only_widgets.add (wofi_width_row);
+
+            var wofi_height_row = new Adw.SpinRow.with_range (240, 4096, 10);
+            wofi_height_row.title = _("Launcher Height");
+            wofi_height_row.subtitle = _("Compact launcher height in pixels");
+            wofi_height_row.value = app.config.wofi_height;
+            wofi_height_row.notify["value"].connect (() => {
+                app.config.wofi_height = (int) wofi_height_row.value;
+                app.config.save ();
+            });
+            layout_group.add (wofi_height_row);
+            wofi_only_widgets.add (wofi_height_row);
 
             // Max columns
             var cols_row = new Adw.SpinRow.with_range (0, 30, 2);
@@ -99,6 +135,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (cols_row);
+            tile_only_widgets.add (cols_row);
 
             // Cell size
             var cell_row = new Adw.SpinRow.with_range (0, 256, 4);
@@ -110,6 +147,7 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (cell_row);
+            tile_only_widgets.add (cell_row);
 
             // Layer
             var layer_row = new Adw.ComboRow ();
@@ -124,6 +162,14 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (layer_row);
+
+            launcher_row.notify["selected"].connect (() => {
+                app.config.launcher_mode = launcher_row.selected == 1
+                    ? LauncherMode.WOFI : LauncherMode.TILES;
+                app.config.save ();
+                update_launcher_mode_visibility ();
+            });
+            update_launcher_mode_visibility ();
 
             page.add (layout_group);
 
@@ -212,6 +258,16 @@ namespace XimperShellTileMenu {
             page.add (data_group);
 
             add (page);
+        }
+
+        private void update_launcher_mode_visibility () {
+            bool wofi = app.config.launcher_mode == LauncherMode.WOFI;
+            for (uint i = 0; i < tile_only_widgets.length; i++) {
+                tile_only_widgets[i].visible = !wofi;
+            }
+            for (uint i = 0; i < wofi_only_widgets.length; i++) {
+                wofi_only_widgets[i].visible = wofi;
+            }
         }
 
         private string wallpaper_subtitle () {
