@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-tile-menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 21:02+0300\n"
+"POT-Creation-Date: 2026-08-11 21:25+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,48 +25,48 @@ msgstr ""
 msgid "Gamepad connected: "
 msgstr ""
 
-#: src/config.vala:271
+#: src/config.vala:276
 msgid "Games"
 msgstr ""
 
-#: src/config.vala:272 src/config.vala:273 src/config.vala:274
-#: src/config.vala:275 src/config.vala:276
+#: src/config.vala:277 src/config.vala:278 src/config.vala:279
+#: src/config.vala:280 src/config.vala:281
 msgid "Internet"
 msgstr ""
 
-#: src/config.vala:277 src/config.vala:278
+#: src/config.vala:282 src/config.vala:283
 msgid "Graphics"
 msgstr ""
 
-#: src/config.vala:279 src/config.vala:280 src/config.vala:281
-#: src/config.vala:282 src/config.vala:283
+#: src/config.vala:284 src/config.vala:285 src/config.vala:286
+#: src/config.vala:287 src/config.vala:288
 msgid "Multimedia"
 msgstr ""
 
-#: src/config.vala:284 src/config.vala:285 src/config.vala:286
+#: src/config.vala:289 src/config.vala:290 src/config.vala:291
 msgid "Development"
 msgstr ""
 
-#: src/config.vala:287 src/config.vala:288 src/config.vala:289
-#: src/config.vala:290
+#: src/config.vala:292 src/config.vala:293 src/config.vala:294
+#: src/config.vala:295
 msgid "Office"
 msgstr ""
 
-#: src/config.vala:291 src/config.vala:292 src/config.vala:293
-#: src/config.vala:294 src/config.vala:295
+#: src/config.vala:296 src/config.vala:297 src/config.vala:298
+#: src/config.vala:299 src/config.vala:300
 msgid "System"
 msgstr ""
 
-#: src/config.vala:296 src/config.vala:297 src/config.vala:298
-#: src/config.vala:299
+#: src/config.vala:301 src/config.vala:302 src/config.vala:303
+#: src/config.vala:304
 msgid "Utilities"
 msgstr ""
 
-#: src/config.vala:300 src/config.vala:301
+#: src/config.vala:305 src/config.vala:306
 msgid "Education"
 msgstr ""
 
-#: src/config.vala:336
+#: src/config.vala:341
 msgid "Apps"
 msgstr ""
 
@@ -82,7 +82,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: src/grid-window.vala:81
+#: src/grid-window.vala:82
 msgid "Settings"
 msgstr ""
 
@@ -194,81 +194,85 @@ msgid "Appearance"
 msgstr ""
 
 #: src/settings-window.vala:131
+msgid "Background Opacity (%)"
+msgstr ""
+
+#: src/settings-window.vala:140
 msgid "Wallpaper"
 msgstr ""
 
-#: src/settings-window.vala:133
+#: src/settings-window.vala:142
 msgid "Choose…"
 msgstr ""
 
-#: src/settings-window.vala:140 src/settings-window.vala:187
+#: src/settings-window.vala:149 src/settings-window.vala:196
 msgid "Reset"
 msgstr ""
 
-#: src/settings-window.vala:151
+#: src/settings-window.vala:160
 msgid "Wallpaper Scale"
 msgstr ""
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Fill"
 msgstr ""
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Contain"
 msgstr ""
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Cover"
 msgstr ""
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Scale Down"
 msgstr ""
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:170
 msgid "Wallpaper Opacity (%)"
 msgstr ""
 
-#: src/settings-window.vala:170
+#: src/settings-window.vala:179
 msgid "Wallpaper Dim (%)"
 msgstr ""
 
 #. Data group
-#: src/settings-window.vala:181
+#: src/settings-window.vala:190
 msgid "Data"
 msgstr ""
 
 #. Reset layout
-#: src/settings-window.vala:185
+#: src/settings-window.vala:194
 msgid "Reset Layout"
 msgstr ""
 
-#: src/settings-window.vala:186
+#: src/settings-window.vala:195
 msgid "Regenerate folders from app categories"
 msgstr ""
 
-#: src/settings-window.vala:208
+#: src/settings-window.vala:217
 msgid "No wallpaper selected"
 msgstr ""
 
-#: src/settings-window.vala:213
+#: src/settings-window.vala:222
 msgid "Choose Wallpaper"
 msgstr ""
 
-#: src/settings-window.vala:216
+#: src/settings-window.vala:225
 msgid "Images"
 msgstr ""
 
-#: src/settings-window.vala:248
+#: src/settings-window.vala:257
 msgid "Active Monitor"
 msgstr ""
 
-#: src/settings-window.vala:260
+#: src/settings-window.vala:269
 #, c-format
 msgid "Monitor %u: %s (%dx%d)"
 msgstr ""
 
-#: src/settings-window.vala:268
+#: src/settings-window.vala:277
 #, c-format
 msgid "Monitor %u (%dx%d)"
 msgstr ""

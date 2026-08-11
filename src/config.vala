@@ -86,6 +86,7 @@ namespace XimperShellTileMenu {
         public int wallpaper_fit { get; set; default = 2; }
         public int wallpaper_opacity { get; set; default = 100; }
         public int wallpaper_dim { get; set; default = 0; }
+        public int background_opacity { get; set; default = 100; }
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -140,6 +141,8 @@ namespace XimperShellTileMenu {
                     wallpaper_opacity = (int) root.get_int_member ("wallpaper_opacity");
                 if (root.has_member ("wallpaper_dim"))
                     wallpaper_dim = (int) root.get_int_member ("wallpaper_dim");
+                if (root.has_member ("background_opacity"))
+                    background_opacity = (int) root.get_int_member ("background_opacity");
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -212,6 +215,8 @@ namespace XimperShellTileMenu {
             builder.add_int_value (wallpaper_opacity);
             builder.set_member_name ("wallpaper_dim");
             builder.add_int_value (wallpaper_dim);
+            builder.set_member_name ("background_opacity");
+            builder.add_int_value (background_opacity);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();

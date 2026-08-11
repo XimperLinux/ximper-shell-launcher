@@ -127,6 +127,15 @@ namespace XimperShellTileMenu {
             var appearance_group = new Adw.PreferencesGroup ();
             appearance_group.title = _("Appearance");
 
+            var background_opacity_row = new Adw.SpinRow.with_range (0, 100, 1);
+            background_opacity_row.title = _("Background Opacity (%)");
+            background_opacity_row.value = app.config.background_opacity;
+            background_opacity_row.notify["value"].connect (() => {
+                app.config.background_opacity = (int) background_opacity_row.value;
+                app.config.save ();
+            });
+            appearance_group.add (background_opacity_row);
+
             var wallpaper_row = new Adw.ActionRow ();
             wallpaper_row.title = _("Wallpaper");
             wallpaper_row.subtitle = wallpaper_subtitle ();

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-tile-menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 21:02+0300\n"
+"POT-Creation-Date: 2026-08-11 21:25+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
 "Last-Translator: Ximper Shell contributors\n"
 "Language-Team: Russian\n"
@@ -26,48 +26,48 @@ msgstr "Переключить оверлей сетки"
 msgid "Gamepad connected: "
 msgstr "Подключён геймпад: "
 
-#: src/config.vala:271
+#: src/config.vala:276
 msgid "Games"
 msgstr "Игры"
 
-#: src/config.vala:272 src/config.vala:273 src/config.vala:274
-#: src/config.vala:275 src/config.vala:276
+#: src/config.vala:277 src/config.vala:278 src/config.vala:279
+#: src/config.vala:280 src/config.vala:281
 msgid "Internet"
 msgstr "Интернет"
 
-#: src/config.vala:277 src/config.vala:278
+#: src/config.vala:282 src/config.vala:283
 msgid "Graphics"
 msgstr "Графика"
 
-#: src/config.vala:279 src/config.vala:280 src/config.vala:281
-#: src/config.vala:282 src/config.vala:283
+#: src/config.vala:284 src/config.vala:285 src/config.vala:286
+#: src/config.vala:287 src/config.vala:288
 msgid "Multimedia"
 msgstr "Мультимедиа"
 
-#: src/config.vala:284 src/config.vala:285 src/config.vala:286
+#: src/config.vala:289 src/config.vala:290 src/config.vala:291
 msgid "Development"
 msgstr "Разработка"
 
-#: src/config.vala:287 src/config.vala:288 src/config.vala:289
-#: src/config.vala:290
+#: src/config.vala:292 src/config.vala:293 src/config.vala:294
+#: src/config.vala:295
 msgid "Office"
 msgstr "Офис"
 
-#: src/config.vala:291 src/config.vala:292 src/config.vala:293
-#: src/config.vala:294 src/config.vala:295
+#: src/config.vala:296 src/config.vala:297 src/config.vala:298
+#: src/config.vala:299 src/config.vala:300
 msgid "System"
 msgstr "Система"
 
-#: src/config.vala:296 src/config.vala:297 src/config.vala:298
-#: src/config.vala:299
+#: src/config.vala:301 src/config.vala:302 src/config.vala:303
+#: src/config.vala:304
 msgid "Utilities"
 msgstr "Утилиты"
 
-#: src/config.vala:300 src/config.vala:301
+#: src/config.vala:305 src/config.vala:306
 msgid "Education"
 msgstr "Образование"
 
-#: src/config.vala:336
+#: src/config.vala:341
 msgid "Apps"
 msgstr "Приложения"
 
@@ -83,7 +83,7 @@ msgstr "Разгруппировать"
 msgid "OK"
 msgstr "ОК"
 
-#: src/grid-window.vala:81
+#: src/grid-window.vala:82
 msgid "Settings"
 msgstr "Настройки"
 
@@ -195,81 +195,85 @@ msgid "Appearance"
 msgstr "Внешний вид"
 
 #: src/settings-window.vala:131
+msgid "Background Opacity (%)"
+msgstr "Непрозрачность фона (%)"
+
+#: src/settings-window.vala:140
 msgid "Wallpaper"
 msgstr "Обои"
 
-#: src/settings-window.vala:133
+#: src/settings-window.vala:142
 msgid "Choose…"
 msgstr "Выбрать…"
 
-#: src/settings-window.vala:140 src/settings-window.vala:187
+#: src/settings-window.vala:149 src/settings-window.vala:196
 msgid "Reset"
 msgstr "Сбросить"
 
-#: src/settings-window.vala:151
+#: src/settings-window.vala:160
 msgid "Wallpaper Scale"
 msgstr "Масштаб обоев"
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Fill"
 msgstr "Заполнить"
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Contain"
 msgstr "Вписать"
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Cover"
 msgstr "Заполнить с обрезкой"
 
-#: src/settings-window.vala:152
+#: src/settings-window.vala:161
 msgid "Scale Down"
 msgstr "Только уменьшать"
 
-#: src/settings-window.vala:161
+#: src/settings-window.vala:170
 msgid "Wallpaper Opacity (%)"
 msgstr "Непрозрачность обоев (%)"
 
-#: src/settings-window.vala:170
+#: src/settings-window.vala:179
 msgid "Wallpaper Dim (%)"
 msgstr "Затемнение обоев (%)"
 
 #. Data group
-#: src/settings-window.vala:181
+#: src/settings-window.vala:190
 msgid "Data"
 msgstr "Данные"
 
 #. Reset layout
-#: src/settings-window.vala:185
+#: src/settings-window.vala:194
 msgid "Reset Layout"
 msgstr "Сбросить расположение"
 
-#: src/settings-window.vala:186
+#: src/settings-window.vala:195
 msgid "Regenerate folders from app categories"
 msgstr "Повторно создать папки по категориям приложений"
 
-#: src/settings-window.vala:208
+#: src/settings-window.vala:217
 msgid "No wallpaper selected"
 msgstr "Обои не выбраны"
 
-#: src/settings-window.vala:213
+#: src/settings-window.vala:222
 msgid "Choose Wallpaper"
 msgstr "Выберите обои"
 
-#: src/settings-window.vala:216
+#: src/settings-window.vala:225
 msgid "Images"
 msgstr "Изображения"
 
-#: src/settings-window.vala:248
+#: src/settings-window.vala:257
 msgid "Active Monitor"
 msgstr "Активный монитор"
 
-#: src/settings-window.vala:260
+#: src/settings-window.vala:269
 #, c-format
 msgid "Monitor %u: %s (%dx%d)"
 msgstr "Монитор %u: %s (%dx%d)"
 
-#: src/settings-window.vala:268
+#: src/settings-window.vala:277
 #, c-format
 msgid "Monitor %u (%dx%d)"
 msgstr "Монитор %u (%dx%d)"

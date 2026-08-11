@@ -1,10 +1,10 @@
 /* Grid overlay */
 .grid-overlay {
-    background-color: @window_bg_color;
+    background-color: rgba(0, 0, 0, 0);
 }
 
-.grid-overlay.has-wallpaper {
-    background-color: rgba(0, 0, 0, 0);
+.window-background {
+    background-color: @window_bg_color;
 }
 
 /* Floating layer-shell surfaces need their own rounded background. */
@@ -13,6 +13,7 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
+.grid-overlay.floating .window-background,
 .grid-overlay.floating .wallpaper,
 .grid-overlay.floating .wallpaper-dimmer {
     border-radius: 18px;

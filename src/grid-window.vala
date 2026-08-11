@@ -34,6 +34,7 @@ namespace XimperShellTileMenu {
         private Gtk.ScrolledWindow scrolled;
         private Gtk.Stack content_stack;
         private Adw.ToastOverlay toast_overlay;
+        private Gtk.Box background;
         private Gtk.Picture wallpaper;
         private Gtk.Box wallpaper_dimmer;
         private bool ignore_next_focus_leave = false;
@@ -147,6 +148,12 @@ namespace XimperShellTileMenu {
 
             var wallpaper_layer = new NonMeasuringBackground (wallpaper);
 
+            background = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            background.hexpand = true;
+            background.vexpand = true;
+            background.can_target = false;
+            background.add_css_class ("window-background");
+
             wallpaper_dimmer = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             wallpaper_dimmer.hexpand = true;
             wallpaper_dimmer.vexpand = true;
@@ -155,7 +162,8 @@ namespace XimperShellTileMenu {
             update_wallpaper ();
 
             var root_overlay = new Gtk.Overlay ();
-            root_overlay.set_child (wallpaper_layer);
+            root_overlay.set_child (background);
+            root_overlay.add_overlay (wallpaper_layer);
             root_overlay.add_overlay (wallpaper_dimmer);
             root_overlay.add_overlay (toast_overlay);
             root_overlay.set_measure_overlay (toast_overlay, true);
@@ -168,6 +176,7 @@ namespace XimperShellTileMenu {
                 wallpaper.file = null;
                 wallpaper_dimmer.opacity = 0;
                 remove_css_class ("has-wallpaper");
+                update_background_opacity ();
                 return;
             }
 
@@ -176,6 +185,7 @@ namespace XimperShellTileMenu {
                 wallpaper.file = null;
                 wallpaper_dimmer.opacity = 0;
                 remove_css_class ("has-wallpaper");
+                update_background_opacity ();
                 return;
             }
 
@@ -184,6 +194,13 @@ namespace XimperShellTileMenu {
             wallpaper.opacity = app.config.wallpaper_opacity.clamp (0, 100) / 100.0;
             wallpaper_dimmer.opacity = app.config.wallpaper_dim.clamp (0, 100) / 100.0;
             add_css_class ("has-wallpaper");
+            update_background_opacity ();
+        }
+
+        private void update_background_opacity () {
+            background.opacity = has_css_class ("has-wallpaper")
+                ? 0
+                : app.config.background_opacity.clamp (0, 100) / 100.0;
         }
 
         private void update_wallpaper_appearance () {
@@ -238,6 +255,7 @@ namespace XimperShellTileMenu {
             app.config.notify["wallpaper-fit"].connect (() => { update_wallpaper_appearance (); });
             app.config.notify["wallpaper-opacity"].connect (() => { update_wallpaper_appearance (); });
             app.config.notify["wallpaper-dim"].connect (() => { update_wallpaper_appearance (); });
+            app.config.notify["background-opacity"].connect (() => { update_background_opacity (); });
             app.config.notify["layer"].connect (() => {
                 apply_window_mode ();
             });
