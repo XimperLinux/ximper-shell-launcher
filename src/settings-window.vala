@@ -78,7 +78,6 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_x_row);
-            tile_only_widgets.add (floating_x_row);
 
             var floating_y_row = new Adw.SpinRow.with_range (0, 100, 1);
             floating_y_row.title = _("Floating Y (%)");
@@ -89,7 +88,6 @@ namespace XimperShellTileMenu {
                 app.config.save ();
             });
             layout_group.add (floating_y_row);
-            tile_only_widgets.add (floating_y_row);
 
             var floating_width_row = new Adw.SpinRow.with_range (320, 4096, 10);
             floating_width_row.title = _("Floating Width");

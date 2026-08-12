@@ -383,13 +383,8 @@ namespace XimperShellTileMenu {
             if (available_width < 0) available_width = 0;
             if (available_height < 0) available_height = 0;
 
-            if (wofi_mode) {
-                x = available_width / 2;
-                y = available_height / 4;
-            } else {
-                x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
-                y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
-            }
+            x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
+            y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
         }
 
         private Gdk.Monitor? get_floating_monitor () {
