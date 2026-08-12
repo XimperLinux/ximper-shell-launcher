@@ -13,6 +13,7 @@ BuildRequires: meson
 BuildRequires: vala
 BuildRequires: pkgconfig(gtk4) >= 4.12
 BuildRequires: pkgconfig(gtk4-layer-shell-0) >= 1.0
+BuildRequires: libgtk4-layer-shell-devel-vala
 BuildRequires: pkgconfig(json-glib-1.0)
 BuildRequires: pkgconfig(libadwaita-1) >= 1.4
 BuildRequires: pkgconfig(manette-0.2)
