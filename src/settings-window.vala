@@ -44,6 +44,16 @@ namespace XimperShellTileMenu {
             layout_group.add (mode_row);
             tile_only_widgets.add (mode_row);
 
+            var focus_loss_row = new Adw.SwitchRow ();
+            focus_loss_row.title = _("Close When Focus Is Lost");
+            focus_loss_row.subtitle = _("Hide floating launchers after switching to another window");
+            focus_loss_row.active = app.config.close_on_focus_loss;
+            focus_loss_row.notify["active"].connect (() => {
+                app.config.close_on_focus_loss = focus_loss_row.active;
+                app.config.save ();
+            });
+            layout_group.add (focus_loss_row);
+
             var monitor_row = new Adw.ComboRow ();
             monitor_row.title = _("Monitor");
             monitor_row.subtitle = _("Active Monitor uses the monitor under the pointer");

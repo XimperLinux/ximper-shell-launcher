@@ -313,6 +313,7 @@ namespace XimperShellTileMenu {
             });
             focus.leave.connect (() => {
                 if (!visible) return;
+                if (!app.config.close_on_focus_loss) return;
                 if (app.config.window_mode != WindowMode.FLOATING && !wofi_mode) return;
                 if (!focus_leave_armed) return;
                 if (ignore_next_focus_leave) {

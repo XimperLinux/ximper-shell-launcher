@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-tile-menu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 22:40+0300\n"
+"POT-Creation-Date: 2026-08-12 22:42+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
 "Last-Translator: Ximper Shell contributors\n"
 "Language-Team: Russian\n"
@@ -26,48 +26,48 @@ msgstr "Переключить меню приложений"
 msgid "Gamepad connected: "
 msgstr "Подключён геймпад: "
 
-#: src/config.vala:313
+#: src/config.vala:318
 msgid "Games"
 msgstr "Игры"
 
-#: src/config.vala:314 src/config.vala:315 src/config.vala:316
-#: src/config.vala:317 src/config.vala:318
+#: src/config.vala:319 src/config.vala:320 src/config.vala:321
+#: src/config.vala:322 src/config.vala:323
 msgid "Internet"
 msgstr "Интернет"
 
-#: src/config.vala:319 src/config.vala:320
+#: src/config.vala:324 src/config.vala:325
 msgid "Graphics"
 msgstr "Графика"
 
-#: src/config.vala:321 src/config.vala:322 src/config.vala:323
-#: src/config.vala:324 src/config.vala:325
+#: src/config.vala:326 src/config.vala:327 src/config.vala:328
+#: src/config.vala:329 src/config.vala:330
 msgid "Multimedia"
 msgstr "Мультимедиа"
 
-#: src/config.vala:326 src/config.vala:327 src/config.vala:328
+#: src/config.vala:331 src/config.vala:332 src/config.vala:333
 msgid "Development"
 msgstr "Разработка"
 
-#: src/config.vala:329 src/config.vala:330 src/config.vala:331
-#: src/config.vala:332
+#: src/config.vala:334 src/config.vala:335 src/config.vala:336
+#: src/config.vala:337
 msgid "Office"
 msgstr "Офис"
 
-#: src/config.vala:333 src/config.vala:334 src/config.vala:335
-#: src/config.vala:336 src/config.vala:337
+#: src/config.vala:338 src/config.vala:339 src/config.vala:340
+#: src/config.vala:341 src/config.vala:342
 msgid "System"
 msgstr "Система"
 
-#: src/config.vala:338 src/config.vala:339 src/config.vala:340
-#: src/config.vala:341
+#: src/config.vala:343 src/config.vala:344 src/config.vala:345
+#: src/config.vala:346
 msgid "Utilities"
 msgstr "Утилиты"
 
-#: src/config.vala:342 src/config.vala:343
+#: src/config.vala:347 src/config.vala:348
 msgid "Education"
 msgstr "Образование"
 
-#: src/config.vala:378
+#: src/config.vala:383
 msgid "Apps"
 msgstr "Приложения"
 
@@ -91,11 +91,11 @@ msgstr "Настройки"
 msgid "Search applications…"
 msgstr "Поиск приложений…"
 
-#: src/search-bar.vala:155
+#: src/search-bar.vala:156
 msgid "Applications"
 msgstr "Приложения"
 
-#: src/search-bar.vala:221
+#: src/search-bar.vala:235
 msgid "Open in application"
 msgstr "Открыть в приложении"
 
@@ -140,188 +140,196 @@ msgid "Floating"
 msgstr "Плавающий"
 
 #: src/settings-window.vala:48
+msgid "Close When Focus Is Lost"
+msgstr "Закрывать при потере фокуса"
+
+#: src/settings-window.vala:49
+msgid "Hide floating launchers after switching to another window"
+msgstr "Скрывать плавающие меню при переходе в другое окно"
+
+#: src/settings-window.vala:58
 msgid "Monitor"
 msgstr "Монитор"
 
-#: src/settings-window.vala:49
+#: src/settings-window.vala:59
 msgid "Active Monitor uses the monitor under the pointer"
 msgstr "Активный монитор — монитор под указателем"
 
-#: src/settings-window.vala:63
+#: src/settings-window.vala:73
 msgid "Floating X (%)"
 msgstr "X плавающего окна (%)"
 
-#: src/settings-window.vala:64
+#: src/settings-window.vala:74
 msgid "Horizontal position as percent of screen width"
 msgstr "Горизонтальное положение в процентах от ширины экрана"
 
-#: src/settings-window.vala:74
+#: src/settings-window.vala:84
 msgid "Floating Y (%)"
 msgstr "Y плавающего окна (%)"
 
-#: src/settings-window.vala:75
+#: src/settings-window.vala:85
 msgid "Vertical position as percent of screen height"
 msgstr "Вертикальное положение в процентах от высоты экрана"
 
-#: src/settings-window.vala:85
+#: src/settings-window.vala:95
 msgid "Floating Width"
 msgstr "Ширина плавающего окна"
 
-#: src/settings-window.vala:86
+#: src/settings-window.vala:96
 msgid "Window width in pixels"
 msgstr "Ширина окна в пикселях"
 
-#: src/settings-window.vala:96
+#: src/settings-window.vala:106
 msgid "Floating Height"
 msgstr "Высота плавающего окна"
 
-#: src/settings-window.vala:97
+#: src/settings-window.vala:107
 msgid "Window height in pixels"
 msgstr "Высота окна в пикселях"
 
-#: src/settings-window.vala:107
+#: src/settings-window.vala:117
 msgid "Launcher Width"
 msgstr "Ширина меню"
 
-#: src/settings-window.vala:108
+#: src/settings-window.vala:118
 msgid "Compact launcher width in pixels"
 msgstr "Ширина компактного меню в пикселях"
 
-#: src/settings-window.vala:118
+#: src/settings-window.vala:128
 msgid "Launcher Height"
 msgstr "Высота меню"
 
-#: src/settings-window.vala:119
+#: src/settings-window.vala:129
 msgid "Compact launcher height in pixels"
 msgstr "Высота компактного меню в пикселях"
 
 #. Max columns
-#: src/settings-window.vala:130
+#: src/settings-window.vala:140
 msgid "Max Columns"
 msgstr "Максимум столбцов"
 
-#: src/settings-window.vala:131
+#: src/settings-window.vala:141
 msgid "0 = automatic"
 msgstr "0 = автоматически"
 
 #. Cell size
-#: src/settings-window.vala:142
+#: src/settings-window.vala:152
 msgid "Cell Size"
 msgstr "Размер ячейки"
 
-#: src/settings-window.vala:143
+#: src/settings-window.vala:153
 msgid "0 = automatic (derived from Max Rows or screen)"
 msgstr "0 = автоматически (по максимальному числу строк или размеру экрана)"
 
 #. Layer
-#: src/settings-window.vala:154
+#: src/settings-window.vala:164
 msgid "Layer"
 msgstr "Слой"
 
-#: src/settings-window.vala:155
+#: src/settings-window.vala:165
 msgid "Choose the layer where the tile menu is displayed"
 msgstr "Выберите слой, на котором отображается меню плиток"
 
-#: src/settings-window.vala:157
+#: src/settings-window.vala:167
 msgid "Background"
 msgstr "Фон"
 
-#: src/settings-window.vala:157
+#: src/settings-window.vala:167
 msgid "Bottom"
 msgstr "Нижний"
 
-#: src/settings-window.vala:157
+#: src/settings-window.vala:167
 msgid "Top"
 msgstr "Верхний"
 
-#: src/settings-window.vala:157
+#: src/settings-window.vala:167
 msgid "Overlay"
 msgstr "Наложение"
 
-#: src/settings-window.vala:177
+#: src/settings-window.vala:187
 msgid "Appearance"
 msgstr "Внешний вид"
 
-#: src/settings-window.vala:180
+#: src/settings-window.vala:190
 msgid "Background Opacity (%)"
 msgstr "Непрозрачность фона (%)"
 
-#: src/settings-window.vala:189
+#: src/settings-window.vala:199
 msgid "Wallpaper"
 msgstr "Обои"
 
-#: src/settings-window.vala:191
+#: src/settings-window.vala:201
 msgid "Choose…"
 msgstr "Выбрать…"
 
-#: src/settings-window.vala:198 src/settings-window.vala:245
+#: src/settings-window.vala:208 src/settings-window.vala:255
 msgid "Reset"
 msgstr "Сбросить"
 
-#: src/settings-window.vala:209
+#: src/settings-window.vala:219
 msgid "Wallpaper Scale"
 msgstr "Масштаб обоев"
 
-#: src/settings-window.vala:210
+#: src/settings-window.vala:220
 msgid "Fill"
 msgstr "Заполнить"
 
-#: src/settings-window.vala:210
+#: src/settings-window.vala:220
 msgid "Contain"
 msgstr "Вписать"
 
-#: src/settings-window.vala:210
+#: src/settings-window.vala:220
 msgid "Cover"
 msgstr "Заполнить с обрезкой"
 
-#: src/settings-window.vala:210
+#: src/settings-window.vala:220
 msgid "Scale Down"
 msgstr "Только уменьшать"
 
-#: src/settings-window.vala:219
+#: src/settings-window.vala:229
 msgid "Wallpaper Opacity (%)"
 msgstr "Непрозрачность обоев (%)"
 
-#: src/settings-window.vala:228
+#: src/settings-window.vala:238
 msgid "Wallpaper Dim (%)"
 msgstr "Затемнение обоев (%)"
 
 #. Data group
-#: src/settings-window.vala:239
+#: src/settings-window.vala:249
 msgid "Data"
 msgstr "Данные"
 
 #. Reset layout
-#: src/settings-window.vala:243
+#: src/settings-window.vala:253
 msgid "Reset Layout"
 msgstr "Сбросить расположение"
 
-#: src/settings-window.vala:244
+#: src/settings-window.vala:254
 msgid "Regenerate folders from app categories"
 msgstr "Повторно создать папки по категориям приложений"
 
-#: src/settings-window.vala:276
+#: src/settings-window.vala:286
 msgid "No wallpaper selected"
 msgstr "Обои не выбраны"
 
-#: src/settings-window.vala:281
+#: src/settings-window.vala:291
 msgid "Choose Wallpaper"
 msgstr "Выберите обои"
 
-#: src/settings-window.vala:284
+#: src/settings-window.vala:294
 msgid "Images"
 msgstr "Изображения"
 
-#: src/settings-window.vala:316
+#: src/settings-window.vala:326
 msgid "Active Monitor"
 msgstr "Активный монитор"
 
-#: src/settings-window.vala:328
+#: src/settings-window.vala:338
 #, c-format
 msgid "Monitor %u: %s (%dx%d)"
 msgstr "Монитор %u: %s (%dx%d)"
 
-#: src/settings-window.vala:336
+#: src/settings-window.vala:346
 #, c-format
 msgid "Monitor %u (%dx%d)"
 msgstr "Монитор %u (%dx%d)"

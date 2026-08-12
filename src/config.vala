@@ -89,6 +89,7 @@ namespace XimperShellTileMenu {
         public string layer { get; set; default = "overlay"; }
         public LauncherMode launcher_mode { get; set; default = LauncherMode.TILES; }
         public WindowMode window_mode { get; set; default = WindowMode.FULLSCREEN; }
+        public bool close_on_focus_loss { get; set; default = true; }
         public int floating_x { get; set; default = 0; }
         public int floating_y { get; set; default = 24; }
         public int floating_width { get; set; default = 960; }
@@ -145,6 +146,8 @@ namespace XimperShellTileMenu {
                     launcher_mode = LauncherMode.from_string (root.get_string_member ("launcher_mode"));
                 if (root.has_member ("window_mode"))
                     window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
+                if (root.has_member ("close_on_focus_loss"))
+                    close_on_focus_loss = root.get_boolean_member ("close_on_focus_loss");
                 if (root.has_member ("floating_x"))
                     floating_x = (int) root.get_int_member ("floating_x");
                 if (root.has_member ("floating_y"))
@@ -226,6 +229,8 @@ namespace XimperShellTileMenu {
             builder.add_string_value (launcher_mode.to_string ());
             builder.set_member_name ("window_mode");
             builder.add_string_value (window_mode.to_string ());
+            builder.set_member_name ("close_on_focus_loss");
+            builder.add_boolean_value (close_on_focus_loss);
             builder.set_member_name ("floating_x");
             builder.add_int_value (floating_x);
             builder.set_member_name ("floating_y");
