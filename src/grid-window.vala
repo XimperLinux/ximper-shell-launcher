@@ -167,6 +167,11 @@ namespace XimperShellTileMenu {
             update_wallpaper ();
 
             root_overlay = new Gtk.Overlay ();
+            // A layer-shell window itself is transparent.  Clip all stacked
+            // background layers to one rounded surface to prevent rectangular
+            // translucent corners around the floating menu.
+            root_overlay.overflow = Gtk.Overflow.HIDDEN;
+            root_overlay.add_css_class ("floating-surface");
             root_overlay.set_child (background);
             root_overlay.add_overlay (wallpaper_layer);
             root_overlay.add_overlay (wallpaper_dimmer);

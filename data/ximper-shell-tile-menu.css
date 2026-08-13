@@ -7,16 +7,16 @@
     background-color: @window_bg_color;
 }
 
-/* Floating layer-shell surfaces need their own rounded background. */
+/* The transparent layer-shell window wraps one clipped visible surface. */
 .grid-overlay.floating {
-    border-radius: 18px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
+.grid-overlay.floating .floating-surface,
 .grid-overlay.floating .window-background,
 .grid-overlay.floating .wallpaper,
 .grid-overlay.floating .wallpaper-dimmer {
-    border-radius: 18px;
+    border-radius: 15px;
 }
 
 /* Search */
