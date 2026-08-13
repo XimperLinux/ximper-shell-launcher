@@ -98,7 +98,8 @@ namespace XimperShellTileMenu {
         public int wofi_height { get; set; default = 800; }
         public int floating_x_percent { get; set; default = 50; }
         public int floating_y_percent { get; set; default = 50; }
-        public int monitor_index { get; set; default = -1; }
+        // Empty means the compositor-selected active output.
+        public GenericArray<string> output;
         public string wallpaper_path { get; set; default = ""; }
         public int wallpaper_fit { get; set; default = 2; }
         public int wallpaper_opacity { get; set; default = 100; }
@@ -108,7 +109,10 @@ namespace XimperShellTileMenu {
 
         private string config_path;
 
+        public signal void output_changed ();
+
         public ConfigManager () {
+            output = new GenericArray<string> ();
             groups = new GenericArray<GroupConfig> ();
 
             config_path = Path.build_filename (
@@ -164,8 +168,26 @@ namespace XimperShellTileMenu {
                     floating_x_percent = (int) root.get_int_member ("floating_x_percent");
                 if (root.has_member ("floating_y_percent"))
                     floating_y_percent = (int) root.get_int_member ("floating_y_percent");
-                if (root.has_member ("monitor_index"))
-                    monitor_index = (int) root.get_int_member ("monitor_index");
+                if (root.has_member ("output")) {
+                    output = new GenericArray<string> ();
+                    var outputs = root.get_array_member ("output");
+                    outputs.foreach_element ((array, i, node) => {
+                        var connector = node.get_string ();
+                        if (connector != null && connector.length > 0) output.add (connector);
+                    });
+                } else if (root.has_member ("monitor_index")) {
+                    int legacy_index = (int) root.get_int_member ("monitor_index");
+                    var display = Gdk.Display.get_default ();
+                    if (display != null) {
+                        var monitors = display.get_monitors ();
+                        if (legacy_index >= 0 && legacy_index < (int) monitors.get_n_items ()) {
+                            var monitor = (Gdk.Monitor) monitors.get_item ((uint) legacy_index);
+                            var connector = monitor.get_connector ();
+                            if (connector != null && connector.length > 0) output.add (connector);
+                        }
+                    }
+                    config_migrated = true;
+                }
                 if (root.has_member ("wallpaper_path"))
                     wallpaper_path = root.get_string_member ("wallpaper_path");
                 if (root.has_member ("wallpaper_fit"))
@@ -214,6 +236,12 @@ namespace XimperShellTileMenu {
             }
         }
 
+        public void set_output (string? connector) {
+            output = new GenericArray<string> ();
+            if (connector != null && connector.length > 0) output.add (connector);
+            output_changed ();
+        }
+
         public void save () {
             var builder = new Json.Builder ();
 
@@ -247,8 +275,10 @@ namespace XimperShellTileMenu {
             builder.add_int_value (floating_x_percent);
             builder.set_member_name ("floating_y_percent");
             builder.add_int_value (floating_y_percent);
-            builder.set_member_name ("monitor_index");
-            builder.add_int_value (monitor_index);
+            builder.set_member_name ("output");
+            builder.begin_array ();
+            for (uint i = 0; i < output.length; i++) builder.add_string_value (output[i]);
+            builder.end_array ();
             builder.set_member_name ("wallpaper_path");
             builder.add_string_value (wallpaper_path);
             builder.set_member_name ("wallpaper_fit");

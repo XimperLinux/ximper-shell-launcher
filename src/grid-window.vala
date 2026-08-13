@@ -280,7 +280,7 @@ namespace XimperShellTileMenu {
             app.config.notify["window-mode"].connect (() => {
                 apply_window_mode ();
             });
-            app.config.notify["monitor-index"].connect (() => {
+            app.config.output_changed.connect (() => {
                 floating_monitor = null;
                 apply_window_mode ();
             });
@@ -395,23 +395,15 @@ namespace XimperShellTileMenu {
         private Gdk.Monitor? get_floating_monitor () {
             if (floating_monitor != null) return floating_monitor;
 
-            if (app.config.monitor_index < 0) {
-                floating_monitor = get_compositor_active_monitor ();
-                if (floating_monitor != null) return floating_monitor;
-
-                floating_monitor = get_pointer_monitor ();
+            if (app.config.output.length > 0) {
+                floating_monitor = get_monitor_by_connector (app.config.output[0]);
                 if (floating_monitor != null) return floating_monitor;
             }
 
-            var display = Gdk.Display.get_default ();
-            if (display == null) return null;
+            floating_monitor = get_compositor_active_monitor ();
+            if (floating_monitor != null) return floating_monitor;
 
-            var monitors = display.get_monitors ();
-            if (monitors.get_n_items () == 0) return null;
-
-            var index = app.config.monitor_index.clamp (0, (int) monitors.get_n_items () - 1);
-            floating_monitor = (Gdk.Monitor) monitors.get_item (index);
-            return floating_monitor;
+            return get_pointer_monitor ();
         }
 
         private Gdk.Monitor? get_pointer_monitor () {

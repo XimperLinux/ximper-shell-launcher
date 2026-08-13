@@ -59,12 +59,19 @@ namespace XimperShellTileMenu {
             monitor_row.subtitle = _("Active Monitor uses the monitor under the pointer");
             var monitor_list = build_monitor_list ();
             monitor_row.model = monitor_list;
-            monitor_row.selected = (uint) (app.config.monitor_index + 1).clamp (
-                0,
-                (int) monitor_list.get_n_items () - 1
-            );
+            monitor_row.selected = selected_monitor_index (monitor_list);
             monitor_row.notify["selected"].connect (() => {
-                app.config.monitor_index = (int) monitor_row.selected - 1;
+                string? connector = null;
+                if (monitor_row.selected > 0) {
+                    var display = Gdk.Display.get_default ();
+                    if (display != null) {
+                        var monitors = display.get_monitors ();
+                        uint index = monitor_row.selected - 1;
+                        if (index < monitors.get_n_items ())
+                            connector = ((Gdk.Monitor) monitors.get_item (index)).get_connector ();
+                    }
+                }
+                app.config.set_output (connector);
                 app.config.save ();
             });
             layout_group.add (monitor_row);
@@ -317,6 +324,18 @@ namespace XimperShellTileMenu {
                     }
                 }
             });
+        }
+
+        private uint selected_monitor_index (Gtk.StringList list) {
+            if (app.config.output.length == 0) return 0;
+            var display = Gdk.Display.get_default ();
+            if (display == null) return 0;
+            var monitors = display.get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var connector = ((Gdk.Monitor) monitors.get_item (i)).get_connector ();
+                if (connector == app.config.output[0]) return i + 1;
+            }
+            return 0;
         }
 
         private Gtk.StringList build_monitor_list () {
