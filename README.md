@@ -7,6 +7,15 @@ Fullscreen app launcher with tile grid inspired by Windows Phone 8.1. Tiles of d
 
 Supports Hyprland and Niri through compositor helpers.
 
+## Features
+
+- Fullscreen or floating tiled launcher, including a compact Wofi mode.
+- Small, medium, and large application tiles; animated folders; drag-and-drop rearrangement and folder management.
+- Keyboard navigation, fuzzy application search, and results from GNOME Search Providers.
+- Optional per-menu wallpaper, background dimming, and opacity controls.
+- Gamepad navigation through libmanette.
+- Optional integration with Ximper Shell Dock to pin or unpin applications from a tile context menu.
+
 ## Build
 
 ```sh
@@ -20,6 +29,7 @@ ninja -C _build
 ```sh
 # Opens the launcher selected by launcher_mode
 ximper-shell-tile-menu --toggle
+ximper-shell-tile-menu --describe  # print the current configuration and supported parameters as JSON
 ```
 
 ## Compositor Support
@@ -39,12 +49,22 @@ The tile menu uses compositor helpers for compositor-specific behavior:
   "cell_size": 0,
   "layer": "overlay",
   "launcher_mode": "tiles",
-  "wofi_width": 600,
-  "wofi_height": 640,
+  "window_mode": "floating",
+  "close_on_focus_loss": true,
+  "floating_x": 0,
+  "floating_y": 24,
+  "floating_width": 1120,
+  "floating_height": 880,
+  "wofi_width": 890,
+  "wofi_height": 800,
+  "floating_x_percent": 50,
+  "floating_y_percent": 50,
+  "output": [],
   "wallpaper_path": "",
   "wallpaper_fit": 2,
   "wallpaper_opacity": 100,
   "wallpaper_dim": 0,
+  "background_opacity": 100,
   "groups": [{
     "name": "",
     "tiles": [
@@ -63,13 +83,55 @@ The tile menu uses compositor helpers for compositor-specific behavior:
 | `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"` or compact `"wofi"` |
-| `wofi_width` | int | `600` | Width of the compact launcher in pixels |
-| `wofi_height` | int | `640` | Height of the compact launcher in pixels |
+| `window_mode` | string | `"floating"` | Tile grid mode: `"fullscreen"` or `"floating"` |
+| `close_on_focus_loss` | bool | `true` | Close the floating launcher when it loses focus |
+| `floating_x` | int | `0` | Horizontal offset of the floating tile grid in pixels |
+| `floating_y` | int | `24` | Vertical offset of the floating tile grid in pixels |
+| `floating_width` | int | `1120` | Width of the floating tile grid in pixels |
+| `floating_height` | int | `880` | Height of the floating tile grid in pixels |
+| `wofi_width` | int | `890` | Width of the compact launcher in pixels |
+| `wofi_height` | int | `800` | Height of the compact launcher in pixels |
+| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; used by floating grid and Wofi |
+| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; used by floating grid and Wofi |
+| `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |
 | `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
 | `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |
 | `wallpaper_opacity` | int | `100` | Wallpaper opacity, 0–100% |
 | `wallpaper_dim` | int | `0` | Black dimmer above wallpaper, 0–100% |
+| `background_opacity` | int | `100` | Menu background opacity, 0–100% |
 | `groups` | array | | Tile groups with tiles and folders |
+
+`monitor_index` is accepted only as a legacy setting and is migrated to `output` when the configuration is saved. Use the monitor connector name instead, because display indexes are not stable.
+
+### Custom CSS
+
+Create `~/.config/ximper-shell/tile-menu/style.css` to change the menu appearance without modifying installed files. This stylesheet is loaded with user priority, so its rules override the bundled stylesheet. Restart the tile menu after editing it.
+
+The bundled [`data/ximper-shell-tile-menu.css`](data/ximper-shell-tile-menu.css) lists all available rules and is a useful starting point. On an installed system it is normally available as `/etc/xdg/ximper-shell/tile-menu/style.css`.
+
+```sh
+mkdir -p ~/.config/ximper-shell/tile-menu
+cp /etc/xdg/ximper-shell/tile-menu/style.css \
+  ~/.config/ximper-shell/tile-menu/style.css
+```
+
+For example, to adjust the menu background, tile corners, and floating-menu shadow:
+
+```css
+.window-background {
+  background: @window_bg_color;
+}
+
+.tile {
+  border-radius: 16px;
+}
+
+.grid-overlay.floating {
+  box-shadow: 0 8px 24px @headerbar_shade_color;
+}
+```
+
+Useful selectors include `.grid-overlay`, `.grid-overlay.floating`, `.window-background`, `.tile`, `.tile-name`, `.search-entry`, `.search-result-row`, `.folder-expanded`, and `.wallpaper-dimmer`. GTK/libadwaita theme colors such as `@window_bg_color`, `@card_bg_color`, and `@accent_bg_color` follow the active system theme.
 
 ## Gamepad
 
