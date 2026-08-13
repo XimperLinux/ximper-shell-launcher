@@ -20,6 +20,7 @@ namespace XimperShellTileMenu {
             );
             options = {
                 { "toggle", 't', 0, OptionArg.NONE, null, _("Toggle the application launcher"), null },
+                { "describe", 0, 0, OptionArg.NONE, null, _("Print configuration and parameter metadata as JSON"), null },
                 { null }
             };
             add_main_option_entries (options);
@@ -54,6 +55,11 @@ namespace XimperShellTileMenu {
 
         protected override int command_line (ApplicationCommandLine cmdline) {
             var options = cmdline.get_options_dict ();
+
+            if (options.contains ("describe")) {
+                cmdline.print ("%s", describe_json (config));
+                return 0;
+            }
 
             activate ();
 

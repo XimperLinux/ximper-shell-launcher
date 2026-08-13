@@ -12,6 +12,7 @@ grid_sources = files(
   'main.vala',
   'application.vala',
   'config.vala',
+  'describe.vala',
   'app-info.vala',
   'app-provider.vala',
   'settings-window.vala',

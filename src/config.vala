@@ -108,6 +108,7 @@ namespace XimperShellTileMenu {
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
+        public string config_file { get { return config_path; } }
 
         public signal void output_changed ();
 
