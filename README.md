@@ -1,6 +1,6 @@
 # ximper-shell-launcher
 
-Tile launcher.
+Application launcher.
 A component of the Ximper Shell.
 
 Fullscreen app launcher with tile grid inspired by Windows Phone 8.1. Tiles of different sizes, folders with animation, drag-and-drop, fuzzy search across all .desktop fields with GNOME Search Providers integration, gamepad support. Built with Vala, GTK4, libadwaita, gtk4-layer-shell, libmanette.
