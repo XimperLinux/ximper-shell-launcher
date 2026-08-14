@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public abstract class CompositorHelper : Object {
         public abstract string name { owned get; }

@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     [DBus (name = "ru.ximperlinux.shell.Dock")]
     public interface DockDBusProxy : Object {

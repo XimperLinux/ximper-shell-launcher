@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ximper-shell-tile-menu\n"
+"Project-Id-Version: ximper-shell-launcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-08-12 22:42+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
@@ -100,8 +100,8 @@ msgid "Open in application"
 msgstr "Открыть в приложении"
 
 #: src/settings-window.vala:11
-msgid "Tile Menu Settings"
-msgstr "Настройки меню плиток"
+msgid "Launcher Settings"
+msgstr "Настройки лаунчера"
 
 #: src/settings-window.vala:21
 msgid "Grid"
@@ -113,11 +113,11 @@ msgstr "Расположение"
 
 #: src/settings-window.vala:28
 msgid "Launcher Mode"
-msgstr "Режим меню"
+msgstr "Режим лаунчера"
 
 #: src/settings-window.vala:29
 msgid "Tile grid or compact application launcher"
-msgstr "Сетка плиток или компактное меню приложений"
+msgstr "Сетка плиток или компактный лаунчер приложений"
 
 #: src/settings-window.vala:30
 msgid "Tiles"
@@ -145,7 +145,7 @@ msgstr "Закрывать при потере фокуса"
 
 #: src/settings-window.vala:49
 msgid "Hide floating launchers after switching to another window"
-msgstr "Скрывать плавающие меню при переходе в другое окно"
+msgstr "Скрывать плавающие лаунчеры при переходе в другое окно"
 
 #: src/settings-window.vala:58
 msgid "Monitor"
@@ -189,19 +189,19 @@ msgstr "Высота окна в пикселях"
 
 #: src/settings-window.vala:117
 msgid "Launcher Width"
-msgstr "Ширина меню"
+msgstr "Ширина лаунчера"
 
 #: src/settings-window.vala:118
 msgid "Compact launcher width in pixels"
-msgstr "Ширина компактного меню в пикселях"
+msgstr "Ширина компактного лаунчера в пикселях"
 
 #: src/settings-window.vala:128
 msgid "Launcher Height"
-msgstr "Высота меню"
+msgstr "Высота лаунчера"
 
 #: src/settings-window.vala:129
 msgid "Compact launcher height in pixels"
-msgstr "Высота компактного меню в пикселях"
+msgstr "Высота компактного лаунчера в пикселях"
 
 #. Max columns
 #: src/settings-window.vala:140
@@ -227,8 +227,8 @@ msgid "Layer"
 msgstr "Слой"
 
 #: src/settings-window.vala:165
-msgid "Choose the layer where the tile menu is displayed"
-msgstr "Выберите слой, на котором отображается меню плиток"
+msgid "Choose the layer where the launcher is displayed"
+msgstr "Выберите слой, на котором отображается лаунчер"
 
 #: src/settings-window.vala:167
 msgid "Background"

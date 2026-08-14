@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public class AppProvider : Object {
 

@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public class SearchBar : Gtk.Box {
 

@@ -1,11 +1,11 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
-    [DBus (name = "ru.ximperlinux.shell.TileMenu")]
-    public class GridDBusService : Object {
+    [DBus (name = "ru.ximperlinux.shell.Launcher")]
+    public class LauncherDBusService : Object {
 
         private weak Application app;
 
-        public GridDBusService (Application app) {
+        public LauncherDBusService (Application app) {
             this.app = app;
         }
 

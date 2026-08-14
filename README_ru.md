@@ -1,4 +1,4 @@
-# ximper-shell-tile-menu
+# ximper-shell-launcher
 
 Лаунчер плиток.
 Компонент Ximper Shell.
@@ -21,27 +21,27 @@
 ```sh
 meson setup _build
 ninja -C _build
-./_build/src/ximper-shell-tile-menu
+./_build/src/ximper-shell-launcher
 ```
 
 ## CLI
 
 ```sh
 # Открыть лаунчер, выбранный в launcher_mode
-ximper-shell-tile-menu --toggle
-ximper-shell-tile-menu --describe  # вывести текущую конфигурацию и поддерживаемые параметры в JSON
+ximper-shell-launcher --toggle
+ximper-shell-launcher --describe  # вывести текущую конфигурацию и поддерживаемые параметры в JSON
 ```
 
 ## Поддержка композиторов
 
-Меню плиток использует модули композиторов для специфичного поведения:
+Лаунчер использует модули композиторов для специфичного поведения:
 
-- Hyprland: в плавающем режиме меню может открываться на мониторе активного рабочего пространства через `hyprctl activeworkspace -j`.
-- Niri: в плавающем режиме меню может открываться на выходе рабочего пространства в фокусе через `niri msg --json workspaces`.
+- Hyprland: в плавающем режиме лаунчер может открываться на мониторе активного рабочего пространства через `hyprctl activeworkspace -j`.
+- Niri: в плавающем режиме лаунчер может открываться на выходе рабочего пространства в фокусе через `niri msg --json workspaces`.
 
 ## Конфигурация
 
-`~/.config/ximper-shell/tile-menu/config.json`
+`~/.config/ximper-shell/launcher/config.json`
 
 ```json
 {
@@ -105,17 +105,17 @@ ximper-shell-tile-menu --describe  # вывести текущую конфиг�
 
 ### Пользовательский CSS
 
-Создайте `~/.config/ximper-shell/tile-menu/style.css`, чтобы изменить внешний вид меню без редактирования установленных файлов. Эта таблица стилей загружается с пользовательским приоритетом и перекрывает правила из поставляемой таблицы. После изменения перезапустите меню плиток.
+Создайте `~/.config/ximper-shell/launcher/style.css`, чтобы изменить внешний вид лаунчера без редактирования установленных файлов. Эта таблица стилей загружается с пользовательским приоритетом и перекрывает правила из поставляемой таблицы. После изменения перезапустите лаунчер.
 
-Полный перечень доступных правил и хорошая основа для собственного файла — поставляемая таблица [`data/ximper-shell-tile-menu.css`](data/ximper-shell-tile-menu.css). В установленной системе она обычно находится по пути `/etc/xdg/ximper-shell/tile-menu/style.css`.
+Полный перечень доступных правил и хорошая основа для собственного файла — поставляемая таблица [`data/ximper-shell-launcher.css`](data/ximper-shell-launcher.css). В установленной системе она обычно находится по пути `/etc/xdg/ximper-shell/launcher/style.css`.
 
 ```sh
-mkdir -p ~/.config/ximper-shell/tile-menu
-cp /etc/xdg/ximper-shell/tile-menu/style.css \
-  ~/.config/ximper-shell/tile-menu/style.css
+mkdir -p ~/.config/ximper-shell/launcher
+cp /etc/xdg/ximper-shell/launcher/style.css \
+  ~/.config/ximper-shell/launcher/style.css
 ```
 
-Например, чтобы настроить фон меню, скругление плиток и тень плавающего меню:
+Например, чтобы настроить фон лаунчера, скругление плиток и тень плавающего лаунчера:
 
 ```css
 .window-background {
@@ -143,16 +143,16 @@ cp /etc/xdg/ximper-shell/tile-menu/style.css \
 | A (нижняя) | Запуск плитки / выбор пункта меню |
 | B (правая) | Назад: закрыть папку, всплывающее меню или лаунчер |
 | X (верхняя) | Открыть контекстное меню плитки в фокусе |
-| Xbox / Guide | Переключить меню плиток |
+| Xbox / Guide | Переключить лаунчер |
 | LB / RB | Прокрутка вверх / вниз |
 
 Удерживайте D-pad или стик для непрерывной навигации.
 
 ## D-Bus
 
-`ru.ximperlinux.shell.TileMenu` по пути `/ru/ximperlinux/shell/TileMenu`:
+`ru.ximperlinux.shell.Launcher` по пути `/ru/ximperlinux/shell/Launcher`:
 
-- `Toggle()` — показать или скрыть меню плиток
+- `Toggle()` — показать или скрыть лаунчер
 
 ## Лицензия
 

@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public class LayerShellHelper {
 
@@ -36,7 +36,7 @@ namespace XimperShellTileMenu {
             GtkLayerShell.init_for_window (window);
             apply_window_mode (window, WindowMode.FULLSCREEN, layer);
             GtkLayerShell.set_keyboard_mode (window, GtkLayerShell.KeyboardMode.ON_DEMAND);
-            GtkLayerShell.set_namespace (window, "ximper-shell-tile-menu");
+            GtkLayerShell.set_namespace (window, "ximper-shell-launcher");
         }
 
         public static void apply_window_mode (

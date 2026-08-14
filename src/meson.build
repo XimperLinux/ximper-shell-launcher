@@ -35,9 +35,9 @@ grid_sources = files(
   'gamepad-controller.vala',
 )
 
-executable('ximper-shell-tile-menu', grid_sources,
+executable('ximper-shell-launcher', grid_sources,
   dependencies: grid_deps,
   include_directories: include_directories('..'),
-  c_args: ['-DGETTEXT_PACKAGE="ximper-shell-tile-menu"', '-w'],
+  c_args: ['-DGETTEXT_PACKAGE="ximper-shell-launcher"', '-w'],
   install: true,
 )

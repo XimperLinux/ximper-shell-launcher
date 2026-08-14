@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public enum LauncherMode {
         TILES,
@@ -117,11 +117,12 @@ namespace XimperShellTileMenu {
             groups = new GenericArray<GroupConfig> ();
 
             config_path = Path.build_filename (
-                Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "config.json"
+                Environment.get_user_config_dir (), "ximper-shell", "launcher", "config.json"
             );
         }
 
         public void load () {
+            migrate_legacy_config ();
             if (!FileUtils.test (config_path, FileTest.EXISTS)) {
                 create_default ();
                 return;
@@ -234,6 +235,24 @@ namespace XimperShellTileMenu {
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
                 create_default ();
+            }
+        }
+
+        private void migrate_legacy_config () {
+            if (FileUtils.test (config_path, FileTest.EXISTS)) return;
+
+            string legacy_path = Path.build_filename (
+                Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "config.json"
+            );
+            if (!FileUtils.test (legacy_path, FileTest.EXISTS)) return;
+
+            try {
+                DirUtils.create_with_parents (Path.get_dirname (config_path), 0755);
+                File.new_for_path (legacy_path).copy (
+                    File.new_for_path (config_path), FileCopyFlags.NONE, null, null
+                );
+            } catch (Error e) {
+                warning ("Failed to migrate legacy launcher config: %s", e.message);
             }
         }
 

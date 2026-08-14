@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public string describe_json (ConfigManager config) {
         var builder = new Json.Builder ();

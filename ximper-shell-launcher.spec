@@ -1,4 +1,4 @@
-Name: ximper-shell-tile-menu
+Name: ximper-shell-launcher
 Version: 0.1.0
 Release: eter0
 Summary: Ximper Shell tile application launcher
@@ -19,7 +19,7 @@ BuildRequires: pkgconfig(libadwaita-1) >= 1.4
 BuildRequires: pkgconfig(manette-0.2)
 
 %description
-Tile application launcher for Ximper Shell, built with GTK4, libadwaita and
+Application launcher for Ximper Shell, built with GTK4, libadwaita and
 gtk4-layer-shell. It supports Hyprland, Niri and gamepad navigation.
 
 %prep
@@ -39,8 +39,8 @@ gtk4-layer-shell. It supports Hyprland, Niri and gamepad navigation.
 %files -f %name.lang
 %doc README.md LICENSE
 %_bindir/%name
-%dir %_sysconfdir/xdg/ximper-shell/tile-menu
-%_sysconfdir/xdg/ximper-shell/tile-menu/style.css
+%dir %_sysconfdir/xdg/ximper-shell/launcher
+%_sysconfdir/xdg/ximper-shell/launcher/style.css
 
 %changelog
 * Tue Aug 11 2026 Roman Alifanov <ximper@altlinux.org> 0.1.0-eter0

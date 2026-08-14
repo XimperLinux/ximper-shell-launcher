@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public class Application : Adw.Application {
 
@@ -8,14 +8,14 @@ namespace XimperShellTileMenu {
         public CompositorHelper compositor_helper { get; private set; }
 
         private GridWindow? grid_window;
-        private GridDBusService? dbus_service;
+        private LauncherDBusService? dbus_service;
         private GamepadController? gamepad;
 
         private OptionEntry[] options;
 
         public Application () {
             Object (
-                application_id: "ru.ximperlinux.shell.TileMenu",
+                application_id: "ru.ximperlinux.shell.Launcher",
                 flags: ApplicationFlags.HANDLES_COMMAND_LINE
             );
             options = {
@@ -48,8 +48,8 @@ namespace XimperShellTileMenu {
 
         protected override bool dbus_register (DBusConnection conn, string object_path) throws Error {
             base.dbus_register (conn, object_path);
-            dbus_service = new GridDBusService (this);
-            conn.register_object ("/ru/ximperlinux/shell/TileMenu", dbus_service);
+            dbus_service = new LauncherDBusService (this);
+            conn.register_object ("/ru/ximperlinux/shell/Launcher", dbus_service);
             return true;
         }
 
@@ -114,14 +114,14 @@ namespace XimperShellTileMenu {
             var css_provider = new Gtk.CssProvider ();
 
             string css_path = Path.build_filename (
-                Environment.get_user_data_dir (), "ximper-shell-tile-menu", "ximper-shell-tile-menu.css"
+                Environment.get_user_data_dir (), "ximper-shell-launcher", "ximper-shell-launcher.css"
             );
 
             if (FileUtils.test (css_path, FileTest.EXISTS)) {
                 css_provider.load_from_path (css_path);
             } else {
                 string system_css = Path.build_filename (
-                    "/etc", "xdg", "ximper-shell", "tile-menu", "style.css"
+                    "/etc", "xdg", "ximper-shell", "launcher", "style.css"
                 );
                 if (FileUtils.test (system_css, FileTest.EXISTS)) {
                     css_provider.load_from_path (system_css);
@@ -130,7 +130,7 @@ namespace XimperShellTileMenu {
                         string self_path = FileUtils.read_link ("/proc/self/exe");
                         string bin_dir = Path.get_dirname (self_path);
                         string local_css = Path.build_filename (
-                            bin_dir, "..", "..", "data", "ximper-shell-tile-menu.css"
+                            bin_dir, "..", "..", "data", "ximper-shell-launcher.css"
                         );
                         if (FileUtils.test (local_css, FileTest.EXISTS)) {
                             css_provider.load_from_path (local_css);
@@ -145,10 +145,15 @@ namespace XimperShellTileMenu {
                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             );
 
-            // User custom style.css from config directory
+            // Prefer Launcher CSS, but keep existing Tile Menu customizations working.
             string user_css = Path.build_filename (
-                Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "style.css"
+                Environment.get_user_config_dir (), "ximper-shell", "launcher", "style.css"
             );
+            if (!FileUtils.test (user_css, FileTest.EXISTS)) {
+                user_css = Path.build_filename (
+                    Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "style.css"
+                );
+            }
             if (FileUtils.test (user_css, FileTest.EXISTS)) {
                 var user_provider = new Gtk.CssProvider ();
                 user_provider.load_from_path (user_css);

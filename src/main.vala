@@ -15,6 +15,6 @@ int main (string[] args) {
     Intl.bind_textdomain_codeset (BuildConfig.GETTEXT_PACKAGE, "UTF-8");
     Intl.textdomain (BuildConfig.GETTEXT_PACKAGE);
 
-    var app = new XimperShellTileMenu.Application ();
+    var app = new XimperShellLauncher.Application ();
     return app.run (args);
 }

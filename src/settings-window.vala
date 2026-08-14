@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     public class SettingsWindow : Adw.PreferencesWindow {
 
@@ -8,7 +8,7 @@ namespace XimperShellTileMenu {
 
         public SettingsWindow (Application app) {
             this.app = app;
-            this.title = _("Tile Menu Settings");
+            this.title = _("Launcher Settings");
             this.default_width = 500;
             this.default_height = 550;
             this.modal = false;
@@ -167,7 +167,7 @@ namespace XimperShellTileMenu {
             // Layer
             var layer_row = new Adw.ComboRow ();
             layer_row.title = _("Layer");
-            layer_row.subtitle = _("Choose the layer where the tile menu is displayed");
+            layer_row.subtitle = _("Choose the layer where the launcher is displayed");
             layer_row.model = new Gtk.StringList ({
                 _("Background"), _("Bottom"), _("Top"), _("Overlay")
             });
@@ -262,7 +262,7 @@ namespace XimperShellTileMenu {
             reset_btn.add_css_class ("destructive-action");
             reset_btn.clicked.connect (() => {
                 var config_path = Path.build_filename (
-                    Environment.get_user_config_dir (), "ximper-shell", "tile-menu", "config.json"
+                    Environment.get_user_config_dir (), "ximper-shell", "launcher", "config.json"
                 );
                 FileUtils.remove (config_path);
                 app.config.load ();

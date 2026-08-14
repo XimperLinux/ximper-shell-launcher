@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     [CCode (cname = "setsid", cheader_filename = "unistd.h")]
     private static extern int c_setsid ();

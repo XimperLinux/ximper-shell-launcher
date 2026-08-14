@@ -1,4 +1,4 @@
-namespace XimperShellTileMenu {
+namespace XimperShellLauncher {
 
     private class NonMeasuringBackground : Gtk.Widget {
         private Gtk.Picture picture;
@@ -51,7 +51,7 @@ namespace XimperShellTileMenu {
 
         public GridWindow (Application app) {
             this.app = app;
-            this.title = "Ximper Shell Tile Menu";
+            this.title = "Ximper Shell Launcher";
             this.decorated = false;
 
             add_css_class ("grid-overlay");

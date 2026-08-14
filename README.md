@@ -1,4 +1,4 @@
-# ximper-shell-tile-menu
+# ximper-shell-launcher
 
 Tile launcher.
 A component of the Ximper Shell.
@@ -21,27 +21,27 @@ Supports Hyprland and Niri through compositor helpers.
 ```sh
 meson setup _build
 ninja -C _build
-./_build/src/ximper-shell-tile-menu
+./_build/src/ximper-shell-launcher
 ```
 
 ## CLI
 
 ```sh
 # Opens the launcher selected by launcher_mode
-ximper-shell-tile-menu --toggle
-ximper-shell-tile-menu --describe  # print the current configuration and supported parameters as JSON
+ximper-shell-launcher --toggle
+ximper-shell-launcher --describe  # print the current configuration and supported parameters as JSON
 ```
 
 ## Compositor Support
 
-The tile menu uses compositor helpers for compositor-specific behavior:
+The launcher uses compositor helpers for compositor-specific behavior:
 
 - Hyprland: floating mode can place the menu on the active workspace monitor via `hyprctl activeworkspace -j`.
 - Niri: floating mode can place the menu on the focused workspace output via `niri msg --json workspaces`.
 
 ## Config
 
-`~/.config/ximper-shell/tile-menu/config.json`
+`~/.config/ximper-shell/launcher/config.json`
 
 ```json
 {
@@ -105,14 +105,14 @@ The tile menu uses compositor helpers for compositor-specific behavior:
 
 ### Custom CSS
 
-Create `~/.config/ximper-shell/tile-menu/style.css` to change the menu appearance without modifying installed files. This stylesheet is loaded with user priority, so its rules override the bundled stylesheet. Restart the tile menu after editing it.
+Create `~/.config/ximper-shell/launcher/style.css` to change the menu appearance without modifying installed files. This stylesheet is loaded with user priority, so its rules override the bundled stylesheet. Restart the launcher after editing it.
 
-The bundled [`data/ximper-shell-tile-menu.css`](data/ximper-shell-tile-menu.css) lists all available rules and is a useful starting point. On an installed system it is normally available as `/etc/xdg/ximper-shell/tile-menu/style.css`.
+The bundled [`data/ximper-shell-launcher.css`](data/ximper-shell-launcher.css) lists all available rules and is a useful starting point. On an installed system it is normally available as `/etc/xdg/ximper-shell/launcher/style.css`.
 
 ```sh
-mkdir -p ~/.config/ximper-shell/tile-menu
-cp /etc/xdg/ximper-shell/tile-menu/style.css \
-  ~/.config/ximper-shell/tile-menu/style.css
+mkdir -p ~/.config/ximper-shell/launcher
+cp /etc/xdg/ximper-shell/launcher/style.css \
+  ~/.config/ximper-shell/launcher/style.css
 ```
 
 For example, to adjust the menu background, tile corners, and floating-menu shadow:
@@ -143,15 +143,15 @@ Gamepad support via libmanette. A toast notification appears when a gamepad is c
 | A (South) | Activate tile / select menu item |
 | B (East) | Back (close folder / close popover / close menu) |
 | X (North) | Open context menu on focused tile |
-| Xbox / Guide | Toggle tile menu |
+| Xbox / Guide | Toggle launcher |
 | LB / RB | Scroll up / down |
 
 Hold D-pad or stick for continuous navigation.
 
 ## D-Bus
 
-`ru.ximperlinux.shell.TileMenu` at `/ru/ximperlinux/shell/TileMenu`:
-- `Toggle()` — show/hide tile menu
+`ru.ximperlinux.shell.Launcher` at `/ru/ximperlinux/shell/Launcher`:
+- `Toggle()` — show/hide launcher
 
 ## License
 
