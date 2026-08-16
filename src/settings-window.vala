@@ -5,6 +5,18 @@ namespace XimperShellLauncher {
         private weak Application app;
         private GenericArray<Gtk.Widget> tile_only_widgets = new GenericArray<Gtk.Widget> ();
         private GenericArray<Gtk.Widget> wofi_only_widgets = new GenericArray<Gtk.Widget> ();
+        private Gtk.ListBox? search_providers_list;
+        private GenericArray<SearchProviderRow> search_provider_rows = new GenericArray<SearchProviderRow> ();
+
+        private class SearchProviderRow : Object {
+            public string id;
+            public Gtk.ListBoxRow row;
+
+            public SearchProviderRow (string id, Gtk.ListBoxRow row) {
+                this.id = id;
+                this.row = row;
+            }
+        }
 
         public SettingsWindow (Application app) {
             this.app = app;
@@ -14,6 +26,112 @@ namespace XimperShellLauncher {
             this.modal = false;
 
             build_grid_page ();
+            build_search_page ();
+        }
+
+        private void build_search_page () {
+            var page = new Adw.PreferencesPage ();
+            page.title = _("Search");
+            page.icon_name = "system-search-symbolic";
+
+            var group = new Adw.PreferencesGroup ();
+            group.title = _("Search Providers");
+            group.description = _("Drag providers to change the order of search results.");
+
+            search_providers_list = new Gtk.ListBox ();
+            search_providers_list.selection_mode = Gtk.SelectionMode.NONE;
+            search_providers_list.add_css_class ("boxed-list");
+            group.add (search_providers_list);
+            page.add (group);
+            add (page);
+            refresh_search_providers ();
+        }
+
+        private void refresh_search_providers () {
+            if (search_providers_list == null) return;
+            search_providers_list.remove_all ();
+            search_provider_rows = new GenericArray<SearchProviderRow> ();
+
+            var manager = new SearchProviderManager (app.config);
+            manager.scan_providers ();
+            for (uint i = 0; i < manager.providers.length; i++) {
+                var provider = manager.providers[i];
+                var content = new Adw.ActionRow ();
+                content.title = provider.name ?? provider.desktop_id;
+                content.subtitle = provider.desktop_id;
+
+                if (provider.icon != null) {
+                    var image = new Gtk.Image.from_gicon (provider.icon);
+                    image.pixel_size = 24;
+                    content.add_prefix (image);
+                }
+
+                var handle = new Gtk.Image.from_icon_name ("list-drag-handle-symbolic");
+                handle.tooltip_text = _("Drag to reorder");
+                content.add_prefix (handle);
+
+                var enabled = new Gtk.Switch ();
+                enabled.valign = Gtk.Align.CENTER;
+                enabled.active = app.config.is_search_provider_enabled (provider.desktop_id);
+                enabled.notify["active"].connect (() => {
+                    app.config.set_search_provider_enabled (provider.desktop_id, enabled.active);
+                    app.config.save ();
+                });
+                content.add_suffix (enabled);
+
+                var row = new Gtk.ListBoxRow ();
+                row.set_child (content);
+                var provider_row = new SearchProviderRow (provider.desktop_id, row);
+
+                // Only the handle starts a drag, as in GNOME Settings. This keeps
+                // switches and row activation from accidentally initiating one.
+                var source = new Gtk.DragSource ();
+                source.actions = Gdk.DragAction.MOVE;
+                source.prepare.connect ((x, y) => {
+                    return new Gdk.ContentProvider.for_value (provider.desktop_id);
+                });
+                handle.add_controller (source);
+
+                var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+                target.preload = true;
+                target.drop.connect ((value, x, y) => {
+                    var source_id = (string) value;
+                    int source_index = search_provider_index (source_id);
+                    int target_index = search_provider_index (provider_row.id);
+                    if (source_index < 0 || target_index < 0 || source_index == target_index)
+                        return false;
+
+                    bool after = y > row.get_height () / 2.0;
+                    int insert_at = target_index + (after ? 1 : 0);
+                    var source_row = search_provider_rows.steal_index ((uint) source_index);
+                    search_providers_list.remove (source_row.row);
+                    if (source_index < insert_at) insert_at--;
+                    search_provider_rows.insert (insert_at, (owned) source_row);
+                    search_providers_list.insert (search_provider_rows[insert_at].row, insert_at);
+
+                    save_search_provider_order ();
+                    return true;
+                });
+                row.add_controller (target);
+
+                search_providers_list.append (row);
+                search_provider_rows.add (provider_row);
+            }
+        }
+
+        private int search_provider_index (string id) {
+            for (uint i = 0; i < search_provider_rows.length; i++) {
+                if (search_provider_rows[i].id == id) return (int) i;
+            }
+            return -1;
+        }
+
+        private void save_search_provider_order () {
+            var ids = new GenericArray<string> ();
+            for (uint i = 0; i < search_provider_rows.length; i++)
+                ids.add (search_provider_rows[i].id);
+            app.config.sync_search_provider_order (ids);
+            app.config.save ();
         }
 
         private void build_grid_page () {

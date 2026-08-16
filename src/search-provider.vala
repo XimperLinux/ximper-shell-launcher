@@ -33,27 +33,65 @@ namespace XimperShellLauncher {
 
         public GenericArray<SearchProviderInfo> providers;
 
-        private const string PROVIDERS_DIR = "/usr/share/gnome-shell/search-providers";
+        private const string PROVIDERS_SUBDIR = "gnome-shell/search-providers";
         private const int SEARCH_TIMEOUT_MS = 500;
+        private weak ConfigManager config;
 
-        public SearchProviderManager () {
+        public SearchProviderManager (ConfigManager config) {
+            this.config = config;
             providers = new GenericArray<SearchProviderInfo> ();
         }
 
         public void scan_providers () {
             providers = new GenericArray<SearchProviderInfo> ();
 
+            var data_dirs = new GenericArray<string> ();
+            data_dirs.add (Environment.get_user_data_dir ());
+            foreach (var dir in Environment.get_system_data_dirs ()) data_dirs.add (dir);
+
+            for (uint i = 0; i < data_dirs.length; i++) {
+                scan_directory (Path.build_filename (data_dirs[i], PROVIDERS_SUBDIR));
+            }
+            sort_providers ();
+        }
+
+        private void scan_directory (string path) {
             try {
-                var dir = Dir.open (PROVIDERS_DIR);
+                var dir = Dir.open (path);
                 string? filename;
                 while ((filename = dir.read_name ()) != null) {
-                    if (filename.has_suffix (".ini")) {
-                        load_provider (Path.build_filename (PROVIDERS_DIR, filename));
+                    if (filename.has_suffix (".ini")) load_provider (Path.build_filename (path, filename));
+                }
+            } catch (FileError e) {
+                // The directory is optional in each XDG data directory.
+            }
+        }
+
+        private void sort_providers () {
+            var ordered = new GenericArray<SearchProviderInfo> ();
+            for (uint pos = 0; pos < config.search_providers.length; pos++) {
+                for (uint i = 0; i < providers.length; i++) {
+                    if (providers[i].desktop_id == config.search_providers[pos].id)
+                        ordered.add (providers[i]);
+                }
+            }
+            uint first_unconfigured = ordered.length;
+            for (uint i = 0; i < providers.length; i++) {
+                var provider = providers[i];
+                if (config.search_provider_position (provider.desktop_id) >= 0) continue;
+
+                uint insert_at = ordered.length;
+                var provider_name = provider.name ?? provider.desktop_id;
+                for (uint j = first_unconfigured; j < ordered.length; j++) {
+                    var other_name = ordered[j].name ?? ordered[j].desktop_id;
+                    if (strcmp (provider_name, other_name) < 0) {
+                        insert_at = j;
+                        break;
                     }
                 }
-            } catch (Error e) {
-                warning ("Failed to scan search providers: %s", e.message);
+                ordered.insert ((int) insert_at, provider);
             }
+            providers = ordered;
         }
 
         private void load_provider (string path) {
@@ -66,6 +104,10 @@ namespace XimperShellLauncher {
                 var bus_name = keyfile.get_string (group, "BusName");
                 var object_path = keyfile.get_string (group, "ObjectPath");
                 var desktop_id = keyfile.get_string (group, "DesktopId");
+
+                for (uint i = 0; i < providers.length; i++) {
+                    if (providers[i].desktop_id == desktop_id) return;
+                }
 
                 var info = new SearchProviderInfo (bus_name, object_path, desktop_id);
 
@@ -98,6 +140,7 @@ namespace XimperShellLauncher {
                 var provider = providers[i];
 
                 if (cancellable != null && cancellable.is_cancelled ()) break;
+                if (!config.is_search_provider_enabled (provider.desktop_id)) continue;
 
                 try {
                     GenericArray<string>? prev_ids = null;

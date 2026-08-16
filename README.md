@@ -65,6 +65,12 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "wallpaper_opacity": 100,
   "wallpaper_dim": 0,
   "background_opacity": 100,
+  "search": {
+    "providers": [
+      { "id": "org.gnome.Nautilus.desktop", "enabled": true },
+      { "id": "org.gnome.Calculator.desktop", "enabled": false }
+    ]
+  },
   "groups": [{
     "name": "",
     "tiles": [
@@ -99,9 +105,12 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `wallpaper_opacity` | int | `100` | Wallpaper opacity, 0–100% |
 | `wallpaper_dim` | int | `0` | Black dimmer above wallpaper, 0–100% |
 | `background_opacity` | int | `100` | Menu background opacity, 0–100% |
+| `search.providers` | array | `[]` | Ordered search providers; each entry has a desktop-file `id` and an `enabled` flag |
 | `groups` | array | | Tile groups with tiles and folders |
 
 `monitor_index` is accepted only as a legacy setting and is migrated to `output` when the configuration is saved. Use the monitor connector name instead, because display indexes are not stable.
+
+Search providers are discovered in the user and system `gnome-shell/search-providers` XDG data directories. Their order in `search.providers` controls the order of result sections. Providers not listed there remain enabled and follow the configured entries alphabetically. Use **Settings → Search** to enable or disable providers and drag them into the desired order.
 
 ### Custom CSS
 

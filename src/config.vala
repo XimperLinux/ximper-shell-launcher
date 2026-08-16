@@ -72,6 +72,16 @@ namespace XimperShellLauncher {
         }
     }
 
+    public class SearchProviderConfig {
+        public string id;
+        public bool enabled;
+
+        public SearchProviderConfig (string id, bool enabled = true) {
+            this.id = id;
+            this.enabled = enabled;
+        }
+    }
+
     public class GroupConfig {
         public string name;
         public GenericArray<TileConfig> tiles;
@@ -105,6 +115,8 @@ namespace XimperShellLauncher {
         public int wallpaper_opacity { get; set; default = 100; }
         public int wallpaper_dim { get; set; default = 0; }
         public int background_opacity { get; set; default = 100; }
+        // Ordered list: its position controls result-section order.
+        public GenericArray<SearchProviderConfig> search_providers;
         public GenericArray<GroupConfig> groups;
 
         private string config_path;
@@ -114,6 +126,7 @@ namespace XimperShellLauncher {
 
         public ConfigManager () {
             output = new GenericArray<string> ();
+            search_providers = new GenericArray<SearchProviderConfig> ();
             groups = new GenericArray<GroupConfig> ();
 
             config_path = Path.build_filename (
@@ -200,6 +213,21 @@ namespace XimperShellLauncher {
                     wallpaper_dim = (int) root.get_int_member ("wallpaper_dim");
                 if (root.has_member ("background_opacity"))
                     background_opacity = (int) root.get_int_member ("background_opacity");
+                if (root.has_member ("search")) {
+                    var search = root.get_object_member ("search");
+                    if (search.has_member ("providers")) {
+                        search_providers = new GenericArray<SearchProviderConfig> ();
+                        search.get_array_member ("providers").foreach_element ((array, i, node) => {
+                            var provider = node.get_object ();
+                            if (!provider.has_member ("id")) return;
+                            var id = provider.get_string_member ("id");
+                            if (id == null || id.length == 0) return;
+                            bool enabled = !provider.has_member ("enabled") ||
+                                provider.get_boolean_member ("enabled");
+                            search_providers.add (new SearchProviderConfig (id, enabled));
+                        });
+                    }
+                }
 
                 if (root.has_member ("groups")) {
                     groups = new GenericArray<GroupConfig> ();
@@ -309,6 +337,20 @@ namespace XimperShellLauncher {
             builder.add_int_value (wallpaper_dim);
             builder.set_member_name ("background_opacity");
             builder.add_int_value (background_opacity);
+            builder.set_member_name ("search");
+            builder.begin_object ();
+            builder.set_member_name ("providers");
+            builder.begin_array ();
+            for (uint i = 0; i < search_providers.length; i++) {
+                builder.begin_object ();
+                builder.set_member_name ("id");
+                builder.add_string_value (search_providers[i].id);
+                builder.set_member_name ("enabled");
+                builder.add_boolean_value (search_providers[i].enabled);
+                builder.end_object ();
+            }
+            builder.end_array ();
+            builder.end_object ();
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();
@@ -359,6 +401,81 @@ namespace XimperShellLauncher {
             } catch (Error e) {
                 warning ("Failed to save config: %s", e.message);
             }
+        }
+
+        public bool is_search_provider_enabled (string id) {
+            for (uint i = 0; i < search_providers.length; i++) {
+                if (search_providers[i].id == id) return search_providers[i].enabled;
+            }
+            return true;
+        }
+
+        public int search_provider_position (string id) {
+            for (uint i = 0; i < search_providers.length; i++) {
+                if (search_providers[i].id == id) return (int) i;
+            }
+            return -1;
+        }
+
+        public void set_search_provider_enabled (string id, bool enabled) {
+            for (uint i = 0; i < search_providers.length; i++) {
+                if (search_providers[i].id == id) {
+                    search_providers[i].enabled = enabled;
+                    return;
+                }
+            }
+            search_providers.add (new SearchProviderConfig (id, enabled));
+        }
+
+        // Makes configuration order match the visible provider list. Keep entries
+        // for currently unavailable providers so their preferences survive updates.
+        public void sync_search_provider_order (GenericArray<string> ids) {
+            var reordered = new GenericArray<SearchProviderConfig> ();
+            for (uint i = 0; i < ids.length; i++) {
+                bool exists = false;
+                for (uint j = 0; j < search_providers.length; j++) {
+                    if (search_providers[j].id == ids[i]) {
+                        reordered.add (new SearchProviderConfig (
+                            search_providers[j].id, search_providers[j].enabled
+                        ));
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) reordered.add (new SearchProviderConfig (ids[i]));
+            }
+            for (uint i = 0; i < search_providers.length; i++) {
+                bool visible = false;
+                for (uint j = 0; j < ids.length; j++) {
+                    if (search_providers[i].id == ids[j]) {
+                        visible = true;
+                        break;
+                    }
+                }
+                if (!visible) reordered.add (new SearchProviderConfig (
+                    search_providers[i].id, search_providers[i].enabled
+                ));
+            }
+            search_providers = reordered;
+        }
+
+        public void move_search_provider (string id, string target_id, bool after) {
+            int source = search_provider_position (id);
+            if (source < 0) {
+                search_providers.add (new SearchProviderConfig (id));
+                source = (int) search_providers.length - 1;
+            }
+            int target = search_provider_position (target_id);
+            if (target < 0) {
+                search_providers.add (new SearchProviderConfig (target_id));
+                target = (int) search_providers.length - 1;
+            }
+            if (source == target) return;
+
+            var provider = search_providers.steal_index ((uint) source);
+            if (source < target) target--;
+            if (after) target++;
+            search_providers.insert (target, (owned) provider);
         }
 
         private void create_default () {
