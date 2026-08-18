@@ -42,6 +42,7 @@ namespace XimperShellLauncher {
         }
 
         public void load () {
+            reset_to_defaults ();
             migrate_legacy_config ();
             if (!FileUtils.test (config_path, FileTest.EXISTS)) {
                 create_default ();
@@ -175,8 +176,31 @@ namespace XimperShellLauncher {
                 if (config_migrated) save ();
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
-                create_default ();
             }
+        }
+
+        private void reset_to_defaults () {
+            max_columns = 0;
+            cell_size = 0;
+            layer = "overlay";
+            launcher_mode = LauncherMode.TILES;
+            window_mode = WindowMode.FLOATING;
+            close_on_focus_loss = true;
+            floating_x = 0;
+            floating_y = 24;
+            floating_width = 1120;
+            floating_height = 880;
+            floating_x_percent = 50;
+            floating_y_percent = 50;
+            output = new GenericArray<string> ();
+            wallpaper_path = "";
+            wallpaper_fit = 2;
+            wallpaper_opacity = 100;
+            wallpaper_dim = 0;
+            background_opacity = 100;
+            search_providers_enabled = true;
+            search_providers = new GenericArray<SearchProviderConfig> ();
+            groups = new GenericArray<GroupConfig> ();
         }
 
         private void migrate_legacy_config () {

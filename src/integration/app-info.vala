@@ -30,16 +30,14 @@ namespace XimperShellLauncher {
 
         public bool launch () {
             // DBusActivatable applications use the standard GApplication object.
-            // Some third-party desktop files declare D-Bus activation without
-            // providing an activatable service, so retain an Exec fallback.
+            // Calling the well-known bus name without NO_AUTO_START lets D-Bus
+            // activate a cold service. Some third-party desktop files declare
+            // D-Bus activation without providing a working service, so retain
+            // an Exec fallback after the activation attempt fails.
             if (app_info.get_boolean ("DBusActivatable")) {
                 try {
                     var bus_name = get_dbus_name ();
                     var conn = Bus.get_sync (BusType.SESSION, null);
-                    if (!has_dbus_owner (conn, bus_name)) {
-                        warning ("No D-Bus owner for %s; launching Exec directly", bus_name);
-                        return launch_exec_fallback ();
-                    }
                     conn.call_sync (
                         bus_name, DBUS_APPLICATION_OBJECT_PATH,
                         "org.freedesktop.Application", "Activate",
@@ -58,7 +56,7 @@ namespace XimperShellLauncher {
                 var context = Gdk.Display.get_default ().get_app_launch_context ();
                 return app_info.launch_uris_as_manager (
                     new List<string> (), context,
-                    SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+                    SpawnFlags.SEARCH_PATH,
                     () => { c_setsid (); },
                     null
                 );
@@ -74,21 +72,6 @@ namespace XimperShellLauncher {
                 : desktop_id;
         }
 
-        private bool has_dbus_owner (DBusConnection conn, string bus_name) throws Error {
-            var result = conn.call_sync (
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus",
-                "NameHasOwner",
-                new Variant.tuple ({ new Variant.string (bus_name) }),
-                new VariantType ("(b)"),
-                DBusCallFlags.NONE, 500, null
-            );
-            bool owned;
-            result.get ("(b)", out owned);
-            return owned;
-        }
-
         private bool launch_exec_fallback () {
             try {
                 var exec_line = app_info.get_commandline ();
@@ -101,7 +84,7 @@ namespace XimperShellLauncher {
                 Shell.parse_argv (strip_field_codes (exec_line), out argv);
                 Process.spawn_async (
                     app_info.get_string ("Path"), argv, null,
-                    SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+                    SpawnFlags.SEARCH_PATH,
                     () => { c_setsid (); }, null
                 );
                 return true;
@@ -133,7 +116,7 @@ namespace XimperShellLauncher {
                 Shell.parse_argv (exec_line, out argv);
                 Process.spawn_async (
                     null, argv, null,
-                    SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
+                    SpawnFlags.SEARCH_PATH,
                     () => { c_setsid (); },
                     null
                 );
