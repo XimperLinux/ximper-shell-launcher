@@ -39,8 +39,6 @@ namespace XimperShellLauncher {
         private Gtk.Box wallpaper_dimmer;
         private Gtk.Overlay top_overlay;
         private Gtk.Overlay root_overlay;
-        private Gtk.Button settings_btn;
-        private bool settings_in_root_overlay = false;
         private bool wofi_mode = false;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
@@ -69,7 +67,7 @@ namespace XimperShellLauncher {
         private void build_ui () {
             var main_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
 
-            // Top bar: search + settings button
+            // Top bar: search
             top_overlay = new Gtk.Overlay ();
 
             search_bar = new SearchBar (app);
@@ -81,20 +79,6 @@ namespace XimperShellLauncher {
             });
             top_overlay.set_child (search_bar);
 
-            settings_btn = new Gtk.Button.from_icon_name ("emblem-system-symbolic");
-            settings_btn.add_css_class ("flat");
-            settings_btn.add_css_class ("circular");
-            settings_btn.tooltip_text = _("Settings");
-            settings_btn.halign = Gtk.Align.END;
-            settings_btn.valign = Gtk.Align.START;
-            settings_btn.margin_top = 24;
-            settings_btn.margin_end = 24;
-            settings_btn.clicked.connect (() => {
-                close_grid ();
-                var settings = new SettingsWindow (app);
-                settings.present ();
-            });
-            top_overlay.add_overlay (settings_btn);
 
             main_box.append (top_overlay);
 
@@ -455,9 +439,7 @@ namespace XimperShellLauncher {
 
         public void open_grid () {
             wofi_mode = false;
-            move_settings_button (false);
             remove_css_class ("wofi-mode");
-            settings_btn.visible = true;
             search_bar.set_wofi_mode (false);
             search_bar.reset ();
             tile_grid.build_from_config ();
@@ -475,9 +457,7 @@ namespace XimperShellLauncher {
 
         public void open_wofi () {
             wofi_mode = true;
-            move_settings_button (true);
             add_css_class ("wofi-mode");
-            settings_btn.visible = true;
             search_bar.set_wofi_mode (true);
             search_bar.reset ();
             content_stack.visible_child_name = "search";
@@ -491,28 +471,6 @@ namespace XimperShellLauncher {
             search_bar.search_entry.grab_focus ();
         }
 
-        private void move_settings_button (bool to_bottom_corner) {
-            if (to_bottom_corner == settings_in_root_overlay) return;
-
-            if (to_bottom_corner) {
-                top_overlay.remove_overlay (settings_btn);
-                root_overlay.add_overlay (settings_btn);
-                settings_btn.halign = Gtk.Align.END;
-                settings_btn.valign = Gtk.Align.END;
-                settings_btn.margin_top = 0;
-                settings_btn.margin_end = 16;
-                settings_btn.margin_bottom = 16;
-            } else {
-                root_overlay.remove_overlay (settings_btn);
-                top_overlay.add_overlay (settings_btn);
-                settings_btn.halign = Gtk.Align.END;
-                settings_btn.valign = Gtk.Align.START;
-                settings_btn.margin_top = 24;
-                settings_btn.margin_end = 24;
-                settings_btn.margin_bottom = 0;
-            }
-            settings_in_root_overlay = to_bottom_corner;
-        }
 
         private void pin_to_dock (string desktop_id) {
             app.pin_to_dock (desktop_id);

@@ -15,7 +15,6 @@ grid_sources = files(
   'describe.vala',
   'app-info.vala',
   'app-provider.vala',
-  'settings-window.vala',
   'grid-window.vala',
   'tile.vala',
   'tile-placement.vala',
