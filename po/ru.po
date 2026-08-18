@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-launcher\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 17:49+0300\n"
+"POT-Creation-Date: 2026-08-18 17:51+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
 "Last-Translator: Ximper Shell contributors\n"
 "Language-Team: Russian\n"
@@ -34,48 +34,48 @@ msgstr ""
 msgid "Gamepad connected: "
 msgstr "Подключён геймпад: "
 
-#: src/config.vala:490
+#: src/config.vala:488
 msgid "Games"
 msgstr "Игры"
 
-#: src/config.vala:491 src/config.vala:492 src/config.vala:493
-#: src/config.vala:494 src/config.vala:495
+#: src/config.vala:489 src/config.vala:490 src/config.vala:491
+#: src/config.vala:492 src/config.vala:493
 msgid "Internet"
 msgstr "Интернет"
 
-#: src/config.vala:496 src/config.vala:497
+#: src/config.vala:494 src/config.vala:495
 msgid "Graphics"
 msgstr "Графика"
 
-#: src/config.vala:498 src/config.vala:499 src/config.vala:500
-#: src/config.vala:501 src/config.vala:502
+#: src/config.vala:496 src/config.vala:497 src/config.vala:498
+#: src/config.vala:499 src/config.vala:500
 msgid "Multimedia"
 msgstr "Мультимедиа"
 
-#: src/config.vala:503 src/config.vala:504 src/config.vala:505
+#: src/config.vala:501 src/config.vala:502 src/config.vala:503
 msgid "Development"
 msgstr "Разработка"
 
-#: src/config.vala:506 src/config.vala:507 src/config.vala:508
-#: src/config.vala:509
+#: src/config.vala:504 src/config.vala:505 src/config.vala:506
+#: src/config.vala:507
 msgid "Office"
 msgstr "Офис"
 
-#: src/config.vala:510 src/config.vala:511 src/config.vala:512
-#: src/config.vala:513 src/config.vala:514
+#: src/config.vala:508 src/config.vala:509 src/config.vala:510
+#: src/config.vala:511 src/config.vala:512
 msgid "System"
 msgstr "Система"
 
-#: src/config.vala:515 src/config.vala:516 src/config.vala:517
-#: src/config.vala:518
+#: src/config.vala:513 src/config.vala:514 src/config.vala:515
+#: src/config.vala:516
 msgid "Utilities"
 msgstr "Утилиты"
 
-#: src/config.vala:519 src/config.vala:520
+#: src/config.vala:517 src/config.vala:518
 msgid "Education"
 msgstr "Образование"
 
-#: src/config.vala:555
+#: src/config.vala:553
 msgid "Apps"
 msgstr "Приложения"
 

@@ -56,8 +56,6 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "floating_y": 24,
   "floating_width": 1120,
   "floating_height": 880,
-  "wofi_width": 890,
-  "wofi_height": 800,
   "floating_x_percent": 50,
   "floating_y_percent": 50,
   "output": [],
@@ -95,10 +93,8 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `close_on_focus_loss` | bool | `true` | Close the floating launcher when it loses focus |
 | `floating_x` | int | `0` | Horizontal offset of the floating tile grid in pixels |
 | `floating_y` | int | `24` | Vertical offset of the floating tile grid in pixels |
-| `floating_width` | int | `1120` | Width of the floating tile grid in pixels |
-| `floating_height` | int | `880` | Height of the floating tile grid in pixels |
-| `wofi_width` | int | `890` | Width of the compact launcher in pixels |
-| `wofi_height` | int | `800` | Height of the compact launcher in pixels |
+| `floating_width` | int | `1120` | Width of the floating launcher in pixels; used by both tile grid and Wofi |
+| `floating_height` | int | `880` | Height of the floating launcher in pixels; used by both tile grid and Wofi |
 | `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; used by floating grid and Wofi |
 | `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; used by floating grid and Wofi |
 | `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |

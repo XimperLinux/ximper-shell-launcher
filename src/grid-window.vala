@@ -280,12 +280,6 @@ namespace XimperShellLauncher {
             app.config.notify["floating-height"].connect (() => {
                 apply_window_mode ();
             });
-            app.config.notify["wofi-width"].connect (() => {
-                apply_window_mode ();
-            });
-            app.config.notify["wofi-height"].connect (() => {
-                apply_window_mode ();
-            });
             app.config.notify["floating-x-percent"].connect (() => {
                 apply_window_mode ();
             });
@@ -364,8 +358,8 @@ namespace XimperShellLauncher {
                 screen_height = geometry.height;
             }
 
-            width = (wofi_mode ? app.config.wofi_width : app.config.floating_width).clamp (320, 4096);
-            height = (wofi_mode ? app.config.wofi_height : app.config.floating_height).clamp (240, 4096);
+            width = app.config.floating_width.clamp (320, 4096);
+            height = app.config.floating_height.clamp (240, 4096);
 
             int available_width = screen_width - width;
             int available_height = screen_height - height;

@@ -15,8 +15,6 @@ namespace XimperShellLauncher {
         builder.set_member_name ("floating_y"); builder.add_int_value (config.floating_y);
         builder.set_member_name ("floating_width"); builder.add_int_value (config.floating_width);
         builder.set_member_name ("floating_height"); builder.add_int_value (config.floating_height);
-        builder.set_member_name ("wofi_width"); builder.add_int_value (config.wofi_width);
-        builder.set_member_name ("wofi_height"); builder.add_int_value (config.wofi_height);
         builder.set_member_name ("floating_x_percent"); builder.add_int_value (config.floating_x_percent);
         builder.set_member_name ("floating_y_percent"); builder.add_int_value (config.floating_y_percent);
         builder.set_member_name ("output"); builder.begin_array ();
@@ -70,8 +68,6 @@ namespace XimperShellLauncher {
         add_integer_property (builder, "floating_y", "Floating Y offset", 24, -10000, 10000);
         add_integer_property (builder, "floating_width", "Floating width", 1120, 1, 10000);
         add_integer_property (builder, "floating_height", "Floating height", 880, 1, 10000);
-        add_integer_property (builder, "wofi_width", "Wofi width", 890, 1, 10000);
-        add_integer_property (builder, "wofi_height", "Wofi height", 800, 1, 10000);
         add_integer_property (builder, "floating_x_percent", "Floating horizontal position", 50, 0, 100);
         add_integer_property (builder, "floating_y_percent", "Floating vertical position", 50, 0, 100);
         add_integer_property (builder, "wallpaper_fit", "Wallpaper fit", 2, 0, 3);
