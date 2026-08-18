@@ -313,13 +313,13 @@ namespace XimperShellLauncher {
         private void setup_focus_close () {
             var focus = new Gtk.EventControllerFocus ();
             focus.enter.connect (() => {
-                if (app.config.window_mode != WindowMode.FLOATING && !wofi_mode) return;
+                if (app.config.window_mode != WindowMode.FLOATING) return;
                 focus_leave_armed = true;
             });
             focus.leave.connect (() => {
                 if (!visible) return;
                 if (!app.config.close_on_focus_loss) return;
-                if (app.config.window_mode != WindowMode.FLOATING && !wofi_mode) return;
+                if (app.config.window_mode != WindowMode.FLOATING) return;
                 if (!focus_leave_armed) return;
                 if (ignore_next_focus_leave) {
                     ignore_next_focus_leave = false;
@@ -331,7 +331,7 @@ namespace XimperShellLauncher {
         }
 
         private void apply_window_mode () {
-            var effective_mode = wofi_mode ? WindowMode.FLOATING : app.config.window_mode;
+            var effective_mode = app.config.window_mode;
             if (effective_mode == WindowMode.FLOATING) {
                 var monitor = get_floating_monitor ();
                 if (monitor != null) {
