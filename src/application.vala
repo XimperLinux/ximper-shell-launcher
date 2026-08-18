@@ -82,6 +82,13 @@ namespace XimperShellLauncher {
             }
         }
 
+        public void reload_config () {
+            config.load ();
+            app_provider.scan ();
+            if (grid_window != null)
+                grid_window.reload_from_config ();
+        }
+
         protected override void activate () {
             if (grid_window != null) return;
 

@@ -444,6 +444,15 @@ namespace XimperShellLauncher {
             return null;
         }
 
+        public void reload_from_config () {
+            tile_grid.build_from_config ();
+            update_wallpaper ();
+            update_wallpaper_appearance ();
+            update_background_opacity ();
+            floating_monitor = null;
+            apply_window_mode ();
+        }
+
         public void open_grid () {
             wofi_mode = false;
             move_settings_button (false);

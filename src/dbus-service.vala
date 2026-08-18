@@ -12,5 +12,9 @@ namespace XimperShellLauncher {
         public void toggle () throws DBusError, IOError {
             app.toggle_grid ();
         }
+
+        public void reload () throws DBusError, IOError {
+            app.reload_config ();
+        }
     }
 }
