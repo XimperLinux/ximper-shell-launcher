@@ -5,26 +5,25 @@ namespace XimperShellLauncher {
         private Manette.Monitor monitor;
         private weak GridWindow window;
 
-        private const uint16 BTN_SOUTH = 0x130;   // A
-        private const uint16 BTN_EAST  = 0x131;   // B
-        private const uint16 BTN_NORTH = 0x133;   // X
-        private const uint16 BTN_WEST  = 0x134;   // Y
-        private const uint16 BTN_TL    = 0x136;   // LB
-        private const uint16 BTN_TR    = 0x137;   // RB
+        private const uint16 BTN_SOUTH = 0x130; // A
+        private const uint16 BTN_EAST = 0x131; // B
+        private const uint16 BTN_NORTH = 0x133; // X
+        private const uint16 BTN_WEST = 0x134; // Y
+        private const uint16 BTN_TL = 0x136; // LB
+        private const uint16 BTN_TR = 0x137; // RB
         private const uint16 BTN_START = 0x13b;
-        private const uint16 BTN_MODE  = 0x13c;   // Xbox/Guide/PS
+        private const uint16 BTN_MODE = 0x13c; // Xbox/Guide/PS
 
-
-        private const uint16 BTN_DPAD_UP    = 0x220;
-        private const uint16 BTN_DPAD_DOWN  = 0x221;
-        private const uint16 BTN_DPAD_LEFT  = 0x222;
+        private const uint16 BTN_DPAD_UP = 0x220;
+        private const uint16 BTN_DPAD_DOWN = 0x221;
+        private const uint16 BTN_DPAD_LEFT = 0x222;
         private const uint16 BTN_DPAD_RIGHT = 0x223;
 
         private const uint16 ABS_X = 0x00;
         private const uint16 ABS_Y = 0x01;
 
         private const double STICK_DEADZONE = 0.5;
-        private const uint REPEAT_DELAY = 400;    // ms before repeat starts
+        private const uint REPEAT_DELAY = 400; // ms before repeat starts
         private const uint REPEAT_INTERVAL = 120; // ms between repeats
 
         private int nav_dx;

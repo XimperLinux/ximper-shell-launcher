@@ -3,13 +3,13 @@
 Application launcher.
 A component of the Ximper Shell.
 
-Fullscreen app launcher with tile grid inspired by Windows Phone 8.1. Tiles of different sizes, folders with animation, drag-and-drop, fuzzy search across all .desktop fields with GNOME Search Providers integration, gamepad support. Built with Vala, GTK4, libadwaita, gtk4-layer-shell, libmanette.
+Fullscreen app launcher with a tiles mode inspired by Windows Phone 8.1. Tiles of different sizes, folders with animation, drag-and-drop, fuzzy search across all .desktop fields with GNOME Search Providers integration, gamepad support. Built with Vala, GTK4, libadwaita, gtk4-layer-shell, libmanette.
 
 Supports Hyprland and Niri through compositor helpers.
 
 ## Features
 
-- Fullscreen or floating launcher in both tile grid and compact Wofi modes.
+- Fullscreen or floating launcher in both tiles and Wofi modes.
 - Small, medium, and large application tiles; animated folders; drag-and-drop rearrangement and folder management.
 - Keyboard navigation, fuzzy application search, and results from GNOME Search Providers.
 - Optional per-menu wallpaper, background dimming, and opacity controls.
@@ -89,14 +89,14 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"` or compact `"wofi"` |
-| `window_mode` | string | `"floating"` | Window mode for both tile grid and Wofi: `"fullscreen"` or `"floating"` |
+| `window_mode` | string | `"floating"` | Window mode for both tiles and Wofi modes: `"fullscreen"` or `"floating"` |
 | `close_on_focus_loss` | bool | `true` | Close the floating launcher when it loses focus |
-| `floating_x` | int | `0` | Horizontal offset of the floating tile grid in pixels |
-| `floating_y` | int | `24` | Vertical offset of the floating tile grid in pixels |
-| `floating_width` | int | `1120` | Width of the floating launcher in pixels; used by both tile grid and Wofi |
-| `floating_height` | int | `880` | Height of the floating launcher in pixels; used by both tile grid and Wofi |
-| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; used by floating grid and Wofi |
-| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; used by floating grid and Wofi |
+| `floating_x` | int | `0` | Horizontal offset of the floating launcher in pixels |
+| `floating_y` | int | `24` | Vertical offset of the floating launcher in pixels |
+| `floating_width` | int | `1120` | Width of the floating launcher in pixels; used by both tiles and Wofi modes |
+| `floating_height` | int | `880` | Height of the floating launcher in pixels; used by both tiles and Wofi modes |
+| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; used by both tiles and Wofi modes |
+| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; used by both tiles and Wofi modes |
 | `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |
 | `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
 | `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |

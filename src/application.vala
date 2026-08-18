@@ -21,7 +21,10 @@ namespace XimperShellLauncher {
             options = {
                 { "toggle", 't', 0, OptionArg.NONE, null, _("Toggle the application launcher"), null },
                 { "reload", 0, 0, OptionArg.NONE, null, _("Reload configuration from disk"), null },
-                { "describe", 0, 0, OptionArg.NONE, null, _("Print configuration and parameter metadata as JSON"), null },
+                {
+                    "describe", 0, 0, OptionArg.NONE, null,
+                    _("Print configuration and parameter metadata as JSON"), null
+                },
                 { null }
             };
             add_main_option_entries (options);

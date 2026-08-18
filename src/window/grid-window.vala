@@ -1,31 +1,5 @@
 namespace XimperShellLauncher {
 
-    private class NonMeasuringBackground : Gtk.Widget {
-        private Gtk.Picture picture;
-
-        public NonMeasuringBackground (Gtk.Picture picture) {
-            this.picture = picture;
-            picture.set_parent (this);
-        }
-
-        public override void measure (Gtk.Orientation orientation, int for_size,
-                                     out int minimum, out int natural,
-                                     out int minimum_baseline, out int natural_baseline) {
-            minimum = 0;
-            natural = 0;
-            minimum_baseline = -1;
-            natural_baseline = -1;
-        }
-
-        public override void size_allocate (int width, int height, int baseline) {
-            picture.allocate (width, height, baseline, null);
-        }
-
-        public override void snapshot (Gtk.Snapshot snapshot) {
-            snapshot_child (picture, snapshot);
-        }
-    }
-
     public class GridWindow : Gtk.Window {
 
         private weak Application app;
@@ -42,13 +16,13 @@ namespace XimperShellLauncher {
         private bool wofi_mode = false;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
-        private Gdk.Monitor? floating_monitor;
-
-        private int popover_focus_index = -1;
-        private GenericArray<Gtk.Button>? popover_buttons;
+        private WindowGeometry window_geometry;
+        private PopoverNavigator popover_navigator;
 
         public GridWindow (Application app) {
             this.app = app;
+            window_geometry = new WindowGeometry (app);
+            popover_navigator = new PopoverNavigator ();
             this.title = "Ximper Shell Launcher";
             this.decorated = false;
 
@@ -265,7 +239,7 @@ namespace XimperShellLauncher {
                 apply_window_mode ();
             });
             app.config.output_changed.connect (() => {
-                floating_monitor = null;
+                window_geometry.invalidate_monitor ();
                 apply_window_mode ();
             });
             app.config.notify["floating-x"].connect (() => {
@@ -311,7 +285,7 @@ namespace XimperShellLauncher {
         private void apply_window_mode () {
             var effective_mode = app.config.window_mode;
             if (effective_mode == WindowMode.FLOATING) {
-                var monitor = get_floating_monitor ();
+                var monitor = window_geometry.get_floating_monitor ();
                 if (monitor != null) {
                     GtkLayerShell.set_monitor (this, monitor);
                 }
@@ -321,7 +295,7 @@ namespace XimperShellLauncher {
             int floating_y;
             int floating_width;
             int floating_height;
-            get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height);
+            window_geometry.get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height);
 
             LayerShellHelper.apply_window_mode (
                 this,
@@ -342,92 +316,12 @@ namespace XimperShellLauncher {
             queue_resize ();
         }
 
-        private void get_floating_geometry (
-            out int x,
-            out int y,
-            out int width,
-            out int height
-        ) {
-            int screen_width = 1920;
-            int screen_height = 1080;
-
-            var monitor = get_floating_monitor ();
-            if (monitor != null) {
-                var geometry = monitor.geometry;
-                screen_width = geometry.width;
-                screen_height = geometry.height;
-            }
-
-            width = app.config.floating_width.clamp (320, 4096);
-            height = app.config.floating_height.clamp (240, 4096);
-
-            int available_width = screen_width - width;
-            int available_height = screen_height - height;
-            if (available_width < 0) available_width = 0;
-            if (available_height < 0) available_height = 0;
-
-            x = available_width * app.config.floating_x_percent.clamp (0, 100) / 100;
-            y = available_height * app.config.floating_y_percent.clamp (0, 100) / 100;
-        }
-
-        private Gdk.Monitor? get_floating_monitor () {
-            if (floating_monitor != null) return floating_monitor;
-
-            if (app.config.output.length > 0) {
-                floating_monitor = get_monitor_by_connector (app.config.output[0]);
-                if (floating_monitor != null) return floating_monitor;
-            }
-
-            floating_monitor = get_compositor_active_monitor ();
-            if (floating_monitor != null) return floating_monitor;
-
-            return get_pointer_monitor ();
-        }
-
-        private Gdk.Monitor? get_pointer_monitor () {
-            var display = Gdk.Display.get_default ();
-            if (display == null) return null;
-
-            var seat = display.get_default_seat ();
-            if (seat == null) return null;
-
-            var pointer = seat.get_pointer ();
-            if (pointer == null) return null;
-
-            double x;
-            double y;
-            var surface = pointer.get_surface_at_position (out x, out y);
-            if (surface == null) return null;
-
-            return display.get_monitor_at_surface (surface);
-        }
-
-        private Gdk.Monitor? get_compositor_active_monitor () {
-            var connector = app.compositor_helper.get_active_monitor_connector ();
-            if (connector == null || connector.length == 0) return null;
-            return get_monitor_by_connector (connector);
-        }
-
-        private Gdk.Monitor? get_monitor_by_connector (string connector) {
-            var display = Gdk.Display.get_default ();
-            if (display == null) return null;
-
-            var monitors = display.get_monitors ();
-            for (uint i = 0; i < monitors.get_n_items (); i++) {
-                var monitor = (Gdk.Monitor) monitors.get_item (i);
-                var current_connector = monitor.get_connector ();
-                if (current_connector == connector) return monitor;
-            }
-
-            return null;
-        }
-
         public void reload_from_config () {
             tile_grid.build_from_config ();
             update_wallpaper ();
             update_wallpaper_appearance ();
             update_background_opacity ();
-            floating_monitor = null;
+            window_geometry.invalidate_monitor ();
             apply_window_mode ();
         }
 
@@ -440,7 +334,7 @@ namespace XimperShellLauncher {
             content_stack.visible_child_name = "tiles";
             ignore_next_focus_leave = true;
             focus_leave_armed = false;
-            floating_monitor = null;
+            window_geometry.invalidate_monitor ();
             apply_window_mode ();
 
             set_visible (true);
@@ -457,7 +351,7 @@ namespace XimperShellLauncher {
             content_stack.visible_child_name = "search";
             ignore_next_focus_leave = true;
             focus_leave_armed = false;
-            floating_monitor = null;
+            window_geometry.invalidate_monitor ();
             apply_window_mode ();
 
             set_visible (true);
@@ -476,72 +370,6 @@ namespace XimperShellLauncher {
             set_visible (false);
         }
 
-        private void setup_popover_buttons (Gtk.Popover popover) {
-            popover_buttons = new GenericArray<Gtk.Button> ();
-            popover_focus_index = 0;
-
-            var menu_box = popover.get_child ();
-            if (menu_box == null) return;
-
-            var child = menu_box.get_first_child ();
-            while (child != null) {
-                if (child is Gtk.Button && child.sensitive) {
-                    popover_buttons.add ((Gtk.Button) child);
-                }
-                child = child.get_next_sibling ();
-            }
-
-            update_popover_highlight ();
-
-            popover.closed.connect (() => {
-                if (popover_buttons != null) {
-                    clear_popover_highlight ();
-                    popover_buttons = null;
-                    popover_focus_index = -1;
-                }
-            });
-        }
-
-        private void update_popover_highlight () {
-            if (popover_buttons == null) return;
-            for (uint i = 0; i < popover_buttons.length; i++) {
-                if ((int) i == popover_focus_index) {
-                    popover_buttons[i].add_css_class ("popover-item-focused");
-                } else {
-                    popover_buttons[i].remove_css_class ("popover-item-focused");
-                }
-            }
-        }
-
-        private void clear_popover_highlight () {
-            if (popover_buttons == null) return;
-            for (uint i = 0; i < popover_buttons.length; i++) {
-                popover_buttons[i].remove_css_class ("popover-item-focused");
-            }
-        }
-
-        private void navigate_popover (int dy) {
-            if (popover_buttons == null || popover_buttons.length == 0) return;
-            popover_focus_index += dy;
-            if (popover_focus_index < 0) popover_focus_index = (int) popover_buttons.length - 1;
-            if (popover_focus_index >= (int) popover_buttons.length) popover_focus_index = 0;
-            update_popover_highlight ();
-        }
-
-        private void activate_popover_focused () {
-            if (popover_buttons == null || popover_focus_index < 0) return;
-            if (popover_focus_index >= (int) popover_buttons.length) return;
-
-            var btn = popover_buttons[popover_focus_index];
-
-            // Clean up state BEFORE activation — activation may trigger rebuild
-            clear_popover_highlight ();
-            popover_buttons = null;
-            popover_focus_index = -1;
-
-            btn.activate ();
-        }
-
         public void show_toast (string message) {
             var toast = new Adw.Toast (message);
             toast.timeout = 3;
@@ -553,8 +381,8 @@ namespace XimperShellLauncher {
         public void gamepad_navigate (int dx, int dy) {
             if (!visible) return;
 
-            if (popover_buttons != null) {
-                if (dy != 0) navigate_popover (dy);
+            if (popover_navigator.active) {
+                if (dy != 0) popover_navigator.navigate (dy);
                 return;
             }
 
@@ -570,8 +398,8 @@ namespace XimperShellLauncher {
         public void gamepad_activate () {
             if (!visible) return;
 
-            if (popover_buttons != null) {
-                activate_popover_focused ();
+            if (popover_navigator.active) {
+                popover_navigator.activate_focused ();
                 return;
             }
 
@@ -579,22 +407,21 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_context_menu () {
-            if (!visible || popover_buttons != null) return;
+            if (!visible || popover_navigator.active) return;
             tile_grid.gamepad_context_menu ();
             var popover = tile_grid.get_active_popover ();
             if (popover != null) {
-                setup_popover_buttons (popover);
+                popover_navigator.attach (popover);
             }
         }
 
         public void gamepad_back () {
             if (!visible) return;
 
-            if (popover_buttons != null) {
+            if (popover_navigator.active) {
                 var popover = tile_grid.get_active_popover ();
                 if (popover != null) popover.popdown ();
-                popover_buttons = null;
-                popover_focus_index = -1;
+                popover_navigator.reset ();
                 return;
             }
 
@@ -606,7 +433,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_toggle () {
-            if (popover_buttons != null) return;
+            if (popover_navigator.active) return;
             if (visible) {
                 close_grid ();
             } else {
@@ -616,7 +443,7 @@ namespace XimperShellLauncher {
 
         public void gamepad_scroll (int direction) {
             if (!visible) return;
-            if (popover_buttons != null) return;
+            if (popover_navigator.active) return;
             var adj = scrolled.vadjustment;
             adj.value += direction * adj.page_size * 0.3;
         }
