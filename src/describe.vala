@@ -27,6 +27,7 @@ namespace XimperShellLauncher {
         builder.set_member_name ("wallpaper_opacity"); builder.add_int_value (config.wallpaper_opacity);
         builder.set_member_name ("wallpaper_dim"); builder.add_int_value (config.wallpaper_dim);
         builder.set_member_name ("background_opacity"); builder.add_int_value (config.background_opacity);
+        builder.set_member_name ("search_providers_enabled"); builder.add_boolean_value (config.search_providers_enabled);
         builder.set_member_name ("groups"); builder.begin_array ();
         for (uint i = 0; i < config.groups.length; i++) {
             var group = config.groups[i];
@@ -77,6 +78,7 @@ namespace XimperShellLauncher {
         add_integer_property (builder, "wallpaper_opacity", "Wallpaper opacity", 100, 0, 100);
         add_integer_property (builder, "wallpaper_dim", "Wallpaper dimming", 0, 0, 100);
         add_integer_property (builder, "background_opacity", "Background opacity", 100, 0, 100);
+        add_boolean_property (builder, "search_providers_enabled", "Enable search providers", true);
         add_string_property (builder, "wallpaper_path", "Wallpaper path", "");
         builder.end_object (); builder.end_object (); builder.end_object ();
 

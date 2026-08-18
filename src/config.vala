@@ -115,6 +115,7 @@ namespace XimperShellLauncher {
         public int wallpaper_opacity { get; set; default = 100; }
         public int wallpaper_dim { get; set; default = 0; }
         public int background_opacity { get; set; default = 100; }
+        public bool search_providers_enabled { get; set; default = true; }
         // Ordered list: its position controls result-section order.
         public GenericArray<SearchProviderConfig> search_providers;
         public GenericArray<GroupConfig> groups;
@@ -215,6 +216,8 @@ namespace XimperShellLauncher {
                     background_opacity = (int) root.get_int_member ("background_opacity");
                 if (root.has_member ("search")) {
                     var search = root.get_object_member ("search");
+                    if (search.has_member ("providers_enabled"))
+                        search_providers_enabled = search.get_boolean_member ("providers_enabled");
                     if (search.has_member ("providers")) {
                         search_providers = new GenericArray<SearchProviderConfig> ();
                         search.get_array_member ("providers").foreach_element ((array, i, node) => {
@@ -339,6 +342,8 @@ namespace XimperShellLauncher {
             builder.add_int_value (background_opacity);
             builder.set_member_name ("search");
             builder.begin_object ();
+            builder.set_member_name ("providers_enabled");
+            builder.add_boolean_value (search_providers_enabled);
             builder.set_member_name ("providers");
             builder.begin_array ();
             for (uint i = 0; i < search_providers.length; i++) {

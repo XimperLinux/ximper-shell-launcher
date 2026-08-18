@@ -42,8 +42,9 @@ namespace XimperShellLauncher {
             providers = new GenericArray<SearchProviderInfo> ();
         }
 
-        public void scan_providers () {
+        public void scan_providers (bool force = false) {
             providers = new GenericArray<SearchProviderInfo> ();
+            if (!force && !config.search_providers_enabled) return;
 
             var data_dirs = new GenericArray<string> ();
             data_dirs.add (Environment.get_user_data_dir ());
@@ -133,6 +134,8 @@ namespace XimperShellLauncher {
 
         public async GenericArray<SearchResult> search (string query, Cancellable? cancellable = null) {
             var all_results = new GenericArray<SearchResult> ();
+            if (!config.search_providers_enabled) return all_results;
+
             var terms = query.split (" ");
             bool is_subsearch = prev_query != null && query.has_prefix (prev_query) && query != prev_query;
 

@@ -26,7 +26,8 @@ namespace XimperShellLauncher {
             add_css_class ("search-bar-container");
 
             provider_manager = new SearchProviderManager (app.config);
-            provider_manager.scan_providers ();
+            if (app.config.search_providers_enabled)
+                provider_manager.scan_providers ();
 
             build_ui ();
         }
@@ -103,7 +104,8 @@ namespace XimperShellLauncher {
 
             // Settings can change while the launcher remains open. Refresh the
             // provider order before every query so it takes effect immediately.
-            provider_manager.scan_providers ();
+            if (app.config.search_providers_enabled)
+                provider_manager.scan_providers ();
 
             // GNOME Search Providers
             var my_cancellable = search_cancellable;

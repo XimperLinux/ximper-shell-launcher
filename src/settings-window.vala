@@ -38,9 +38,22 @@ namespace XimperShellLauncher {
             group.title = _("Search Providers");
             group.description = _("Drag providers to change the order of search results.");
 
+            var providers_enabled_row = new Adw.SwitchRow ();
+            providers_enabled_row.title = _("Enable Search Providers");
+            providers_enabled_row.subtitle = _("Show results from external GNOME search providers");
+            providers_enabled_row.active = app.config.search_providers_enabled;
+            providers_enabled_row.notify["active"].connect (() => {
+                app.config.search_providers_enabled = providers_enabled_row.active;
+                app.config.save ();
+                if (search_providers_list != null)
+                    search_providers_list.sensitive = providers_enabled_row.active;
+            });
+            group.add (providers_enabled_row);
+
             search_providers_list = new Gtk.ListBox ();
             search_providers_list.selection_mode = Gtk.SelectionMode.NONE;
             search_providers_list.add_css_class ("boxed-list");
+            search_providers_list.sensitive = app.config.search_providers_enabled;
             group.add (search_providers_list);
             page.add (group);
             add (page);
@@ -53,7 +66,7 @@ namespace XimperShellLauncher {
             search_provider_rows = new GenericArray<SearchProviderRow> ();
 
             var manager = new SearchProviderManager (app.config);
-            manager.scan_providers ();
+            manager.scan_providers (true);
             for (uint i = 0; i < manager.providers.length; i++) {
                 var provider = manager.providers[i];
                 var content = new Adw.ActionRow ();
