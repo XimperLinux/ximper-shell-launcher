@@ -29,6 +29,7 @@ ninja -C _build
 ```sh
 # Открыть лаунчер, выбранный в launcher_mode
 ximper-shell-launcher --toggle
+ximper-shell-launcher --reload    # перечитать конфигурацию с диска и применить её к запущенному лаунчеру
 ximper-shell-launcher --describe  # вывести текущую конфигурацию и поддерживаемые параметры в JSON
 ```
 

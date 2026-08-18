@@ -29,6 +29,7 @@ ninja -C _build
 ```sh
 # Opens the launcher selected by launcher_mode
 ximper-shell-launcher --toggle
+ximper-shell-launcher --reload    # reread config from disk and apply it to the running launcher
 ximper-shell-launcher --describe  # print the current configuration and supported parameters as JSON
 ```
 
