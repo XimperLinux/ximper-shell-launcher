@@ -36,6 +36,7 @@ grid_sources = files(
   'integration/dock-dbus-client.vala',
   'integration/app-info.vala',
   'integration/app-provider.vala',
+  'integration/launch-history.vala',
 
   'compositor/compositor-helper.vala',
   'compositor/hyprland-helper.vala',

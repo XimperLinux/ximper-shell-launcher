@@ -156,13 +156,42 @@ namespace XimperShellLauncher {
         }
 
         private void add_local_results (string query, bool with_section, uint limit) {
-            var local_results = query.length == 0 ? app.app_provider.apps : app.app_provider.search (query);
+            var local_results = query.length == 0 ? copy_apps (app.app_provider.apps) : app.app_provider.search (query);
             if (local_results.length == 0) return;
+
+            sort_local_results (local_results, query);
 
             if (with_section) add_result_section (_("Applications"), null);
             for (uint i = 0; i < local_results.length && (limit == 0 || i < limit); i++) {
                 add_app_result (local_results[i]);
             }
+        }
+
+        private GenericArray<AppEntry> copy_apps (GenericArray<AppEntry> apps) {
+            var copy = new GenericArray<AppEntry> ();
+            for (uint i = 0; i < apps.length; i++) copy.add (apps[i]);
+            return copy;
+        }
+
+        private void sort_local_results (GenericArray<AppEntry> results, string query) {
+            for (int i = 0; i < (int) results.length - 1; i++) {
+                for (int j = i + 1; j < (int) results.length; j++) {
+                    if (local_result_priority (results[j], query) > local_result_priority (results[i], query)) {
+                        var tmp = results[i];
+                        results[i] = results[j];
+                        results[j] = tmp;
+                    }
+                }
+            }
+        }
+
+        private int local_result_priority (AppEntry entry, string query) {
+            int launches = app.launch_history.get_count (entry.desktop_id).clamp (0, 999);
+            if (query.length == 0) return launches;
+
+            // Keep search relevance primary, but use launch frequency as a
+            // tie-breaker/bonus so frequently used apps rise among similar matches.
+            return entry.match_score (query) * 1000 + launches;
         }
 
         private void clear_results () {
@@ -298,7 +327,9 @@ namespace XimperShellLauncher {
             row.set_child (box);
 
             row.clicked.connect (() => {
-                entry.launch ();
+                if (entry.launch ()) {
+                    app.launch_history.record_launch (entry.desktop_id);
+                }
                 result_activated ();
             });
 

@@ -4,6 +4,7 @@ namespace XimperShellLauncher {
 
         public ConfigManager config { get; private set; }
         public AppProvider app_provider { get; private set; }
+        public LaunchHistory launch_history { get; private set; }
         public DockClient dock_client { get; private set; }
         public CompositorHelper compositor_helper { get; private set; }
 
@@ -38,6 +39,8 @@ namespace XimperShellLauncher {
 
             app_provider = new AppProvider ();
             app_provider.scan ();
+
+            launch_history = new LaunchHistory ();
 
             dock_client = new DockClient ();
             if (NiriHelper.is_available ()) {
