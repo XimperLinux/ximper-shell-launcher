@@ -434,6 +434,11 @@ namespace XimperShellLauncher {
                 if (!row.compute_bounds (results_widget, out bounds)) return Source.REMOVE;
 
                 var adjustment = results_widget.vadjustment;
+                if (selected_result == 0) {
+                    adjustment.value = adjustment.lower;
+                    return Source.REMOVE;
+                }
+
                 double target = adjustment.value;
                 if (bounds.origin.y < 0) {
                     target += bounds.origin.y;
