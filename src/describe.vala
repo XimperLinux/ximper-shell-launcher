@@ -1,6 +1,9 @@
 namespace XimperShellLauncher {
 
     public string describe_json (ConfigManager config) {
+        var provider_manager = new SearchProviderManager (config);
+        provider_manager.scan_providers (true);
+
         var builder = new Json.Builder ();
         builder.begin_object ();
         builder.set_member_name ("config");
@@ -47,6 +50,8 @@ namespace XimperShellLauncher {
         builder.add_int_value (config.background_opacity);
         builder.set_member_name ("search_providers_enabled");
         builder.add_boolean_value (config.search_providers_enabled);
+        builder.set_member_name ("search_providers");
+        add_search_provider_array (builder, config, provider_manager.providers);
         builder.set_member_name ("groups");
         builder.begin_array ();
         for (uint i = 0; i < config.groups.length; i++) {
@@ -87,6 +92,8 @@ namespace XimperShellLauncher {
         builder.begin_object ();
         builder.set_member_name ("running");
         builder.add_boolean_value (true);
+        builder.set_member_name ("search_providers");
+        add_search_provider_array (builder, config, provider_manager.providers);
         builder.end_object ();
         builder.set_member_name ("paths");
         builder.begin_object ();
@@ -141,6 +148,30 @@ namespace XimperShellLauncher {
         generator.set_root (builder.get_root ());
         generator.set_pretty (true);
         return generator.to_data (null) + "\n";
+    }
+
+    private void add_search_provider_array (
+        Json.Builder builder,
+        ConfigManager config,
+        GenericArray<SearchProviderInfo> providers
+    ) {
+        builder.begin_array ();
+        for (uint i = 0; i < providers.length; i++) {
+            var provider = providers[i];
+            builder.begin_object ();
+            builder.set_member_name ("id");
+            builder.add_string_value (provider.desktop_id);
+            builder.set_member_name ("name");
+            builder.add_string_value (provider.name ?? provider.desktop_id);
+            builder.set_member_name ("bus_name");
+            builder.add_string_value (provider.bus_name);
+            builder.set_member_name ("object_path");
+            builder.add_string_value (provider.object_path);
+            builder.set_member_name ("enabled");
+            builder.add_boolean_value (config.is_search_provider_enabled (provider.desktop_id));
+            builder.end_object ();
+        }
+        builder.end_array ();
     }
 
     private void add_property (Json.Builder builder, string name, string title, string type) {
