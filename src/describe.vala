@@ -50,8 +50,6 @@ namespace XimperShellLauncher {
         builder.add_int_value (config.background_opacity);
         builder.set_member_name ("search_providers_enabled");
         builder.add_boolean_value (config.search_providers_enabled);
-        builder.set_member_name ("search_providers");
-        add_search_provider_array (builder, config, provider_manager.providers);
         builder.set_member_name ("groups");
         builder.begin_array ();
         for (uint i = 0; i < config.groups.length; i++) {
@@ -92,8 +90,6 @@ namespace XimperShellLauncher {
         builder.begin_object ();
         builder.set_member_name ("running");
         builder.add_boolean_value (true);
-        builder.set_member_name ("search_providers");
-        add_search_provider_array (builder, config, provider_manager.providers);
         builder.end_object ();
         builder.set_member_name ("paths");
         builder.begin_object ();
@@ -103,6 +99,8 @@ namespace XimperShellLauncher {
 
         builder.set_member_name ("metadata");
         builder.begin_object ();
+        builder.set_member_name ("search_providers");
+        add_search_provider_array (builder, provider_manager.providers);
         builder.set_member_name ("properties");
         builder.begin_object ();
         add_integer_property (
@@ -152,7 +150,6 @@ namespace XimperShellLauncher {
 
     private void add_search_provider_array (
         Json.Builder builder,
-        ConfigManager config,
         GenericArray<SearchProviderInfo> providers
     ) {
         builder.begin_array ();
@@ -167,8 +164,12 @@ namespace XimperShellLauncher {
             builder.add_string_value (provider.bus_name);
             builder.set_member_name ("object_path");
             builder.add_string_value (provider.object_path);
-            builder.set_member_name ("enabled");
-            builder.add_boolean_value (config.is_search_provider_enabled (provider.desktop_id));
+            builder.set_member_name ("icon");
+            if (provider.icon != null) {
+                builder.add_string_value (provider.icon.to_string ());
+            } else {
+                builder.add_null_value ();
+            }
             builder.end_object ();
         }
         builder.end_array ();
