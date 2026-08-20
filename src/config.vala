@@ -138,7 +138,7 @@ namespace XimperShellLauncher {
                             if (id == null || id.length == 0) return;
                             bool enabled = !provider.has_member ("enabled") ||
                                 provider.get_boolean_member ("enabled");
-                            search_providers.add (new SearchProviderConfig (id, enabled));
+                            set_search_provider_enabled (id, enabled);
                         });
                     }
                 }
