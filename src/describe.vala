@@ -50,6 +50,8 @@ namespace XimperShellLauncher {
         builder.add_int_value (config.background_opacity);
         builder.set_member_name ("search_providers_enabled");
         builder.add_boolean_value (config.search_providers_enabled);
+        builder.set_member_name ("search_providers");
+        add_config_search_provider_array (builder, config);
         builder.set_member_name ("groups");
         builder.begin_array ();
         for (uint i = 0; i < config.groups.length; i++) {
@@ -146,6 +148,20 @@ namespace XimperShellLauncher {
         generator.set_root (builder.get_root ());
         generator.set_pretty (true);
         return generator.to_data (null) + "\n";
+    }
+
+    private void add_config_search_provider_array (Json.Builder builder, ConfigManager config) {
+        builder.begin_array ();
+        for (uint i = 0; i < config.search_providers.length; i++) {
+            var provider = config.search_providers[i];
+            builder.begin_object ();
+            builder.set_member_name ("id");
+            builder.add_string_value (provider.id);
+            builder.set_member_name ("enabled");
+            builder.add_boolean_value (provider.enabled);
+            builder.end_object ();
+        }
+        builder.end_array ();
     }
 
     private void add_search_provider_array (
