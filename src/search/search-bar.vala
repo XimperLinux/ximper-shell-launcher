@@ -333,7 +333,96 @@ namespace XimperShellLauncher {
                 result_activated ();
             });
 
+            setup_app_result_context_menu (row, entry);
             add_result_row (row);
+        }
+
+        private Gtk.Button make_menu_item (string label) {
+            var btn = new Gtk.Button ();
+            btn.add_css_class ("flat");
+            btn.label = label;
+            return btn;
+        }
+
+        private void setup_app_result_context_menu (Gtk.Button row, AppEntry entry) {
+            var rmb = new Gtk.GestureClick ();
+            rmb.button = Gdk.BUTTON_SECONDARY;
+            rmb.pressed.connect ((n, x, y) => {
+                rmb.set_state (Gtk.EventSequenceState.CLAIMED);
+                show_app_result_context_menu (row, entry);
+                row.unset_state_flags (Gtk.StateFlags.ACTIVE);
+            });
+            row.add_controller (rmb);
+
+            var long_press = new Gtk.GestureLongPress ();
+            long_press.pressed.connect ((x, y) => {
+                long_press.set_state (Gtk.EventSequenceState.CLAIMED);
+                show_app_result_context_menu (row, entry);
+                row.unset_state_flags (Gtk.StateFlags.ACTIVE);
+            });
+            row.add_controller (long_press);
+        }
+
+        private void show_app_result_context_menu (Gtk.Button row, AppEntry entry) {
+            var popover = new Gtk.Popover ();
+            popover.set_parent (row);
+            popover.has_arrow = true;
+            popover.autohide = true;
+            popover.add_css_class ("menu");
+
+            var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+
+            var desktop_actions = entry.list_actions ();
+            if (desktop_actions.length > 0) {
+                foreach (var action_id in desktop_actions) {
+                    var action_name = entry.get_action_name (action_id);
+                    var btn = make_menu_item (action_name);
+                    var aid = action_id;
+                    btn.clicked.connect (() => {
+                        popover.popdown ();
+                        entry.launch_action (aid);
+                        app.launch_history.record_launch (entry.desktop_id);
+                        result_activated ();
+                    });
+                    menu_box.append (btn);
+                }
+                menu_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
+            }
+
+            if (app.is_dock_running ()) {
+                bool pinned = app.is_pinned_in_dock (entry.desktop_id);
+                if (pinned) {
+                    var unpin_btn = make_menu_item (_("Unpin from Dock"));
+                    unpin_btn.clicked.connect (() => {
+                        popover.popdown ();
+                        app.unpin_from_dock (entry.desktop_id);
+                    });
+                    menu_box.append (unpin_btn);
+                } else {
+                    var pin_btn = make_menu_item (_("Pin to Dock"));
+                    pin_btn.clicked.connect (() => {
+                        popover.popdown ();
+                        app.pin_to_dock (entry.desktop_id);
+                    });
+                    menu_box.append (pin_btn);
+                }
+            }
+
+            if (menu_box.get_first_child () == null) {
+                popover.unparent ();
+                return;
+            }
+
+            popover.set_child (menu_box);
+            popover.closed.connect (() => {
+                popover.unparent ();
+            });
+            popover.popup ();
+
+            var first_btn = menu_box.get_first_child ();
+            if (first_btn != null && first_btn is Gtk.Button) {
+                first_btn.grab_focus ();
+            }
         }
 
         private void add_provider_result (SearchResult result, Gtk.Box target) {
