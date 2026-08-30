@@ -26,7 +26,9 @@
 }
 
 .search-section-header {
-    padding: 8px 12px 4px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: alpha(@card_bg_color, 0.45);
 }
 
 .search-section-title {
@@ -43,13 +45,24 @@
     transition: background 150ms ease;
 }
 
+.search-results row {
+    padding: 0;
+    background: transparent;
+}
+
+.search-results row:hover,
+.search-results row:selected {
+    background: transparent;
+}
+
 .search-result-row:hover,
-.search-result-selected {
+.search-results row:hover .search-result-row,
+.search-results row:selected .search-result-row {
     background: alpha(@accent_bg_color, 0.15);
 }
 
 .wofi-mode .search-results {
-    margin-top: 16px;
+    margin-top: 8px;
 }
 
 .search-result-name {
@@ -66,8 +79,8 @@
     margin-top: 8px;
 }
 
-.search-provider-header {
-    padding-left: 2px;
+.search-provider-header:hover {
+    background: alpha(@accent_bg_color, 0.12);
 }
 
 .search-provider-card {

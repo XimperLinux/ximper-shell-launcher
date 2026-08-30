@@ -1,20 +1,73 @@
 namespace XimperShellLauncher {
 
-    public class SearchBar : Gtk.Box {
+    private enum SearchItemKind {
+        LOCAL,
+        PROVIDER
+    }
 
+    private class SearchListItem : Object {
+        public SearchItemKind kind;
+        public string title;
+        public string? subtitle;
+        public Icon? icon;
+        public AppEntry? app_entry;
+        public SearchResult? provider_result;
+        public SearchProviderInfo? provider;
+
+        public SearchListItem.local (AppEntry entry) {
+            kind = SearchItemKind.LOCAL;
+            title = entry.name;
+            subtitle = entry.generic_name ?? entry.description;
+            icon = entry.icon;
+            app_entry = entry;
+        }
+
+        public SearchListItem.remote (SearchResult result) {
+            kind = SearchItemKind.PROVIDER;
+            title = result.name;
+            subtitle = result.description;
+            icon = result.icon;
+            provider_result = result;
+            provider = result.provider;
+        }
+    }
+
+    private class IconLoadState : Object {
+        public Cancellable? cancellable;
+        public uint generation;
+    }
+
+    private class IconCacheEntry : Object {
+        public string key;
+        public Gdk.Texture texture;
+
+        public IconCacheEntry (string key, Gdk.Texture texture) {
+            this.key = key;
+            this.texture = texture;
+        }
+    }
+
+    public class SearchBar : Gtk.Box {
         public Gtk.SearchEntry search_entry { get; private set; }
         public Gtk.ScrolledWindow results_widget { get; private set; }
 
         private weak Application app;
         private SearchProviderManager provider_manager;
-        private Gtk.Box results_box;
+        private GLib.ListStore section_store;
+        private Gtk.FlattenListModel results_model;
+        private Gtk.SingleSelection selection;
+        private Gtk.ListView results_view;
+        private Gtk.ListItemFactory section_header_factory;
         private Cancellable? search_cancellable;
         private uint search_timeout_id = 0;
+        private uint scroll_to_top_tick_id = 0;
+        private int scroll_to_top_frames = 0;
         private bool wofi_mode = false;
-        private GenericArray<Gtk.Button> result_rows = new GenericArray<Gtk.Button> ();
-        private int selected_result = -1;
 
         private const uint DEBOUNCE_MS = 200;
+        private const uint ICON_CACHE_LIMIT = 128;
+        private GenericArray<IconCacheEntry> icon_cache =
+            new GenericArray<IconCacheEntry> ();
 
         public signal void result_activated ();
         public signal void search_changed (bool is_searching);
@@ -26,8 +79,9 @@ namespace XimperShellLauncher {
             add_css_class ("search-bar-container");
 
             provider_manager = new SearchProviderManager (app.config);
-            if (app.config.search_providers_enabled)
+            if (app.config.search_providers_enabled) {
                 provider_manager.scan_providers ();
+            }
 
             build_ui ();
         }
@@ -43,28 +97,460 @@ namespace XimperShellLauncher {
             search_entry.placeholder_text = _("Search applications…");
             search_entry.add_css_class ("search-entry");
             search_entry.hexpand = true;
-
-            search_entry.search_changed.connect (() => {
-                debounce_search ();
-            });
-
+            search_entry.search_changed.connect (debounce_search);
             clamp.set_child (search_entry);
             append (clamp);
 
-            // Results widget — will be added to the stack in GridWindow
-            results_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
-            results_box.add_css_class ("search-results");
+            // FlattenListModel preserves each child ListModel as a section.
+            section_store = new GLib.ListStore (typeof (GLib.ListModel));
+            results_model = new Gtk.FlattenListModel (section_store);
+            selection = new Gtk.SingleSelection (results_model);
+            selection.autoselect = false;
+            selection.can_unselect = true;
 
-            var results_clamp = new Adw.Clamp ();
+            var factory = new Gtk.SignalListItemFactory ();
+            weak SearchBar weak_self = this;
+            factory.setup.connect ((object) => {
+                var self = weak_self;
+                if (self != null) {
+                    self.setup_list_item ((Gtk.ListItem) object);
+                }
+            });
+            factory.bind.connect ((object) => {
+                var self = weak_self;
+                if (self != null) {
+                    self.bind_list_item ((Gtk.ListItem) object);
+                }
+            });
+            factory.unbind.connect ((object) => {
+                var self = weak_self;
+                if (self != null) {
+                    self.unbind_list_item ((Gtk.ListItem) object);
+                }
+            });
+
+            section_header_factory = create_header_factory ();
+            results_view = new Gtk.ListView (selection, factory);
+            results_view.header_factory = section_header_factory;
+            results_view.add_css_class ("search-results");
+            results_view.margin_start = 24;
+            results_view.margin_end = 24;
+            results_view.single_click_activate = false;
+            results_view.activate.connect ((position) => {
+                var item = results_model.get_item (position) as SearchListItem;
+                if (item != null) {
+                    activate_item (item);
+                }
+            });
+
+            // ClampScrollable is specifically designed to constrain a
+            // Gtk.ListView without defeating its scrollable virtualization.
+            var results_clamp = new Adw.ClampScrollable ();
             results_clamp.maximum_size = 600;
-            results_clamp.margin_start = 24;
-            results_clamp.margin_end = 24;
-            results_clamp.set_child (results_box);
+            results_clamp.set_child (results_view);
 
             results_widget = new Gtk.ScrolledWindow ();
             results_widget.vexpand = true;
             results_widget.hscrollbar_policy = Gtk.PolicyType.NEVER;
             results_widget.set_child (results_clamp);
+        }
+
+        private Gtk.ListItemFactory create_header_factory () {
+            var factory = new Gtk.SignalListItemFactory ();
+            weak SearchBar weak_self = this;
+
+            factory.setup.connect ((object) => {
+                var header = (Gtk.ListHeader) object;
+                var button = new Gtk.Button ();
+                button.add_css_class ("flat");
+                button.add_css_class ("search-section-header");
+                button.hexpand = true;
+                button.halign = Gtk.Align.FILL;
+                button.margin_top = 8;
+                button.margin_bottom = 4;
+
+                var content = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
+                content.hexpand = true;
+                content.halign = Gtk.Align.FILL;
+                var image = new Gtk.Image ();
+                image.pixel_size = 20;
+                content.append (image);
+
+                var label = new Gtk.Label ("");
+                label.halign = Gtk.Align.FILL;
+                label.xalign = 0;
+                label.hexpand = true;
+                label.add_css_class ("search-section-title");
+                content.append (label);
+                button.child = content;
+                header.child = button;
+
+                weak Gtk.Button weak_button = button;
+                button.clicked.connect (() => {
+                    var self = weak_self;
+                    var current_button = weak_button;
+                    if (self == null || current_button == null) {
+                        return;
+                    }
+                    var provider = current_button.get_data<SearchProviderInfo> (
+                        "search-provider"
+                    );
+                    if (provider != null) {
+                        self.launch_provider_search.begin (
+                            provider,
+                            self.current_search_terms (),
+                            fallback_event_time ()
+                        );
+                    }
+                });
+            });
+
+            factory.bind.connect ((object) => {
+                var header = (Gtk.ListHeader) object;
+                var item = header.item as SearchListItem;
+                var button = header.child as Gtk.Button;
+                if (item == null || button == null) {
+                    return;
+                }
+
+                var content = button.child as Gtk.Box;
+                var image = content.get_first_child () as Gtk.Image;
+                var label = image.get_next_sibling () as Gtk.Label;
+                bool is_provider = item.kind == SearchItemKind.PROVIDER;
+
+                button.visible = true;
+                button.sensitive = true;
+                button.can_target = is_provider;
+                button.focusable = is_provider;
+                button.set_data<SearchProviderInfo> ("search-provider", item.provider);
+                button.tooltip_text = is_provider ? _("Open in application") : null;
+                button.remove_css_class ("search-provider-header");
+                if (is_provider) {
+                    button.add_css_class ("search-provider-header");
+                }
+
+                label.label = is_provider
+                    ? (item.provider.name ?? item.provider.bus_name)
+                    : _("Applications");
+                clear_image (image);
+                if (is_provider) {
+                    set_image_icon (image, item.provider.icon, 20, false);
+                }
+            });
+
+            factory.unbind.connect ((object) => {
+                var header = (Gtk.ListHeader) object;
+                var button = header.child as Gtk.Button;
+                if (button == null) {
+                    return;
+                }
+                var content = button.child as Gtk.Box;
+                var image = content.get_first_child () as Gtk.Image;
+                var label = image.get_next_sibling () as Gtk.Label;
+
+                button.steal_data<SearchProviderInfo> ("search-provider");
+                button.tooltip_text = null;
+                button.visible = true;
+                button.sensitive = true;
+                button.can_target = true;
+                button.focusable = true;
+                button.remove_css_class ("search-provider-header");
+                cancel_image_load (image);
+                clear_image (image);
+                label.label = "";
+            });
+
+            return factory;
+        }
+
+        private void setup_list_item (Gtk.ListItem list_item) {
+            var row = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12);
+            row.margin_start = 8;
+            row.margin_end = 8;
+            row.margin_top = 0;
+            row.margin_bottom = 0;
+            row.hexpand = true;
+
+            var image = new Gtk.Image ();
+            image.pixel_size = 32;
+            row.append (image);
+
+            var text_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
+            text_box.hexpand = true;
+
+            var name_label = new Gtk.Label ("");
+            name_label.halign = Gtk.Align.START;
+            name_label.ellipsize = Pango.EllipsizeMode.END;
+            name_label.add_css_class ("search-result-name");
+            text_box.append (name_label);
+
+            var desc_label = new Gtk.Label ("");
+            desc_label.halign = Gtk.Align.START;
+            desc_label.ellipsize = Pango.EllipsizeMode.END;
+            desc_label.add_css_class ("search-result-desc");
+            desc_label.add_css_class ("dim-label");
+            text_box.append (desc_label);
+
+            row.append (text_box);
+            list_item.child = row;
+
+            weak SearchBar weak_self = this;
+            weak Gtk.Box weak_row = row;
+            var secondary_click = new Gtk.GestureClick ();
+            secondary_click.button = Gdk.BUTTON_SECONDARY;
+            secondary_click.pressed.connect ((n_press, x, y) => {
+                var self = weak_self;
+                var current_row = weak_row;
+                if (self == null || current_row == null) {
+                    return;
+                }
+
+                var item = current_row.get_data<SearchListItem> ("search-item");
+                if (item != null && item.app_entry != null) {
+                    self.show_app_result_context_menu (current_row, item.app_entry);
+                }
+            });
+            row.add_controller (secondary_click);
+
+            var long_press = new Gtk.GestureLongPress ();
+            long_press.pressed.connect ((x, y) => {
+                var self = weak_self;
+                var current_row = weak_row;
+                if (self == null || current_row == null) {
+                    return;
+                }
+
+                var item = current_row.get_data<SearchListItem> ("search-item");
+                if (item != null && item.app_entry != null) {
+                    self.show_app_result_context_menu (current_row, item.app_entry);
+                }
+            });
+            row.add_controller (long_press);
+        }
+
+        private void bind_list_item (Gtk.ListItem list_item) {
+            var item = list_item.item as SearchListItem;
+            var row = list_item.child as Gtk.Box;
+            if (item == null || row == null) {
+                return;
+            }
+
+            var image = row.get_first_child () as Gtk.Image;
+            var text_box = image.get_next_sibling () as Gtk.Box;
+            var name_label = text_box.get_first_child () as Gtk.Label;
+            var desc_label = name_label.get_next_sibling () as Gtk.Label;
+
+            row.set_data<SearchListItem> ("search-item", item);
+            row.add_css_class ("search-result-row");
+            row.margin_start = 8;
+            row.margin_end = 8;
+            row.margin_top = 4;
+            row.margin_bottom = 4;
+            row.tooltip_text = null;
+
+            name_label.label = item.title;
+            desc_label.label = item.subtitle ?? "";
+            // Keep the secondary line allocated even when a result has no
+            // description, so every result row has the same measured height.
+            desc_label.visible = true;
+
+            clear_image (image);
+            set_image_icon (image, item.icon, 32, true);
+        }
+
+        private void unbind_list_item (Gtk.ListItem list_item) {
+            var row = list_item.child as Gtk.Box;
+            if (row == null) {
+                return;
+            }
+
+            var image = row.get_first_child () as Gtk.Image;
+            var text_box = image.get_next_sibling () as Gtk.Box;
+            var name_label = text_box.get_first_child () as Gtk.Label;
+            var desc_label = name_label.get_next_sibling () as Gtk.Label;
+
+            row.steal_data<SearchListItem> ("search-item");
+            row.remove_css_class ("search-result-row");
+            row.margin_start = 8;
+            row.margin_end = 8;
+            row.margin_top = 4;
+            row.margin_bottom = 4;
+            row.sensitive = true;
+            row.tooltip_text = null;
+
+            cancel_image_load (image);
+            clear_image (image);
+            image.pixel_size = 32;
+
+            name_label.label = "";
+            desc_label.label = "";
+            desc_label.visible = false;
+        }
+
+        private IconLoadState image_state (Gtk.Image image) {
+            var state = image.get_data<IconLoadState> ("icon-load-state");
+            if (state == null) {
+                state = new IconLoadState ();
+                image.set_data<IconLoadState> ("icon-load-state", state);
+            }
+            return state;
+        }
+
+        private void cancel_image_load (Gtk.Image image) {
+            var state = image_state (image);
+            state.generation++;
+            if (state.cancellable != null) {
+                state.cancellable.cancel ();
+                state.cancellable = null;
+            }
+        }
+
+        private void clear_image (Gtk.Image image) {
+            image.paintable = null;
+            image.gicon = null;
+            image.icon_name = null;
+            image.visible = false;
+        }
+
+        private Gdk.Texture? lookup_cached_icon (string key) {
+            for (uint i = 0; i < icon_cache.length; i++) {
+                if (icon_cache[i].key == key) {
+                    var entry = icon_cache[i];
+                    icon_cache.remove_index (i);
+                    icon_cache.add (entry);
+                    return entry.texture;
+                }
+            }
+            return null;
+        }
+
+        private void cache_icon (string key, Gdk.Texture texture) {
+            icon_cache.add (new IconCacheEntry (key, texture));
+            if (icon_cache.length > ICON_CACHE_LIMIT) {
+                icon_cache.remove_index (0);
+            }
+        }
+
+        private void set_image_icon (Gtk.Image image, Icon? icon,
+                                     int logical_size, bool result_fallback) {
+            cancel_image_load (image);
+            clear_image (image);
+            image.pixel_size = logical_size;
+
+            if (icon == null) {
+                if (result_fallback) {
+                    image.icon_name = "application-x-executable-symbolic";
+                    image.visible = true;
+                }
+                return;
+            }
+
+            int scale = int.max (1, image.scale_factor);
+            var loadable = icon as LoadableIcon;
+            if (loadable == null) {
+                // Resolve regular themed icons to their backing file and feed
+                // them through the same bounded decoder. Keep symbolic icons
+                // on GTK's native path so theme color recoloring still works.
+                var display = image.get_display ();
+                var theme = Gtk.IconTheme.get_for_display (display);
+                var paintable = theme.lookup_by_gicon (
+                    icon,
+                    logical_size,
+                    scale,
+                    image.get_direction (),
+                    Gtk.IconLookupFlags.NONE
+                );
+                var themed_file = paintable.get_file ();
+                var basename = themed_file != null ? themed_file.get_basename () : null;
+                bool symbolic = basename != null && basename.contains ("-symbolic.");
+                if (themed_file != null && themed_file.is_native () && !symbolic) {
+                    loadable = new FileIcon (themed_file);
+                } else {
+                    image.gicon = icon;
+                    image.visible = true;
+                    return;
+                }
+            }
+
+            string? uri = null;
+            var file_icon = loadable as FileIcon;
+            if (file_icon != null) {
+                var file = file_icon.file;
+                // Remote icon providers must not introduce network I/O into
+                // scrolling or retain arbitrarily large remote responses.
+                if (!file.is_native ()) {
+                    if (result_fallback) {
+                        image.icon_name = "application-x-executable-symbolic";
+                        image.visible = true;
+                    }
+                    return;
+                }
+                uri = file.get_uri ();
+            } else {
+                uri = icon.to_string ();
+            }
+
+            if (uri == null) {
+                if (result_fallback) {
+                    image.icon_name = "application-x-executable-symbolic";
+                    image.visible = true;
+                }
+                return;
+            }
+
+            int physical_size = logical_size * scale;
+            string key = "%s|%d|%d".printf (uri, physical_size, scale);
+            var cached = lookup_cached_icon (key);
+            if (cached != null) {
+                image.paintable = cached;
+                image.visible = true;
+                return;
+            }
+
+            var state = image_state (image);
+            state.cancellable = new Cancellable ();
+            uint generation = state.generation;
+            load_icon_async.begin (loadable, physical_size, state.cancellable,
+                (obj, res) => {
+                    Gdk.Texture? texture = null;
+                    try {
+                        texture = load_icon_async.end (res);
+                    } catch (Error e) {
+                        // Cancellation and malformed icon files are expected.
+                    }
+                    if (state.generation != generation ||
+                        state.cancellable == null ||
+                        state.cancellable.is_cancelled ()) {
+                        return;
+                    }
+                    state.cancellable = null;
+                    if (texture != null) {
+                        cache_icon (key, texture);
+                        image.paintable = texture;
+                        image.visible = true;
+                    } else if (result_fallback) {
+                        image.icon_name = "application-x-executable-symbolic";
+                        image.visible = true;
+                    }
+                });
+        }
+
+        private async Gdk.Texture load_icon_async (LoadableIcon icon, int size,
+                                                   Cancellable cancellable)
+                                                   throws Error {
+            string? content_type = null;
+            InputStream stream = yield icon.load_async (
+                size, cancellable, out content_type
+            );
+            var pixbuf = yield new Gdk.Pixbuf.from_stream_at_scale_async (
+                stream, size, size, true, cancellable
+            );
+            try {
+                yield stream.close_async (Priority.DEFAULT, cancellable);
+            } catch (Error e) {
+                // The decoded pixbuf is independent of the source stream.
+            }
+            return Gdk.Texture.for_pixbuf (pixbuf);
         }
 
         private void debounce_search () {
@@ -81,18 +567,16 @@ namespace XimperShellLauncher {
 
         private async void perform_search () {
             var query = search_entry.text.strip ();
-
-            // Cancel previous search
             if (search_cancellable != null) {
                 search_cancellable.cancel ();
             }
-            search_cancellable = new Cancellable ();
 
+            search_cancellable = new Cancellable ();
             clear_results ();
 
             if (query.length == 0) {
                 if (wofi_mode) {
-                    add_local_results (query, false, 0);
+                    add_local_results (query, 0);
                     search_changed (true);
                 } else {
                     search_changed (false);
@@ -101,85 +585,95 @@ namespace XimperShellLauncher {
             }
 
             search_changed (true);
-
-            // Settings can change while the launcher remains open. Refresh the
-            // provider order before every query so it takes effect immediately.
-            if (app.config.search_providers_enabled)
+            if (app.config.search_providers_enabled) {
                 provider_manager.scan_providers ();
+            }
 
-            // GNOME Search Providers
-            var my_cancellable = search_cancellable;
-            var provider_results = yield provider_manager.search (query, my_cancellable);
+            var current_cancellable = search_cancellable;
+            var provider_results = yield provider_manager.search (
+                query,
+                current_cancellable
+            );
+            if (current_cancellable.is_cancelled ()) {
+                return;
+            }
 
-            // Drop stale results if a newer search has started
-            if (my_cancellable.is_cancelled ()) return;
-
-            // Group results by provider
-            var provider_groups = new GenericArray<GenericArray<SearchResult>> ();
             var provider_keys = new GenericArray<string> ();
-
+            var provider_groups = new GenericArray<GenericArray<SearchResult>> ();
             for (uint i = 0; i < provider_results.length; i++) {
                 var result = provider_results[i];
-                var key = result.provider.bus_name;
-
-                int group_idx = -1;
+                int group_index = -1;
                 for (uint j = 0; j < provider_keys.length; j++) {
-                    if (provider_keys[j] == key) { group_idx = (int) j; break; }
+                    if (provider_keys[j] == result.provider.bus_name) {
+                        group_index = (int) j;
+                        break;
+                    }
                 }
 
-                if (group_idx < 0) {
-                    provider_keys.add (key);
+                if (group_index < 0) {
+                    provider_keys.add (result.provider.bus_name);
                     provider_groups.add (new GenericArray<SearchResult> ());
-                    group_idx = (int) provider_keys.length - 1;
+                    group_index = (int) provider_keys.length - 1;
                 }
-
-                provider_groups[group_idx].add (result);
+                provider_groups[group_index].add (result);
             }
 
             for (uint i = 0; i < provider_groups.length; i++) {
-                var results = provider_groups[i];
-                if (results.length > 0) {
-                    var provider_name = results[0].provider.name ?? provider_keys[i];
-                    var provider_box = add_provider_section (
-                        provider_name,
-                        results[0].provider.icon,
-                        results[0].provider
-                    );
-
-                    for (uint j = 0; j < results.length; j++) {
-                        add_provider_result (results[j], provider_box);
-                    }
+                var group = provider_groups[i];
+                if (group.length == 0) {
+                    continue;
                 }
+
+                var provider_section = create_section_store ();
+                for (uint j = 0; j < group.length; j++) {
+                    provider_section.append (new SearchListItem.remote (group[j]));
+                }
+                section_store.append (provider_section);
             }
 
-            add_local_results (query, !wofi_mode, wofi_mode ? 0 : 8);
+            add_local_results (query, wofi_mode ? 0 : 8);
+            select_first ();
         }
 
-        private void add_local_results (string query, bool with_section, uint limit) {
-            var local_results = query.length == 0 ? copy_apps (app.app_provider.apps) : app.app_provider.search (query);
-            if (local_results.length == 0) return;
+        private void add_local_results (string query, uint limit) {
+            var local_results = query.length == 0
+                ? copy_apps (app.app_provider.apps)
+                : app.app_provider.search (query);
+            if (local_results.length == 0) {
+                return;
+            }
 
             sort_local_results (local_results, query);
-
-            if (with_section) add_result_section (_("Applications"), null);
+            var local_section = create_section_store ();
             for (uint i = 0; i < local_results.length && (limit == 0 || i < limit); i++) {
-                add_app_result (local_results[i]);
+                local_section.append (new SearchListItem.local (local_results[i]));
             }
+            if (local_section.get_n_items () > 0) {
+                section_store.append (local_section);
+            }
+            select_first ();
+        }
+
+        private GLib.ListStore create_section_store () {
+            return new GLib.ListStore (typeof (SearchListItem));
         }
 
         private GenericArray<AppEntry> copy_apps (GenericArray<AppEntry> apps) {
             var copy = new GenericArray<AppEntry> ();
-            for (uint i = 0; i < apps.length; i++) copy.add (apps[i]);
+            for (uint i = 0; i < apps.length; i++) {
+                copy.add (apps[i]);
+            }
             return copy;
         }
 
         private void sort_local_results (GenericArray<AppEntry> results, string query) {
             for (int i = 0; i < (int) results.length - 1; i++) {
                 for (int j = i + 1; j < (int) results.length; j++) {
-                    if (local_result_priority (results[j], query) > local_result_priority (results[i], query)) {
-                        var tmp = results[i];
+                    if (local_result_priority (results[j], query) >
+                        local_result_priority (results[i], query)) {
+                        var temporary = results[i];
                         results[i] = results[j];
-                        results[j] = tmp;
+                        results[j] = temporary;
                     }
                 }
             }
@@ -187,294 +681,67 @@ namespace XimperShellLauncher {
 
         private int local_result_priority (AppEntry entry, string query) {
             int launches = app.launch_history.get_count (entry.desktop_id).clamp (0, 999);
-            if (query.length == 0) return launches;
-
-            // Keep search relevance primary, but use launch frequency as a
-            // tie-breaker/bonus so frequently used apps rise among similar matches.
+            if (query.length == 0) {
+                return launches;
+            }
             return entry.match_score (query) * 1000 + launches;
         }
 
         private void clear_results () {
-            result_rows = new GenericArray<Gtk.Button> ();
-            selected_result = -1;
-            var child = results_box.get_first_child ();
-            while (child != null) {
-                var next = child.get_next_sibling ();
-                results_box.remove (child);
-                child = next;
-            }
+            section_store.remove_all ();
+            selection.unselect_all ();
         }
 
-        private void add_result_section (string title, Icon? icon, SearchProviderInfo? provider = null) {
-            var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
-            header.add_css_class ("search-section-header");
-            header.margin_top = 8;
-
-            if (icon != null) {
-                var img = new Gtk.Image ();
-                img.gicon = icon;
-                img.pixel_size = 16;
-                header.append (img);
+        private void select_first () {
+            if (selection.selected == Gtk.INVALID_LIST_POSITION) {
+                for (uint i = 0; i < results_model.get_n_items (); i++) {
+                    var item = results_model.get_item (i) as SearchListItem;
+                    if (item != null) {
+                        selection.selected = i;
+                        break;
+                    }
+                }
             }
 
-            var label = new Gtk.Label (title);
-            label.add_css_class ("search-section-title");
-            label.halign = Gtk.Align.START;
-            header.append (label);
+            scroll_results_to_top ();
+        }
 
-            if (provider == null) {
-                results_box.append (header);
-                return;
+        private void scroll_results_to_top () {
+            if (scroll_to_top_tick_id != 0) {
+                results_view.remove_tick_callback (scroll_to_top_tick_id);
             }
 
-            var header_button = new Gtk.Button ();
-            header_button.add_css_class ("search-section-header-button");
-            header_button.add_css_class ("flat");
-            header_button.set_child (header);
-            header_button.tooltip_text = "Открыть в приложении";
+            scroll_to_top_frames = 0;
+            scroll_to_top_tick_id = results_view.add_tick_callback ((widget, frame_clock) => {
+                if (results_model.get_n_items () > 0) {
+                    results_view.scroll_to (0, Gtk.ListScrollFlags.NONE, null);
+                }
+                var adjustment = results_widget.vadjustment;
+                adjustment.value = adjustment.lower;
 
-            header_button.clicked.connect (() => {
-                launch_provider_search.begin (
-                    provider,
-                    current_search_terms (),
-                    fallback_event_time ()
-                );
+                scroll_to_top_frames++;
+                if (scroll_to_top_frames < 3) {
+                    return Source.CONTINUE;
+                }
+
+                scroll_to_top_tick_id = 0;
+                return Source.REMOVE;
             });
-            results_box.append (header_button);
         }
 
-        private Gtk.Box add_provider_section (
-            string title,
-            Icon? icon,
-            SearchProviderInfo provider
-        ) {
-            var card = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
-            card.add_css_class ("search-provider-card");
-
-            var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
-            header.add_css_class ("search-section-header");
-            header.add_css_class ("search-provider-header");
-            if (icon != null) {
-                var image = new Gtk.Image ();
-                image.gicon = icon;
-                image.pixel_size = 16;
-                header.append (image);
-            }
-            var label = new Gtk.Label (title);
-            label.add_css_class ("search-section-title");
-            header.append (label);
-
-            var header_button = new Gtk.Button ();
-            header_button.add_css_class ("flat");
-            header_button.add_css_class ("search-section-header-button");
-            header_button.tooltip_text = _("Open in application");
-            header_button.set_child (header);
-            header_button.clicked.connect (() => {
-                launch_provider_search.begin (
-                    provider,
-                    current_search_terms (),
-                    fallback_event_time ()
-                );
-            });
-            card.append (header_button);
-
-            var provider_results = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
-            card.append (provider_results);
-            results_box.append (card);
-            return provider_results;
-        }
-
-        private void add_app_result (AppEntry entry) {
-            var row = new Gtk.Button ();
-            row.add_css_class ("search-result-row");
-            row.add_css_class ("flat");
-
-            var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12);
-            box.margin_start = 8;
-            box.margin_end = 8;
-            box.margin_top = 6;
-            box.margin_bottom = 6;
-
-            var img = new Gtk.Image ();
-            if (entry.icon != null) {
-                img.gicon = entry.icon;
-            } else {
-                img.icon_name = "application-x-executable";
-            }
-            img.pixel_size = 32;
-            box.append (img);
-
-            var text_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
-            text_box.hexpand = true;
-
-            var name_label = new Gtk.Label (entry.name);
-            name_label.halign = Gtk.Align.START;
-            name_label.ellipsize = Pango.EllipsizeMode.END;
-            name_label.add_css_class ("search-result-name");
-            text_box.append (name_label);
-
-            var subtitle = entry.generic_name ?? entry.description;
-            if (subtitle != null) {
-                var desc_label = new Gtk.Label (subtitle);
-                desc_label.halign = Gtk.Align.START;
-                desc_label.ellipsize = Pango.EllipsizeMode.END;
-                desc_label.add_css_class ("search-result-desc");
-                desc_label.add_css_class ("dim-label");
-                text_box.append (desc_label);
-            }
-
-            box.append (text_box);
-            row.set_child (box);
-
-            row.clicked.connect (() => {
-                if (entry.launch ()) {
-                    app.launch_history.record_launch (entry.desktop_id);
+        private void activate_item (SearchListItem item) {
+            if (item.kind == SearchItemKind.LOCAL && item.app_entry != null) {
+                if (item.app_entry.launch ()) {
+                    app.launch_history.record_launch (item.app_entry.desktop_id);
                 }
                 result_activated ();
-            });
-
-            setup_app_result_context_menu (row, entry);
-            add_result_row (row);
-        }
-
-        private Gtk.Button make_menu_item (string label) {
-            var btn = new Gtk.Button ();
-            btn.add_css_class ("flat");
-            btn.label = label;
-            return btn;
-        }
-
-        private void setup_app_result_context_menu (Gtk.Button row, AppEntry entry) {
-            var rmb = new Gtk.GestureClick ();
-            rmb.button = Gdk.BUTTON_SECONDARY;
-            rmb.pressed.connect ((n, x, y) => {
-                rmb.set_state (Gtk.EventSequenceState.CLAIMED);
-                show_app_result_context_menu (row, entry);
-                row.unset_state_flags (Gtk.StateFlags.ACTIVE);
-            });
-            row.add_controller (rmb);
-
-            var long_press = new Gtk.GestureLongPress ();
-            long_press.pressed.connect ((x, y) => {
-                long_press.set_state (Gtk.EventSequenceState.CLAIMED);
-                show_app_result_context_menu (row, entry);
-                row.unset_state_flags (Gtk.StateFlags.ACTIVE);
-            });
-            row.add_controller (long_press);
-        }
-
-        private void show_app_result_context_menu (Gtk.Button row, AppEntry entry) {
-            var popover = new Gtk.Popover ();
-            popover.set_parent (row);
-            popover.has_arrow = true;
-            popover.autohide = true;
-            popover.add_css_class ("menu");
-
-            var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
-
-            var desktop_actions = entry.list_actions ();
-            if (desktop_actions.length > 0) {
-                foreach (var action_id in desktop_actions) {
-                    var action_name = entry.get_action_name (action_id);
-                    var btn = make_menu_item (action_name);
-                    var aid = action_id;
-                    btn.clicked.connect (() => {
-                        popover.popdown ();
-                        entry.launch_action (aid);
-                        app.launch_history.record_launch (entry.desktop_id);
-                        result_activated ();
-                    });
-                    menu_box.append (btn);
-                }
-                menu_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
-            }
-
-            if (app.is_dock_running ()) {
-                bool pinned = app.is_pinned_in_dock (entry.desktop_id);
-                if (pinned) {
-                    var unpin_btn = make_menu_item (_("Unpin from Dock"));
-                    unpin_btn.clicked.connect (() => {
-                        popover.popdown ();
-                        app.unpin_from_dock (entry.desktop_id);
-                    });
-                    menu_box.append (unpin_btn);
-                } else {
-                    var pin_btn = make_menu_item (_("Pin to Dock"));
-                    pin_btn.clicked.connect (() => {
-                        popover.popdown ();
-                        app.pin_to_dock (entry.desktop_id);
-                    });
-                    menu_box.append (pin_btn);
-                }
-            }
-
-            if (menu_box.get_first_child () == null) {
-                popover.unparent ();
-                return;
-            }
-
-            popover.set_child (menu_box);
-            popover.closed.connect (() => {
-                popover.unparent ();
-            });
-            popover.popup ();
-
-            var first_btn = menu_box.get_first_child ();
-            if (first_btn != null && first_btn is Gtk.Button) {
-                first_btn.grab_focus ();
-            }
-        }
-
-        private void add_provider_result (SearchResult result, Gtk.Box target) {
-            var row = new Gtk.Button ();
-            row.add_css_class ("search-result-row");
-            row.add_css_class ("flat");
-
-            var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12);
-            box.margin_start = 8;
-            box.margin_end = 8;
-            box.margin_top = 6;
-            box.margin_bottom = 6;
-
-            var img = new Gtk.Image ();
-            if (result.icon != null) {
-                img.gicon = result.icon;
-            } else {
-                img.icon_name = "application-x-executable";
-            }
-            img.pixel_size = 32;
-            box.append (img);
-
-            var text_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
-            text_box.hexpand = true;
-
-            var name_label = new Gtk.Label (result.name);
-            name_label.halign = Gtk.Align.START;
-            name_label.ellipsize = Pango.EllipsizeMode.END;
-            name_label.add_css_class ("search-result-name");
-            text_box.append (name_label);
-
-            if (result.description != null) {
-                var desc_label = new Gtk.Label (result.description);
-                desc_label.halign = Gtk.Align.START;
-                desc_label.add_css_class ("search-result-desc");
-                desc_label.add_css_class ("dim-label");
-                desc_label.ellipsize = Pango.EllipsizeMode.END;
-                text_box.append (desc_label);
-            }
-
-            box.append (text_box);
-            row.set_child (box);
-
-            row.clicked.connect (() => {
+            } else if (item.provider_result != null) {
+                var result = item.provider_result;
                 if (result.clipboard_text != null && result.clipboard_text.length > 0) {
                     var clipboard = Gdk.Display.get_default ().get_clipboard ();
                     clipboard.set_text (result.clipboard_text);
                     result_activated ();
                 } else if (result.id.has_prefix ("open-in-")) {
-                    // Some providers expose a synthetic “open in application”
-                    // row. It is not a content result, so forward the search
-                    // terms through LaunchSearch instead of ActivateResult.
                     launch_provider_search.begin (
                         result.provider,
                         current_search_terms (),
@@ -487,63 +754,69 @@ namespace XimperShellLauncher {
                         fallback_event_time ()
                     );
                 }
-            });
-
-            add_result_row (row, target);
-        }
-
-        private void add_result_row (Gtk.Button row, Gtk.Box? target = null) {
-            (target ?? results_box).append (row);
-            result_rows.add (row);
-            if (selected_result < 0) {
-                selected_result = 0;
-                update_result_selection ();
             }
         }
 
-        private void update_result_selection () {
-            for (uint i = 0; i < result_rows.length; i++) {
-                if ((int) i == selected_result) {
-                    result_rows[i].add_css_class ("search-result-selected");
-                } else {
-                    result_rows[i].remove_css_class ("search-result-selected");
-                }
-            }
-            scroll_selected_result_into_view ();
+        private Gtk.Button make_menu_item (string label) {
+            var button = new Gtk.Button ();
+            button.add_css_class ("flat");
+            button.label = label;
+            return button;
         }
 
-        private void scroll_selected_result_into_view () {
-            Idle.add (() => {
-                if (selected_result < 0 || selected_result >= (int) result_rows.length) {
-                    return Source.REMOVE;
+        private void show_app_result_context_menu (Gtk.Widget row, AppEntry entry) {
+            var popover = new Gtk.Popover ();
+            popover.set_parent (row);
+            popover.has_arrow = true;
+            popover.autohide = true;
+            popover.add_css_class ("menu");
+
+            var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            var desktop_actions = entry.list_actions ();
+            if (desktop_actions.length > 0) {
+                foreach (var action_id in desktop_actions) {
+                    var captured_action_id = action_id;
+                    var button = make_menu_item (entry.get_action_name (action_id));
+                    button.clicked.connect (() => {
+                        popover.popdown ();
+                        entry.launch_action (captured_action_id);
+                        app.launch_history.record_launch (entry.desktop_id);
+                        result_activated ();
+                    });
+                    menu_box.append (button);
                 }
+                menu_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
+            }
 
-                Graphene.Rect bounds;
-                var row = result_rows[selected_result];
-                if (!row.compute_bounds (results_widget, out bounds)) return Source.REMOVE;
-
-                var adjustment = results_widget.vadjustment;
-                if (selected_result == 0) {
-                    adjustment.value = adjustment.lower;
-                    return Source.REMOVE;
-                }
-
-                double target = adjustment.value;
-                if (bounds.origin.y < 0) {
-                    target += bounds.origin.y;
-                } else if (bounds.origin.y + bounds.size.height > results_widget.get_allocated_height ()) {
-                    target += bounds.origin.y + bounds.size.height - results_widget.get_allocated_height ();
-                } else {
-                    return Source.REMOVE;
-                }
-
-                target = target.clamp (
-                    adjustment.lower,
-                    adjustment.upper - adjustment.page_size
+            if (app.is_dock_running ()) {
+                bool pinned = app.is_pinned_in_dock (entry.desktop_id);
+                var button = make_menu_item (
+                    pinned ? _("Unpin from Dock") : _("Pin to Dock")
                 );
-                adjustment.value = target;
-                return Source.REMOVE;
-            });
+                button.clicked.connect (() => {
+                    popover.popdown ();
+                    if (pinned) {
+                        app.unpin_from_dock (entry.desktop_id);
+                    } else {
+                        app.pin_to_dock (entry.desktop_id);
+                    }
+                });
+                menu_box.append (button);
+            }
+
+            if (menu_box.get_first_child () == null) {
+                popover.unparent ();
+                return;
+            }
+
+            popover.set_child (menu_box);
+            popover.closed.connect (() => popover.unparent ());
+            popover.popup ();
+
+            var first_item = menu_box.get_first_child ();
+            if (first_item != null) {
+                first_item.grab_focus ();
+            }
         }
 
         private async void launch_provider_search (
@@ -569,8 +842,6 @@ namespace XimperShellLauncher {
         }
 
         private static uint32 fallback_event_time () {
-            // Keyboard activation has no pointer event. GDK event timestamps
-            // are monotonic milliseconds and wrap at uint32, just like this.
             return (uint32) (get_monotonic_time () / 1000);
         }
 
@@ -583,26 +854,69 @@ namespace XimperShellLauncher {
         }
 
         public bool navigate_results (int direction) {
-            if (result_rows.length == 0) return false;
+            uint item_count = results_model.get_n_items ();
+            if (item_count == 0 || direction == 0) {
+                return false;
+            }
 
-            selected_result += direction;
-            if (selected_result < 0) selected_result = (int) result_rows.length - 1;
-            if (selected_result >= (int) result_rows.length) selected_result = 0;
-            update_result_selection ();
-            return true;
+            int position = selection.selected == Gtk.INVALID_LIST_POSITION
+                ? (direction > 0 ? -1 : 0)
+                : (int) selection.selected;
+            for (uint step = 0; step < item_count; step++) {
+                position = (position + direction + (int) item_count) % (int) item_count;
+                var item = results_model.get_item ((uint) position) as SearchListItem;
+                if (item != null) {
+                    selection.selected = (uint) position;
+                    results_view.scroll_to (
+                        (uint) position,
+                        Gtk.ListScrollFlags.FOCUS,
+                        null
+                    );
+                    return true;
+                }
+            }
+            return false;
         }
 
         public bool activate_selected_result () {
-            if (selected_result < 0 || selected_result >= (int) result_rows.length) return false;
-            result_rows[selected_result].activate ();
+            uint position = selection.selected;
+            if (position == Gtk.INVALID_LIST_POSITION) {
+                return false;
+            }
+
+            var item = results_model.get_item (position) as SearchListItem;
+            if (item == null) {
+                return false;
+            }
+            activate_item (item);
             return true;
         }
 
         public void reset () {
+            // GridWindow may call reset repeatedly while Wofi mode is already
+            // showing its empty-query cache. Do not trigger a duplicate search.
+            if (wofi_mode && search_entry.text.strip ().length == 0 &&
+                results_model.get_n_items () > 0) {
+                select_first ();
+                provider_manager.reset_search ();
+                return;
+            }
+
             search_entry.text = "";
-            clear_results ();
+            if (search_timeout_id != 0) {
+                Source.remove (search_timeout_id);
+                search_timeout_id = 0;
+            }
             provider_manager.reset_search ();
-            if (wofi_mode) perform_search.begin ();
+
+            if (wofi_mode) {
+                perform_search.begin ();
+            } else {
+                if (search_cancellable != null) {
+                    search_cancellable.cancel ();
+                }
+                clear_results ();
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ grid_deps = [
   dependency('gtk4-layer-shell-0', version: '>= 1.0'),
   dependency('json-glib-1.0'),
   dependency('gio-unix-2.0'),
+  dependency('gdk-pixbuf-2.0'),
   dependency('manette-0.2'),
 ]
 
