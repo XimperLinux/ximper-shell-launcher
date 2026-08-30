@@ -7,6 +7,10 @@ namespace XimperShellLauncher {
         public string folder_id { get; private set; }
 
         private weak Application app;
+        private GenericArray<Gtk.Image> mini_images = new GenericArray<Gtk.Image> ();
+        private GenericArray<Gtk.EventController> owned_controllers =
+            new GenericArray<Gtk.EventController> ();
+        private bool cleaned_up = false;
 
         public signal void folder_clicked (FolderTile folder);
         public signal void drop_received_on_folder (string source_id, string folder_desktop_id);
@@ -37,12 +41,9 @@ namespace XimperShellLauncher {
             for (int i = 0; i < 4 && i < (int) items.length; i++) {
                 var entry = app.app_provider.find_by_desktop_id (items[i]);
                 var img = new Gtk.Image ();
-                if (entry != null && entry.icon != null) {
-                    img.gicon = entry.icon;
-                } else {
-                    img.icon_name = "application-x-executable";
-                }
-                img.pixel_size = mini_size;
+                IconLoader.set_image_icon (img,
+                    entry != null ? entry.icon : null, mini_size, true);
+                mini_images.add (img);
                 icon_grid.attach (img, i % 2, i / 2, 1, 1);
             }
 
@@ -63,7 +64,7 @@ namespace XimperShellLauncher {
             gesture.released.connect ((n, x, y) => {
                 folder_clicked (this);
             });
-            add_controller (gesture);
+            add_owned_controller (gesture);
 
             // Right click — ungroup
             var rmb = new Gtk.GestureClick ();
@@ -73,7 +74,7 @@ namespace XimperShellLauncher {
                 show_folder_menu ();
                 unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
-            add_controller (rmb);
+            add_owned_controller (rmb);
 
             // Long press for touchscreen
             var long_press = new Gtk.GestureLongPress ();
@@ -82,7 +83,7 @@ namespace XimperShellLauncher {
                 show_folder_menu ();
                 unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
-            add_controller (long_press);
+            add_owned_controller (long_press);
 
             // DragSource — sends folder_id as string
             var source = new Gtk.DragSource ();
@@ -98,7 +99,7 @@ namespace XimperShellLauncher {
             source.drag_end.connect ((drag, del) => {
                 remove_css_class ("tile-dragging");
             });
-            add_controller (source);
+            add_owned_controller (source);
 
             // DropTarget — accepts string (desktop_id or folder_id)
             var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
@@ -108,7 +109,7 @@ namespace XimperShellLauncher {
                 drop_received_on_folder (source_id, folder_id);
                 return true;
             });
-            add_controller (target);
+            add_owned_controller (target);
         }
 
         public signal void ungroup_requested (FolderTile folder);
@@ -156,6 +157,33 @@ namespace XimperShellLauncher {
                 active_popover = null;
                 popover.unparent ();
             });
+        }
+
+        private void add_owned_controller (Gtk.EventController controller) {
+            owned_controllers.add (controller);
+            add_controller (controller);
+        }
+
+        public void cleanup () {
+            if (cleaned_up) return;
+            cleaned_up = true;
+            for (uint i = 0; i < mini_images.length; i++) {
+                IconLoader.cancel_and_clear (mini_images[i]);
+            }
+            mini_images = new GenericArray<Gtk.Image> ();
+            for (uint i = 0; i < owned_controllers.length; i++) {
+                remove_controller (owned_controllers[i]);
+            }
+            owned_controllers = new GenericArray<Gtk.EventController> ();
+            if (active_popover != null) {
+                active_popover.unparent ();
+                active_popover = null;
+            }
+        }
+
+        protected override void dispose () {
+            cleanup ();
+            base.dispose ();
         }
 
         private void show_rename_dialog () {

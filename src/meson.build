@@ -34,6 +34,7 @@ grid_sources = files(
   'search/search-model.vala',
   'search/search-provider.vala',
 
+  'integration/icon-loader.vala',
   'integration/dock-dbus-client.vala',
   'integration/app-info.vala',
   'integration/app-provider.vala',

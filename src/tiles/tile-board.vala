@@ -49,6 +49,14 @@ namespace XimperShellLauncher {
             app.config.save ();
         }
 
+        private void cleanup_widget (Gtk.Widget widget) {
+            var tile = widget as Tile;
+            if (tile != null) tile.cleanup ();
+            var folder = widget as FolderTile;
+            if (folder != null) folder.cleanup ();
+            widget.unparent ();
+        }
+
         // --- Layout ---
 
         private void compute_initial_layout () {
@@ -67,7 +75,7 @@ namespace XimperShellLauncher {
         private void rebuild () {
             // Remove all children
             for (uint i = 0; i < placements.length; i++) {
-                placements[i].widget.unparent ();
+                cleanup_widget (placements[i].widget);
             }
             placements = new GenericArray<TilePlacement> ();
             if (folder_header != null) {
@@ -139,19 +147,20 @@ namespace XimperShellLauncher {
         }
 
         private Gtk.Widget? create_grid_widget (TileConfig tc, int cell_row) {
+            unowned TileBoard owner = this;
             if (tc.size == TileSize.FOLDER && tc.folder_items != null) {
                 var ftile = new FolderTile (app, tc.folder_name ?? "Folder", tc.folder_items, packer.cell_size);
                 ftile.folder_clicked.connect ((f) => {
-                    toggle_folder (f, cell_row);
+                    if (owner != null) owner.toggle_folder (f, cell_row);
                 });
                 ftile.drop_received_on_folder.connect ((src_id, tgt_id) => {
-                    on_drop (src_id, tgt_id);
+                    if (owner != null) owner.on_drop (src_id, tgt_id);
                 });
                 ftile.ungroup_requested.connect ((f) => {
-                    on_ungroup (f.folder_name);
+                    if (owner != null) owner.on_ungroup (f.folder_name);
                 });
                 ftile.rename_requested.connect ((f, new_name) => {
-                    on_rename (f.folder_name, new_name);
+                    if (owner != null) owner.on_rename (f.folder_name, new_name);
                 });
                 return ftile;
             }
@@ -160,21 +169,22 @@ namespace XimperShellLauncher {
             if (entry == null) return null;
 
             var tile = new Tile (entry, tc.size, packer.cell_size);
-            tile.tile_activated.connect ((e) => { tile_activated (e); });
+            tile.tile_activated.connect ((e) => { if (owner != null) owner.tile_activated (e); });
             tile.size_change_requested.connect ((t, s) => {
-                on_size_change (t.app_entry.desktop_id, s);
+                if (owner != null) owner.on_size_change (t.app_entry.desktop_id, s);
             });
-            tile.remove_requested.connect ((t) => { on_remove (t.app_entry.desktop_id); });
-            tile.pin_to_dock_requested.connect ((t) => { pin_requested (t.app_entry.desktop_id); });
-            tile.unpin_from_dock_requested.connect ((t) => { unpin_requested (t.app_entry.desktop_id); });
-            tile.drop_received.connect ((src_id, tgt_id) => { on_drop (src_id, tgt_id); });
+            tile.remove_requested.connect ((t) => { if (owner != null) owner.on_remove (t.app_entry.desktop_id); });
+            tile.pin_to_dock_requested.connect ((t) => { if (owner != null) owner.pin_requested (t.app_entry.desktop_id); });
+            tile.unpin_from_dock_requested.connect ((t) => { if (owner != null) owner.unpin_requested (t.app_entry.desktop_id); });
+            tile.drop_received.connect ((src_id, tgt_id) => { if (owner != null) owner.on_drop (src_id, tgt_id); });
             tile.create_folder_requested.connect ((t) => {
-                on_create_folder (t.app_entry.desktop_id, t.app_entry.name);
+                if (owner != null) owner.on_create_folder (t.app_entry.desktop_id, t.app_entry.name);
             });
             return tile;
         }
 
         private void build_folder_content () {
+            unowned TileBoard owner = this;
             var fc = model.find_folder (open_folder_id);
             if (fc == null || fc.folder_items == null) return;
 
@@ -195,11 +205,11 @@ namespace XimperShellLauncher {
             zone_target.drop.connect ((val, x, y) => {
                 var source_id = (string) val;
                 if (source_id == null || source_id.has_prefix ("folder:")) return false;
-                if (model.add_to_folder (folder_name_for_drop, source_id)) {
-                    folder_item_count = model.count_folder_items (open_folder_id, app.app_provider);
-                    target_folder_height = packer.compute_folder_height (folder_item_count);
-                    rebuild ();
-                    layout_changed ();
+                if (owner != null && owner.model.add_to_folder (folder_name_for_drop, source_id)) {
+                    owner.folder_item_count = owner.model.count_folder_items (owner.open_folder_id, owner.app.app_provider);
+                    owner.target_folder_height = owner.packer.compute_folder_height (owner.folder_item_count);
+                    owner.rebuild ();
+                    owner.layout_changed ();
                     return true;
                 }
                 return false;
@@ -218,14 +228,14 @@ namespace XimperShellLauncher {
                 if (entry == null) continue;
 
                 var tile = new Tile (entry, TileSize.SMALL, packer.cell_size);
-                tile.tile_activated.connect ((e) => { tile_activated (e); });
+                tile.tile_activated.connect ((e) => { if (owner != null) owner.tile_activated (e); });
                 tile.remove_requested.connect ((t) => {
-                    on_remove_from_folder (fname, t.app_entry.desktop_id);
+                    if (owner != null) owner.on_remove_from_folder (fname, t.app_entry.desktop_id);
                 });
-                tile.pin_to_dock_requested.connect ((t) => { pin_requested (t.app_entry.desktop_id); });
-                tile.unpin_from_dock_requested.connect ((t) => { unpin_requested (t.app_entry.desktop_id); });
+                tile.pin_to_dock_requested.connect ((t) => { if (owner != null) owner.pin_requested (t.app_entry.desktop_id); });
+                tile.unpin_from_dock_requested.connect ((t) => { if (owner != null) owner.unpin_requested (t.app_entry.desktop_id); });
                 tile.drop_received.connect ((src_id, tgt_id) => {
-                    on_reorder_in_folder (fname, src_id, tgt_id);
+                    if (owner != null) owner.on_reorder_in_folder (fname, src_id, tgt_id);
                 });
 
                 int col = placed % packer.columns;
@@ -457,7 +467,7 @@ namespace XimperShellLauncher {
             }
             for (int k = (int) placements.length - 1; k >= 0; k--) {
                 if (placements[k].is_folder_item) {
-                    placements[k].widget.unparent ();
+                    cleanup_widget (placements[k].widget);
                     placements.remove_index (k);
                 }
             }
@@ -475,19 +485,21 @@ namespace XimperShellLauncher {
 
         private void setup_keyboard () {
             var key_controller = new Gtk.EventControllerKey ();
-            key_controller.key_pressed.connect ((keyval, keycode, state) => {
-                switch (keyval) {
-                    case Gdk.Key.Left: return navigate_focus (-1, 0);
-                    case Gdk.Key.Right: return navigate_focus (1, 0);
-                    case Gdk.Key.Up: return navigate_focus (0, -1);
-                    case Gdk.Key.Down: return navigate_focus (0, 1);
-                    case Gdk.Key.Return:
-                    case Gdk.Key.KP_Enter:
-                    case Gdk.Key.space: return activate_focused ();
-                    default: return false;
-                }
-            });
+            key_controller.key_pressed.connect (on_key_pressed);
             ((Gtk.Widget) this).add_controller (key_controller);
+        }
+
+        private bool on_key_pressed (uint keyval, uint keycode, Gdk.ModifierType state) {
+            switch (keyval) {
+                case Gdk.Key.Left: return navigate_focus (-1, 0);
+                case Gdk.Key.Right: return navigate_focus (1, 0);
+                case Gdk.Key.Up: return navigate_focus (0, -1);
+                case Gdk.Key.Down: return navigate_focus (0, 1);
+                case Gdk.Key.Return:
+                case Gdk.Key.KP_Enter:
+                case Gdk.Key.space: return activate_focused ();
+                default: return false;
+            }
         }
 
         public int get_focused_index () {
@@ -714,19 +726,24 @@ namespace XimperShellLauncher {
             return model.to_group_config (group_name);
         }
 
-        protected override void dispose () {
+        private bool cleaned_up = false;
+
+        public void cleanup () {
+            if (cleaned_up) return;
+            cleaned_up = true;
+            animator.cleanup ();
+            cleanup_folder_content ();
             for (uint i = 0; i < placements.length; i++) {
-                placements[i].widget.unparent ();
+                cleanup_widget (placements[i].widget);
             }
             placements = new GenericArray<TilePlacement> ();
-            if (folder_header != null) {
-                folder_header.unparent ();
-                folder_header = null;
-            }
-            if (folder_drop_zone != null) {
-                folder_drop_zone.unparent ();
-                folder_drop_zone = null;
-            }
+            folder_header = null;
+            folder_drop_zone = null;
+            open_folder_id = null;
+        }
+
+        protected override void dispose () {
+            cleanup ();
             base.dispose ();
         }
     }

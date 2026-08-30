@@ -40,6 +40,11 @@ namespace XimperShellLauncher {
             pending_idles = new GenericArray<uint> ();
         }
 
+        public void cleanup () {
+            cancel ();
+            owner = null;
+        }
+
         public void reset () {
             cancel ();
             slide_progress = 1.0;
@@ -48,10 +53,12 @@ namespace XimperShellLauncher {
 
         public void run_slide (double from, double to, owned Callback? then) {
             slide_progress = from;
+            weak FolderAnimator self = this;
             var target = new Adw.CallbackAnimationTarget ((val) => {
-                slide_progress = val;
-                owner.queue_resize ();
-                owner.queue_allocate ();
+                if (self == null || self.owner == null) return;
+                self.slide_progress = val;
+                self.owner.queue_resize ();
+                self.owner.queue_allocate ();
             });
             slide_anim = new Adw.TimedAnimation (owner, from, to, 200, target);
             if (then != null) {
@@ -65,10 +72,12 @@ namespace XimperShellLauncher {
 
         public void run_cascade (double from, double to, owned Callback? then) {
             cascade_progress = from;
+            weak FolderAnimator self = this;
             int duration = to > from ? 350 : 200;
             var ct = new Adw.CallbackAnimationTarget ((val) => {
-                cascade_progress = val;
-                owner.queue_allocate ();
+                if (self == null || self.owner == null) return;
+                self.cascade_progress = val;
+                self.owner.queue_allocate ();
             });
             cascade_anim = new Adw.TimedAnimation (owner, from, to, duration, ct);
             if (then != null) {

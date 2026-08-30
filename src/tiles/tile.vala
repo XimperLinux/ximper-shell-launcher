@@ -10,6 +10,10 @@ namespace XimperShellLauncher {
         private Gtk.Image icon_image;
         private Gtk.Label? name_label;
         private bool menu_visible = false;
+        private int loaded_icon_size = 0;
+        private bool cleaned_up = false;
+        private GenericArray<Gtk.EventController> owned_controllers =
+            new GenericArray<Gtk.EventController> ();
 
         public signal void tile_activated (AppEntry entry);
         public signal void size_change_requested (Tile tile, TileSize new_size);
@@ -39,11 +43,6 @@ namespace XimperShellLauncher {
             content_box.vexpand = true;
 
             icon_image = new Gtk.Image ();
-            if (app_entry.icon != null) {
-                icon_image.gicon = app_entry.icon;
-            } else {
-                icon_image.icon_name = "application-x-executable";
-            }
             icon_image.add_css_class ("tile-icon");
             content_box.append (icon_image);
 
@@ -67,7 +66,7 @@ namespace XimperShellLauncher {
                 }
                 tile_activated (app_entry);
             });
-            add_controller (gesture);
+            add_owned_controller (gesture);
 
             // Right click
             var rmb = new Gtk.GestureClick ();
@@ -81,7 +80,7 @@ namespace XimperShellLauncher {
                 }
                 unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
-            add_controller (rmb);
+            add_owned_controller (rmb);
 
             // Long press for touchscreen
             var long_press = new Gtk.GestureLongPress ();
@@ -90,7 +89,7 @@ namespace XimperShellLauncher {
                 show_context_menu ();
                 unset_state_flags (Gtk.StateFlags.ACTIVE);
             });
-            add_controller (long_press);
+            add_owned_controller (long_press);
         }
 
         private Gtk.Button make_menu_item (string label) {
@@ -254,6 +253,37 @@ namespace XimperShellLauncher {
                 default:
                     break;
             }
+
+            int actual_size = icon_image.pixel_size;
+            if (actual_size != loaded_icon_size) {
+                loaded_icon_size = actual_size;
+                IconLoader.set_image_icon (icon_image, app_entry.icon,
+                    actual_size, true);
+            }
+        }
+
+        private void add_owned_controller (Gtk.EventController controller) {
+            owned_controllers.add (controller);
+            add_controller (controller);
+        }
+
+        public void cleanup () {
+            if (cleaned_up) return;
+            cleaned_up = true;
+            IconLoader.cancel_and_clear (icon_image);
+            for (uint i = 0; i < owned_controllers.length; i++) {
+                remove_controller (owned_controllers[i]);
+            }
+            owned_controllers = new GenericArray<Gtk.EventController> ();
+            if (active_popover != null) {
+                active_popover.unparent ();
+                active_popover = null;
+            }
+        }
+
+        protected override void dispose () {
+            cleanup ();
+            base.dispose ();
         }
 
         private void setup_drag () {
@@ -275,7 +305,7 @@ namespace XimperShellLauncher {
                 remove_css_class ("tile-dragging");
             });
 
-            add_controller (source);
+            add_owned_controller (source);
 
             // Drop target — accepts string (desktop_id)
             var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
@@ -285,7 +315,7 @@ namespace XimperShellLauncher {
                 drop_received (source_id, app_entry.desktop_id);
                 return true;
             });
-            add_controller (target);
+            add_owned_controller (target);
         }
 
         public signal void drop_received (string source_id, string target_id);

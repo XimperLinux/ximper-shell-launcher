@@ -32,21 +32,6 @@ namespace XimperShellLauncher {
         }
     }
 
-    private class IconLoadState : Object {
-        public Cancellable? cancellable;
-        public uint generation;
-    }
-
-    private class IconCacheEntry : Object {
-        public string key;
-        public Gdk.Texture texture;
-
-        public IconCacheEntry (string key, Gdk.Texture texture) {
-            this.key = key;
-            this.texture = texture;
-        }
-    }
-
     public class SearchBar : Gtk.Box {
         public Gtk.SearchEntry search_entry { get; private set; }
         public Gtk.ScrolledWindow results_widget { get; private set; }
@@ -65,10 +50,6 @@ namespace XimperShellLauncher {
         private bool wofi_mode = false;
 
         private const uint DEBOUNCE_MS = 200;
-        private const uint ICON_CACHE_LIMIT = 128;
-        private GenericArray<IconCacheEntry> icon_cache =
-            new GenericArray<IconCacheEntry> ();
-
         public signal void result_activated ();
         public signal void search_changed (bool is_searching);
 
@@ -232,9 +213,9 @@ namespace XimperShellLauncher {
                 label.label = is_provider
                     ? (item.provider.name ?? item.provider.bus_name)
                     : _("Applications");
-                clear_image (image);
+                IconLoader.cancel_and_clear (image);
                 if (is_provider) {
-                    set_image_icon (image, item.provider.icon, 20, false);
+                    IconLoader.set_image_icon (image, item.provider.icon, 20, false);
                 }
             });
 
@@ -255,8 +236,8 @@ namespace XimperShellLauncher {
                 button.can_target = true;
                 button.focusable = true;
                 button.remove_css_class ("search-provider-header");
-                cancel_image_load (image);
-                clear_image (image);
+                IconLoader.cancel (image);
+                IconLoader.clear (image);
                 label.label = "";
             });
 
@@ -354,8 +335,8 @@ namespace XimperShellLauncher {
             // description, so every result row has the same measured height.
             desc_label.visible = true;
 
-            clear_image (image);
-            set_image_icon (image, item.icon, 32, true);
+            IconLoader.clear (image);
+            IconLoader.set_image_icon (image, item.icon, 32, true);
         }
 
         private void unbind_list_item (Gtk.ListItem list_item) {
@@ -378,179 +359,13 @@ namespace XimperShellLauncher {
             row.sensitive = true;
             row.tooltip_text = null;
 
-            cancel_image_load (image);
-            clear_image (image);
+            IconLoader.cancel (image);
+            IconLoader.clear (image);
             image.pixel_size = 32;
 
             name_label.label = "";
             desc_label.label = "";
             desc_label.visible = false;
-        }
-
-        private IconLoadState image_state (Gtk.Image image) {
-            var state = image.get_data<IconLoadState> ("icon-load-state");
-            if (state == null) {
-                state = new IconLoadState ();
-                image.set_data<IconLoadState> ("icon-load-state", state);
-            }
-            return state;
-        }
-
-        private void cancel_image_load (Gtk.Image image) {
-            var state = image_state (image);
-            state.generation++;
-            if (state.cancellable != null) {
-                state.cancellable.cancel ();
-                state.cancellable = null;
-            }
-        }
-
-        private void clear_image (Gtk.Image image) {
-            image.paintable = null;
-            image.gicon = null;
-            image.icon_name = null;
-            image.visible = false;
-        }
-
-        private Gdk.Texture? lookup_cached_icon (string key) {
-            for (uint i = 0; i < icon_cache.length; i++) {
-                if (icon_cache[i].key == key) {
-                    var entry = icon_cache[i];
-                    icon_cache.remove_index (i);
-                    icon_cache.add (entry);
-                    return entry.texture;
-                }
-            }
-            return null;
-        }
-
-        private void cache_icon (string key, Gdk.Texture texture) {
-            icon_cache.add (new IconCacheEntry (key, texture));
-            if (icon_cache.length > ICON_CACHE_LIMIT) {
-                icon_cache.remove_index (0);
-            }
-        }
-
-        private void set_image_icon (Gtk.Image image, Icon? icon,
-                                     int logical_size, bool result_fallback) {
-            cancel_image_load (image);
-            clear_image (image);
-            image.pixel_size = logical_size;
-
-            if (icon == null) {
-                if (result_fallback) {
-                    image.icon_name = "application-x-executable-symbolic";
-                    image.visible = true;
-                }
-                return;
-            }
-
-            int scale = int.max (1, image.scale_factor);
-            var loadable = icon as LoadableIcon;
-            if (loadable == null) {
-                // Resolve regular themed icons to their backing file and feed
-                // them through the same bounded decoder. Keep symbolic icons
-                // on GTK's native path so theme color recoloring still works.
-                var display = image.get_display ();
-                var theme = Gtk.IconTheme.get_for_display (display);
-                var paintable = theme.lookup_by_gicon (
-                    icon,
-                    logical_size,
-                    scale,
-                    image.get_direction (),
-                    Gtk.IconLookupFlags.NONE
-                );
-                var themed_file = paintable.get_file ();
-                var basename = themed_file != null ? themed_file.get_basename () : null;
-                bool symbolic = basename != null && basename.contains ("-symbolic.");
-                if (themed_file != null && themed_file.is_native () && !symbolic) {
-                    loadable = new FileIcon (themed_file);
-                } else {
-                    image.gicon = icon;
-                    image.visible = true;
-                    return;
-                }
-            }
-
-            string? uri = null;
-            var file_icon = loadable as FileIcon;
-            if (file_icon != null) {
-                var file = file_icon.file;
-                // Remote icon providers must not introduce network I/O into
-                // scrolling or retain arbitrarily large remote responses.
-                if (!file.is_native ()) {
-                    if (result_fallback) {
-                        image.icon_name = "application-x-executable-symbolic";
-                        image.visible = true;
-                    }
-                    return;
-                }
-                uri = file.get_uri ();
-            } else {
-                uri = icon.to_string ();
-            }
-
-            if (uri == null) {
-                if (result_fallback) {
-                    image.icon_name = "application-x-executable-symbolic";
-                    image.visible = true;
-                }
-                return;
-            }
-
-            int physical_size = logical_size * scale;
-            string key = "%s|%d|%d".printf (uri, physical_size, scale);
-            var cached = lookup_cached_icon (key);
-            if (cached != null) {
-                image.paintable = cached;
-                image.visible = true;
-                return;
-            }
-
-            var state = image_state (image);
-            state.cancellable = new Cancellable ();
-            uint generation = state.generation;
-            load_icon_async.begin (loadable, physical_size, state.cancellable,
-                (obj, res) => {
-                    Gdk.Texture? texture = null;
-                    try {
-                        texture = load_icon_async.end (res);
-                    } catch (Error e) {
-                        // Cancellation and malformed icon files are expected.
-                    }
-                    if (state.generation != generation ||
-                        state.cancellable == null ||
-                        state.cancellable.is_cancelled ()) {
-                        return;
-                    }
-                    state.cancellable = null;
-                    if (texture != null) {
-                        cache_icon (key, texture);
-                        image.paintable = texture;
-                        image.visible = true;
-                    } else if (result_fallback) {
-                        image.icon_name = "application-x-executable-symbolic";
-                        image.visible = true;
-                    }
-                });
-        }
-
-        private async Gdk.Texture load_icon_async (LoadableIcon icon, int size,
-                                                   Cancellable cancellable)
-                                                   throws Error {
-            string? content_type = null;
-            InputStream stream = yield icon.load_async (
-                size, cancellable, out content_type
-            );
-            var pixbuf = yield new Gdk.Pixbuf.from_stream_at_scale_async (
-                stream, size, size, true, cancellable
-            );
-            try {
-                yield stream.close_async (Priority.DEFAULT, cancellable);
-            } catch (Error e) {
-                // The decoded pixbuf is independent of the source stream.
-            }
-            return Gdk.Texture.for_pixbuf (pixbuf);
         }
 
         private void debounce_search () {

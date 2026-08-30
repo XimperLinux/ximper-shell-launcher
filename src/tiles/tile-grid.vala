@@ -23,6 +23,10 @@ namespace XimperShellLauncher {
         }
 
         public void build_from_config () {
+            if (board != null) {
+                board.cleanup ();
+                board = null;
+            }
             var child = get_first_child ();
             while (child != null) {
                 var next = child.get_next_sibling ();
@@ -62,17 +66,18 @@ namespace XimperShellLauncher {
             }
 
             board = new TileBoard (app, all_tiles);
+            unowned TileGrid owner = this;
             board.tile_activated.connect ((entry) => {
-                tile_activated (entry);
+                if (owner != null) owner.tile_activated (entry);
             });
             board.layout_changed.connect (() => {
-                save_layout ();
+                if (owner != null) owner.save_layout ();
             });
             board.pin_requested.connect ((id) => {
-                pin_requested (id);
+                if (owner != null) owner.pin_requested (id);
             });
             board.unpin_requested.connect ((id) => {
-                unpin_requested (id);
+                if (owner != null) owner.unpin_requested (id);
             });
             append (board);
         }
