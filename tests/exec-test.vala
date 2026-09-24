@@ -60,6 +60,29 @@ private void test_missing_service () {
     }
 }
 
+private void test_desktop_filename_fallback () {
+    try {
+        var dir = DirUtils.make_tmp ("ximper-launcher-filename-test-XXXXXX");
+        var desktop = Path.build_filename (dir,
+            "org.ximperlinux.LauncherFilenameTest_" + Uuid.string_random ().replace ("-", "_") + ".desktop");
+        var marker = Path.build_filename (dir, "copied-desktop");
+        FileUtils.set_contents (desktop, "[Desktop Entry]\nType=Application\nName=Test filename\n" +
+            "Exec=/usr/bin/cp %k " + marker + "\nDBusActivatable=true\n");
+        var info = new DesktopAppInfo.from_filename (desktop);
+        assert (info != null);
+        Test.expect_message (null, LogLevelFlags.LEVEL_WARNING,
+            "*D-Bus activation failed*falling back to Exec*");
+        assert (new AppEntry (info).launch ());
+        assert (wait_for_file (marker, true));
+        string copied;
+        FileUtils.get_contents (marker, out copied);
+        assert (copied.contains ("DBusActivatable=true"));
+        Test.assert_expected_messages ();
+    } catch (Error e) {
+        error ("Filename test failed: %s", e.message);
+    }
+}
+
 private void test_valid_dbus_activation () {
     try {
         var dir = DirUtils.make_tmp ("ximper-launcher-valid-bus-test-XXXXXX");
@@ -96,6 +119,7 @@ int main (string[] args) {
     Test.add_func ("/desktop-entry/exec-field-codes", test_field_codes);
     Test.add_func ("/desktop-entry/invalid-dbus-name", test_invalid_dbus_name);
     Test.add_func ("/desktop-entry/missing-service", test_missing_service);
+    Test.add_func ("/desktop-entry/filename-fallback", test_desktop_filename_fallback);
     Test.add_func ("/desktop-entry/valid-dbus-activation", test_valid_dbus_activation);
     var result = Test.run ();
     bus.down ();

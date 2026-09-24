@@ -81,6 +81,12 @@ namespace XimperShellLauncher {
             try {
                 var keyfile = new KeyFile ();
                 keyfile.load_from_file (filename, KeyFileFlags.NONE);
+                // from_keyfile() has no filename, so GIO would drop %k.
+                // Expand only that field code against the original desktop file.
+                if (keyfile.has_key ("Desktop Entry", "Exec")) {
+                    var exec = keyfile.get_string ("Desktop Entry", "Exec");
+                    keyfile.set_string ("Desktop Entry", "Exec", expand_desktop_filename (exec, filename));
+                }
                 keyfile.set_boolean ("Desktop Entry", "DBusActivatable", false);
                 var exec_info = new DesktopAppInfo.from_keyfile (keyfile);
                 if (exec_info == null || exec_info.get_commandline () == null) {
@@ -92,6 +98,26 @@ namespace XimperShellLauncher {
                 warning ("Failed to launch %s via Exec fallback: %s", name, e.message);
                 return false;
             }
+        }
+
+        private static string expand_desktop_filename (string exec, string filename) {
+            var result = new StringBuilder ();
+            for (int i = 0; i < exec.length; i++) {
+                if (exec[i] == '%' && i + 1 < exec.length) {
+                    if (exec[i + 1] == '%') {
+                        result.append ("%%");
+                        i++;
+                        continue;
+                    }
+                    if (exec[i + 1] == 'k') {
+                        result.append (Shell.quote (filename));
+                        i++;
+                        continue;
+                    }
+                }
+                result.append_c (exec[i]);
+            }
+            return result.str;
         }
 
         public string[] list_actions () {
