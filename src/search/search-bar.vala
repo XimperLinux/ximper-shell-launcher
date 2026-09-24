@@ -13,6 +13,7 @@ namespace XimperShellLauncher {
         public AppEntry? app_entry;
         public SearchResult? provider_result;
         public SearchProviderInfo? provider;
+        public bool section_end = false;
 
         public SearchListItem.local (AppEntry entry) {
             kind = SearchItemKind.LOCAL;
@@ -114,8 +115,8 @@ namespace XimperShellLauncher {
             results_view = new Gtk.ListView (selection, factory);
             results_view.header_factory = section_header_factory;
             results_view.add_css_class ("search-results");
-            results_view.margin_start = 24;
-            results_view.margin_end = 24;
+            // Match the entry's outer clamp, not margins inside the list.
+            // Inner margins used to make the result column 48px narrower.
             results_view.single_click_activate = false;
             results_view.activate.connect ((position) => {
                 var item = results_model.get_item (position) as SearchListItem;
@@ -128,6 +129,9 @@ namespace XimperShellLauncher {
             // Gtk.ListView without defeating its scrollable virtualization.
             var results_clamp = new Adw.ClampScrollable ();
             results_clamp.maximum_size = 600;
+            results_clamp.margin_start = 24;
+            results_clamp.margin_end = 24;
+            results_clamp.margin_bottom = 16;
             results_clamp.set_child (results_view);
 
             results_widget = new Gtk.ScrolledWindow ();
@@ -147,7 +151,7 @@ namespace XimperShellLauncher {
                 button.add_css_class ("search-section-header");
                 button.hexpand = true;
                 button.halign = Gtk.Align.FILL;
-                button.margin_top = 8;
+                button.margin_top = 0;
                 button.margin_bottom = 4;
 
                 var content = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
@@ -162,7 +166,11 @@ namespace XimperShellLauncher {
                 label.xalign = 0;
                 label.hexpand = true;
                 label.add_css_class ("search-section-title");
+                label.ellipsize = Pango.EllipsizeMode.END;
                 content.append (label);
+                var arrow = new Gtk.Image.from_icon_name ("go-next-symbolic");
+                arrow.add_css_class ("dim-label");
+                content.append (arrow);
                 button.child = content;
                 header.child = button;
 
@@ -198,6 +206,8 @@ namespace XimperShellLauncher {
                 var image = content.get_first_child () as Gtk.Image;
                 var label = image.get_next_sibling () as Gtk.Label;
                 bool is_provider = item.kind == SearchItemKind.PROVIDER;
+                image.visible = is_provider;
+                label.get_next_sibling ().visible = is_provider;
 
                 button.visible = true;
                 button.sensitive = true;
@@ -205,6 +215,9 @@ namespace XimperShellLauncher {
                 button.focusable = is_provider;
                 button.set_data<SearchProviderInfo> ("search-provider", item.provider);
                 button.tooltip_text = is_provider ? _("Open in application") : null;
+                button.margin_start = is_provider ? 8 : 0;
+                button.margin_end = is_provider ? 8 : 0;
+                button.margin_bottom = is_provider ? 0 : 4;
                 button.remove_css_class ("search-provider-header");
                 if (is_provider) {
                     button.add_css_class ("search-provider-header");
@@ -269,11 +282,14 @@ namespace XimperShellLauncher {
             desc_label.halign = Gtk.Align.START;
             desc_label.ellipsize = Pango.EllipsizeMode.END;
             desc_label.add_css_class ("search-result-desc");
-            desc_label.add_css_class ("dim-label");
             text_box.append (desc_label);
 
             row.append (text_box);
-            list_item.child = row;
+            // Keep the section background separate from hover/selection so
+            // the provider reads as one card even when a result is selected.
+            var surface = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            surface.append (row);
+            list_item.child = surface;
 
             weak SearchBar weak_self = this;
             weak Gtk.Box weak_row = row;
@@ -311,7 +327,8 @@ namespace XimperShellLauncher {
 
         private void bind_list_item (Gtk.ListItem list_item) {
             var item = list_item.item as SearchListItem;
-            var row = list_item.child as Gtk.Box;
+            var surface = list_item.child as Gtk.Box;
+            var row = surface.get_first_child () as Gtk.Box;
             if (item == null || row == null) {
                 return;
             }
@@ -320,6 +337,17 @@ namespace XimperShellLauncher {
             var text_box = image.get_next_sibling () as Gtk.Box;
             var name_label = text_box.get_first_child () as Gtk.Label;
             var desc_label = name_label.get_next_sibling () as Gtk.Label;
+
+            bool is_provider = item.kind == SearchItemKind.PROVIDER;
+            surface.remove_css_class ("search-provider-surface");
+            surface.remove_css_class ("search-provider-end");
+            surface.margin_start = is_provider ? 8 : 0;
+            surface.margin_end = is_provider ? 8 : 0;
+            surface.margin_bottom = is_provider && item.section_end ? 12 : 0;
+            if (is_provider) {
+                surface.add_css_class ("search-provider-surface");
+                if (item.section_end) surface.add_css_class ("search-provider-end");
+            }
 
             row.set_data<SearchListItem> ("search-item", item);
             row.add_css_class ("search-result-row");
@@ -340,7 +368,13 @@ namespace XimperShellLauncher {
         }
 
         private void unbind_list_item (Gtk.ListItem list_item) {
-            var row = list_item.child as Gtk.Box;
+            var surface = list_item.child as Gtk.Box;
+            surface.remove_css_class ("search-provider-surface");
+            surface.remove_css_class ("search-provider-end");
+            surface.margin_start = 0;
+            surface.margin_end = 0;
+            surface.margin_bottom = 0;
+            var row = surface.get_first_child () as Gtk.Box;
             if (row == null) {
                 return;
             }
@@ -441,7 +475,9 @@ namespace XimperShellLauncher {
 
                 var provider_section = create_section_store ();
                 for (uint j = 0; j < group.length; j++) {
-                    provider_section.append (new SearchListItem.remote (group[j]));
+                    var item = new SearchListItem.remote (group[j]);
+                    item.section_end = j + 1 == group.length;
+                    provider_section.append (item);
                 }
                 section_store.append (provider_section);
             }
