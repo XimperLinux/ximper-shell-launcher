@@ -5,8 +5,6 @@ namespace XimperShellLauncher {
 
     public class AppEntry : Object {
 
-        private const string DBUS_APPLICATION_OBJECT_PATH = "/org/freedesktop/Application";
-
         public string desktop_id { get; private set; }
         public string name { get; private set; }
         public string? generic_name { get; private set; }
@@ -29,36 +27,33 @@ namespace XimperShellLauncher {
         }
 
         public bool launch () {
-            // DBusActivatable applications use the standard GApplication object.
-            // Calling the well-known bus name without NO_AUTO_START lets D-Bus
-            // activate a cold service. Some third-party desktop files declare
-            // D-Bus activation without providing a working service, so retain
-            // an Exec fallback after the activation attempt fails.
-            if (app_info.get_boolean ("DBusActivatable")) {
-                try {
-                    var bus_name = get_dbus_name ();
-                    var conn = Bus.get_sync (BusType.SESSION, null);
-                    conn.call_sync (
-                        bus_name, DBUS_APPLICATION_OBJECT_PATH,
-                        "org.freedesktop.Application", "Activate",
-                        new Variant.tuple ({ new Variant ("a{sv}", null) }),
-                        null, DBusCallFlags.NONE, 2000, null
-                    );
-                    return true;
-                } catch (Error e) {
-                    warning ("D-Bus activation failed for %s: %s; falling back to Exec", desktop_id, e.message);
-                    return launch_exec_fallback ();
-                }
+            // Use GIO's desktop-file parsing and the asynchronous D-Bus result
+            // instead of constructing the bus name or object path ourselves.
+            // For Exec launches retain setsid so apps survive the launcher.
+            if (has_dbus_activation ()) {
+                activate_dbus_async.begin ();
+                return true;
             }
+            return launch_with_gio (app_info);
+        }
 
-            // Fallback — spawn with setsid so child survives panel death
+        private bool has_dbus_activation () {
+            if (!app_info.get_boolean ("DBusActivatable")) return false;
+            var filename = app_info.get_filename ();
+            if (filename == null) return false;
+            var basename = Path.get_basename (filename);
+            if (!basename.has_suffix (".desktop")) return false;
+            var bus_name = basename.substring (0, basename.length - ".desktop".length);
+            return !bus_name.has_prefix (":") && DBus.is_name (bus_name);
+        }
+
+        private bool launch_with_gio (DesktopAppInfo info) {
             try {
-                var context = Gdk.Display.get_default ().get_app_launch_context ();
-                return app_info.launch_uris_as_manager (
-                    new List<string> (), context,
-                    SpawnFlags.SEARCH_PATH,
-                    () => { c_setsid (); },
-                    null
+                var display = Gdk.Display.get_default ();
+                AppLaunchContext? context = display != null ? display.get_app_launch_context () : null;
+                return info.launch_uris_as_manager (
+                    new List<string> (), context, SpawnFlags.SEARCH_PATH,
+                    () => { c_setsid (); }, null
                 );
             } catch (Error e) {
                 warning ("Failed to launch %s: %s", name, e.message);
@@ -66,28 +61,33 @@ namespace XimperShellLauncher {
             }
         }
 
-        private string get_dbus_name () {
-            return desktop_id.has_suffix (".desktop")
-                ? desktop_id.substring (0, desktop_id.length - ".desktop".length)
-                : desktop_id;
+        private async void activate_dbus_async () {
+            try {
+                var display = Gdk.Display.get_default ();
+                AppLaunchContext? context = display != null ? display.get_app_launch_context () : null;
+                yield app_info.launch_uris_async (new List<string> (), context);
+            } catch (Error e) {
+                warning ("D-Bus activation failed for %s: %s; falling back to Exec", desktop_id, e.message);
+                launch_exec_fallback ();
+            }
         }
 
         private bool launch_exec_fallback () {
+            var filename = app_info.get_filename ();
+            if (filename == null) {
+                warning ("Cannot fall back to Exec for %s: no desktop file", desktop_id);
+                return false;
+            }
             try {
-                var exec_line = app_info.get_commandline ();
-                if (exec_line == null || exec_line.strip ().length == 0) {
+                var keyfile = new KeyFile ();
+                keyfile.load_from_file (filename, KeyFileFlags.NONE);
+                keyfile.set_boolean ("Desktop Entry", "DBusActivatable", false);
+                var exec_info = new DesktopAppInfo.from_keyfile (keyfile);
+                if (exec_info == null || exec_info.get_commandline () == null) {
                     warning ("Cannot fall back to Exec for %s: Exec is empty", desktop_id);
                     return false;
                 }
-
-                string[] argv;
-                Shell.parse_argv (strip_field_codes (exec_line), out argv);
-                Process.spawn_async (
-                    app_info.get_string ("Path"), argv, null,
-                    SpawnFlags.SEARCH_PATH,
-                    () => { c_setsid (); }, null
-                );
-                return true;
+                return launch_with_gio (exec_info);
             } catch (Error e) {
                 warning ("Failed to launch %s via Exec fallback: %s", name, e.message);
                 return false;
@@ -125,11 +125,16 @@ namespace XimperShellLauncher {
             }
         }
 
-        private static string strip_field_codes (string exec) {
+        public static string strip_field_codes (string exec) {
             var result = new StringBuilder ();
             for (int i = 0; i < exec.length; i++) {
                 if (exec[i] == '%' && i + 1 < exec.length) {
                     var code = exec[i + 1];
+                    if (code == '%') {
+                        result.append_c ('%');
+                        i++;
+                        continue;
+                    }
                     if ("uUfFickdDnNvm".contains (code.to_string ())) {
                         i++;
                         continue;

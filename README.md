@@ -22,7 +22,12 @@ Supports Hyprland and Niri through compositor helpers.
 meson setup _build
 ninja -C _build
 ./_build/src/ximper-shell-launcher
+meson test -C _build --print-errorlogs
 ```
+
+Application tiles use GIO to launch `.desktop` entries. D-Bus activation is
+asynchronous; if it fails, the launcher retries the entry's `Exec` via GIO.
+Entries without a valid D-Bus name use GIO's normal `Exec` path with `setsid()`.
 
 ## CLI
 
