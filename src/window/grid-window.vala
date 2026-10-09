@@ -95,16 +95,6 @@ namespace XimperShellLauncher {
 
             main_box.append (content_stack);
 
-            // Drop on empty area — extract from folder
-            var empty_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
-            empty_drop.drop.connect ((val, x, y) => {
-                var src_id = (string) val;
-                if (src_id == null || src_id.has_prefix ("folder:")) return false;
-                tile_grid.extract_from_open_folder (src_id);
-                return true;
-            });
-            scrolled.add_controller (empty_drop);
-
             toast_overlay = new Adw.ToastOverlay ();
             toast_overlay.set_child (main_box);
             toast_overlay.hexpand = true;

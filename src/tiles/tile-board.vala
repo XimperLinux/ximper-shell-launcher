@@ -6,6 +6,8 @@ namespace XimperShellLauncher {
         private TileModel model;
         private GridPacker packer;
         private FolderAnimator animator;
+        private TileDragController drag_controller;
+        private bool rebuild_after_drag = false;
 
         private GenericArray<TilePlacement> placements;
         private Gtk.Widget? folder_header;
@@ -17,6 +19,8 @@ namespace XimperShellLauncher {
         private int target_folder_height;
         private int folder_item_count;
 
+        public bool drag_in_progress { get { return drag_controller != null && drag_controller.busy; } }
+        public signal void drag_finished ();
         public signal void layout_changed ();
         public signal void tile_activated (AppEntry entry);
         public signal void pin_requested (string desktop_id);
@@ -31,6 +35,7 @@ namespace XimperShellLauncher {
 
             set_layout_manager (null);
             hexpand = true;
+            vexpand = true;
             focusable = true;
 
             if (model.purge_missing (app.app_provider)) {
@@ -38,6 +43,7 @@ namespace XimperShellLauncher {
             }
 
             setup_keyboard ();
+            drag_controller = new TileDragController (this, app, model, packer);
             compute_initial_layout ();
             rebuild ();
         }
@@ -73,6 +79,11 @@ namespace XimperShellLauncher {
         }
 
         private void rebuild () {
+            // A Gtk.DragSource must survive until drag_end, even after a drop.
+            if (drag_controller != null && drag_controller.busy) {
+                rebuild_after_drag = true;
+                return;
+            }
             // Remove all children
             for (uint i = 0; i < placements.length; i++) {
                 cleanup_widget (placements[i].widget);
@@ -150,6 +161,14 @@ namespace XimperShellLauncher {
             unowned TileBoard owner = this;
             if (tc.size == TileSize.FOLDER && tc.folder_items != null) {
                 var ftile = new FolderTile (app, tc.folder_name ?? "Folder", tc.folder_items, packer.cell_size);
+                ftile.board_managed_dnd = true;
+                weak FolderTile weak_folder = ftile;
+                ftile.drag_state_changed.connect ((active) => {
+                    var source = weak_folder;
+                    if (owner == null || source == null) return;
+                    if (active) owner.begin_tile_drag (source, source.folder_id);
+                    else owner.drag_controller.end_source ();
+                });
                 ftile.folder_clicked.connect ((f) => {
                     if (owner != null) owner.toggle_folder (f, cell_row);
                 });
@@ -169,6 +188,14 @@ namespace XimperShellLauncher {
             if (entry == null) return null;
 
             var tile = new Tile (entry, tc.size, packer.cell_size);
+            tile.board_managed_dnd = true;
+            weak Tile weak_tile = tile;
+            tile.drag_state_changed.connect ((active) => {
+                var source = weak_tile;
+                if (owner == null || source == null) return;
+                if (active) owner.begin_tile_drag (source, source.app_entry.desktop_id);
+                else owner.drag_controller.end_source ();
+            });
             tile.tile_activated.connect ((e) => { if (owner != null) owner.tile_activated (e); });
             tile.size_change_requested.connect ((t, s) => {
                 if (owner != null) owner.on_size_change (t.app_entry.desktop_id, s);
@@ -200,21 +227,8 @@ namespace XimperShellLauncher {
             // Drop zone background — accepts tiles dragged into the folder
             var zone = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             zone.add_css_class ("folder-drop-zone");
-            var zone_target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
-            var folder_name_for_drop = fc.folder_name;
-            zone_target.drop.connect ((val, x, y) => {
-                var source_id = (string) val;
-                if (source_id == null || source_id.has_prefix ("folder:")) return false;
-                if (owner != null && owner.model.add_to_folder (folder_name_for_drop, source_id)) {
-                    owner.folder_item_count = owner.model.count_folder_items (owner.open_folder_id, owner.app.app_provider);
-                    owner.target_folder_height = owner.packer.compute_folder_height (owner.folder_item_count);
-                    owner.rebuild ();
-                    owner.layout_changed ();
-                    return true;
-                }
-                return false;
-            });
-            zone.add_controller (zone_target);
+            // The board capture target owns folder insertion too. Nested drop
+            // handlers must never destroy a source widget before drag_end.
             zone.set_parent (this);
             folder_drop_zone = zone;
 
@@ -228,6 +242,14 @@ namespace XimperShellLauncher {
                 if (entry == null) continue;
 
                 var tile = new Tile (entry, TileSize.SMALL, packer.cell_size);
+                tile.board_managed_dnd = true;
+                weak Tile weak_tile = tile;
+                tile.drag_state_changed.connect ((active) => {
+                    var source = weak_tile;
+                    if (owner == null || source == null) return;
+                    if (active) owner.begin_tile_drag (source, source.app_entry.desktop_id);
+                    else owner.drag_controller.end_source ();
+                });
                 tile.tile_activated.connect ((e) => { if (owner != null) owner.tile_activated (e); });
                 tile.remove_requested.connect ((t) => {
                     if (owner != null) owner.on_remove_from_folder (fname, t.app_entry.desktop_id);
@@ -256,7 +278,8 @@ namespace XimperShellLauncher {
         // --- Widget overrides ---
 
         protected override void size_allocate (int width, int height, int baseline) {
-            if (packer.compute_for_size (width, app.config.cell_size, app.config.max_columns)) {
+            if (!drag_controller.busy &&
+                packer.compute_for_size (width, app.config.cell_size, app.config.max_columns)) {
                 rebuild ();
             }
 
@@ -273,26 +296,46 @@ namespace XimperShellLauncher {
                     p.widget.set_opacity (
                         animator.compute_item_opacity (p.folder_index, folder_item_count));
                 }
+                int final_x = p.x;
+                int drag_x, drag_y;
+                bool drag_hidden;
+                if (drag_controller.get_position (p, out drag_x, out drag_y, out drag_hidden)) {
+                    final_x = drag_x;
+                    final_y = drag_y;
+                    p.widget.opacity = drag_hidden ? 0 : 1;
+                }
 
                 int mw, nw, mh, nh;
                 p.widget.measure (Gtk.Orientation.HORIZONTAL, -1, out mw, out nw, null, null);
                 p.widget.measure (Gtk.Orientation.VERTICAL, -1, out mh, out nh, null, null);
 
                 var transform = new Gsk.Transform ();
-                transform = transform.translate (Graphene.Point () { x = p.x, y = final_y });
+                transform = transform.translate (Graphene.Point () { x = final_x, y = final_y });
                 p.widget.allocate (p.w, p.h, -1, transform);
+            }
+
+            drag_controller.allocate_gap ();
+            int folder_render_y = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
+            int folder_render_height = animated_offset;
+            int drag_folder_y, drag_folder_height;
+            bool folder_visible = true;
+            bool drag_folder_visible;
+            if (drag_controller.get_folder_render (out drag_folder_y, out drag_folder_height, out drag_folder_visible)) {
+                folder_render_y = drag_folder_y;
+                folder_render_height = drag_folder_height;
+                folder_visible = drag_folder_visible;
             }
 
             if (folder_header != null) {
                 int hx = packer.margin + 8;
-                int hy = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
+                int hy = folder_render_y;
                 int hw = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
 
                 int mw2, nw2, mh2, nh2;
                 folder_header.measure (Gtk.Orientation.HORIZONTAL, -1, out mw2, out nw2, null, null);
                 folder_header.measure (Gtk.Orientation.VERTICAL, hw, out mh2, out nh2, null, null);
 
-                folder_header.set_opacity (animator.cascade_progress);
+                folder_header.set_opacity (folder_visible ? animator.cascade_progress : 0);
 
                 var transform = new Gsk.Transform ();
                 transform = transform.translate (Graphene.Point () { x = hx, y = hy });
@@ -301,9 +344,10 @@ namespace XimperShellLauncher {
 
             if (folder_drop_zone != null && folder_row >= 0) {
                 int zone_x = packer.margin;
-                int zone_y = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
+                int zone_y = folder_render_y;
                 int zone_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
-                int zone_h = animated_offset;
+                int zone_h = folder_render_height;
+                folder_drop_zone.opacity = folder_visible ? 1 : 0;
 
                 int zmw, znw, zmh, znh;
                 folder_drop_zone.measure (Gtk.Orientation.HORIZONTAL, -1, out zmw, out znw, null, null);
@@ -342,6 +386,7 @@ namespace XimperShellLauncher {
                     int bot = hy + GridPacker.FOLDER_HEADER_H;
                     if (bot > max_bot) max_bot = bot;
                 }
+                max_bot = int.max (max_bot, drag_controller.preview_bottom ());
                 minimum = max_bot;
                 natural = max_bot;
             }
@@ -383,6 +428,58 @@ namespace XimperShellLauncher {
                 if (needed > uniform_offset) uniform_offset = needed;
             }
             return (int) (uniform_offset * animator.slide_progress);
+        }
+
+        public unowned GenericArray<TilePlacement> get_drag_placements () { return placements; }
+
+        public void get_drag_base_position (TilePlacement placement, out int x, out int y) {
+            x = placement.x;
+            y = placement.y + (placement.below ? compute_animated_offset () : 0);
+        }
+
+        public string? get_drag_folder_baseline (out int row, out int height) {
+            row = folder_row;
+            height = target_folder_height;
+            return open_folder_id != null && row >= 0 ? open_folder_id : null;
+        }
+
+        public bool drag_cell_below_folder (int first_row, int last_row) {
+            if (!drag_controller.has_folder_geometry) return is_below_folder (first_row, last_row);
+            int row = drag_controller.preview_folder_row;
+            return row >= 0 && (first_row > row || (first_row <= row && last_row > row + 1));
+        }
+
+        public int get_drag_folder_offset () {
+            return drag_controller.has_folder_geometry ? drag_controller.preview_folder_height : compute_animated_offset ();
+        }
+
+        public string? get_drag_folder (out int top, out int bottom) {
+            int row = drag_controller.has_folder_geometry ? drag_controller.preview_folder_row : folder_row;
+            int height = drag_controller.has_folder_geometry ? drag_controller.preview_folder_height : target_folder_height;
+            top = (row + 1) * (packer.cell_size + GridPacker.SPACING)
+                + GridPacker.FOLDER_HEADER_H + GridPacker.SPACING;
+            bottom = (row + 1) * (packer.cell_size + GridPacker.SPACING) + height;
+            return open_folder_id != null && row >= 0 ? open_folder_id : null;
+        }
+
+        private void begin_tile_drag (Gtk.Widget source, string id) {
+            animator.reset ();
+            drag_controller.begin_source (source, id);
+            queue_allocate ();
+        }
+
+        public void drag_layout_committed () { layout_changed (); }
+
+        public void drag_preview_finished (bool changed) {
+            if (changed || rebuild_after_drag) {
+                rebuild_after_drag = false;
+                if (open_folder_id != null && model.find_folder (open_folder_id) == null)
+                    close_folder_state ();
+                rebuild ();
+            }
+            queue_resize ();
+            queue_allocate ();
+            drag_finished ();
         }
 
         // --- Folder animation ---
@@ -731,6 +828,7 @@ namespace XimperShellLauncher {
         public void cleanup () {
             if (cleaned_up) return;
             cleaned_up = true;
+            drag_controller.cleanup ();
             animator.cleanup ();
             cleanup_folder_content ();
             for (uint i = 0; i < placements.length; i++) {

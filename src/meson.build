@@ -26,6 +26,7 @@ grid_sources = files(
   'tiles/tile.vala',
   'tiles/folder-tile.vala',
   'tiles/tile-board.vala',
+  'tiles/tile-drag-controller.vala',
   'tiles/tile-grid.vala',
   'tiles/tile-model.vala',
   'tiles/tile-placement.vala',

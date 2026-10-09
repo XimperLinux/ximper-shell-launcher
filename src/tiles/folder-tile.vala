@@ -12,6 +12,8 @@ namespace XimperShellLauncher {
             new GenericArray<Gtk.EventController> ();
         private bool cleaned_up = false;
 
+        public bool board_managed_dnd { get; set; default = false; }
+        public signal void drag_state_changed (bool active);
         public signal void folder_clicked (FolderTile folder);
         public signal void drop_received_on_folder (string source_id, string folder_desktop_id);
 
@@ -88,21 +90,26 @@ namespace XimperShellLauncher {
             // DragSource — sends folder_id as string
             var source = new Gtk.DragSource ();
             source.set_actions (Gdk.DragAction.MOVE);
+            Gdk.Paintable? frozen_icon = null;
             source.prepare.connect ((x, y) => {
+                frozen_icon = new Gtk.WidgetPaintable (this).get_current_image ();
                 return new Gdk.ContentProvider.for_value (folder_id ?? "");
             });
             source.drag_begin.connect ((drag) => {
-                var paintable = new Gtk.WidgetPaintable (this);
-                source.set_icon (paintable, get_width () / 2, get_height () / 2);
-                add_css_class ("tile-dragging");
+                if (frozen_icon != null)
+                    source.set_icon (frozen_icon, get_width () / 2, get_height () / 2);
+                if (!board_managed_dnd) add_css_class ("tile-dragging");
+                drag_state_changed (true);
             });
             source.drag_end.connect ((drag, del) => {
                 remove_css_class ("tile-dragging");
+                drag_state_changed (false);
             });
             add_owned_controller (source);
 
             // DropTarget — accepts string (desktop_id or folder_id)
             var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            target.accept.connect (() => !board_managed_dnd);
             target.drop.connect ((val, x, y) => {
                 var source_id = (string) val;
                 if (source_id == null || source_id == folder_id) return false;

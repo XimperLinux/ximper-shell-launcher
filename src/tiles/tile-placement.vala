@@ -82,9 +82,10 @@ namespace XimperShellLauncher {
         }
 
         public GenericArray<CellPlacement> pack (GenericArray<TileConfig> tiles) {
-            var max_rows = (int) tiles.length + 4;
+            var max_rows = (int) tiles.length * 2 + 4;
             bool[,] occupied = new bool[max_rows, columns];
             var result = new GenericArray<CellPlacement> ();
+            int cursor = 0;
 
             for (uint i = 0; i < tiles.length; i++) {
                 int cs, rs;
@@ -92,7 +93,9 @@ namespace XimperShellLauncher {
                 if (cs > columns) cs = columns;
 
                 int col, row;
-                find_free (occupied, max_rows, cs, rs, out col, out row);
+                find_free (occupied, max_rows, cs, rs, cursor, out col, out row);
+                // Preserve visual order: never backfill gaps preceding this anchor.
+                cursor = row * columns + col + 1;
 
                 for (int r = row; r < row + rs; r++)
                     for (int c = col; c < col + cs; c++)
@@ -114,9 +117,11 @@ namespace XimperShellLauncher {
             }
         }
 
-        private void find_free (bool[,] occ, int max_r, int cs, int rs, out int oc, out int or) {
-            for (int r = 0; r < max_r; r++) {
+        private void find_free (bool[,] occ, int max_r, int cs, int rs, int cursor,
+                                out int oc, out int or) {
+            for (int r = cursor / columns; r < max_r; r++) {
                 for (int c = 0; c <= columns - cs; c++) {
+                    if (r * columns + c < cursor) continue;
                     bool ok = true;
                     for (int dr = 0; dr < rs && ok; dr++)
                         for (int dc = 0; dc < cs && ok; dc++)

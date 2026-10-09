@@ -127,6 +127,16 @@
 }
 
 /* Tiles */
+.tile-insertion-gap {
+    border: 2px dashed alpha(@accent_bg_color, 0.75);
+    border-radius: 12px;
+    background: alpha(@accent_bg_color, 0.12);
+}
+
+.tile.tile-drop-into-folder {
+    box-shadow: 0 0 0 3px @accent_bg_color;
+}
+
 .tile {
     border-radius: 12px;
     background: @card_bg_color;

@@ -11,7 +11,8 @@ namespace XimperShellLauncher {
         public int find_index (string id) {
             for (uint i = 0; i < tiles.length; i++) {
                 if (id.has_prefix ("folder:")) {
-                    if (tiles[i].folder_name == id.substring ("folder:".length))
+                    if (tiles[i].size == TileSize.FOLDER &&
+                        tiles[i].folder_name == id.substring ("folder:".length))
                         return (int) i;
                 } else {
                     if (tiles[i].desktop_id == id && tiles[i].size != TileSize.FOLDER)
@@ -51,6 +52,115 @@ namespace XimperShellLauncher {
             return count;
         }
 
+        private GenericArray<TileConfig> copy_tiles () {
+            var result = new GenericArray<TileConfig> ();
+            for (uint i = 0; i < tiles.length; i++) {
+                var tc = new TileConfig (tiles[i].desktop_id, tiles[i].size);
+                tc.folder_name = tiles[i].folder_name;
+                if (tiles[i].folder_items != null) {
+                    tc.folder_items = new GenericArray<string> ();
+                    for (uint j = 0; j < tiles[i].folder_items.length; j++)
+                        tc.folder_items.add (tiles[i].folder_items[j]);
+                }
+                result.add (tc);
+            }
+            return result;
+        }
+
+        // Remove only from the private candidate. Report any removed top-level index.
+        private TileConfig? take_source (GenericArray<TileConfig> candidate, string id,
+                                        out int removed_index) {
+            removed_index = -1;
+            int index = find_index (id);
+            if (index >= 0) {
+                var source = candidate[index];
+                candidate.remove_index (index);
+                removed_index = index;
+                return source;
+            }
+            if (id.has_prefix ("folder:")) return null;
+            for (uint i = 0; i < candidate.length; i++) {
+                var folder = candidate[i];
+                if (folder.size != TileSize.FOLDER || folder.folder_items == null) continue;
+                for (uint j = 0; j < folder.folder_items.length; j++) {
+                    if (folder.folder_items[j] != id) continue;
+                    folder.folder_items.remove_index (j);
+                    if (folder.folder_items.length == 0) {
+                        candidate.remove_index (i);
+                        removed_index = (int) i;
+                    }
+                    return new TileConfig (id, TileSize.SMALL);
+                }
+            }
+            return null;
+        }
+
+        // Boundary is an index in the ORIGINAL live array, not the candidate.
+        public GenericArray<TileConfig>? preview_insert (string source_id, int boundary,
+                                                        bool allow_new = false) {
+            if (boundary < 0 || boundary > (int) tiles.length) return null;
+            var candidate = copy_tiles ();
+            int removed;
+            var source = take_source (candidate, source_id, out removed);
+            if (source == null) {
+                if (!allow_new || source_id.has_prefix ("folder:")) return null;
+                source = new TileConfig (source_id, TileSize.SMALL);
+            }
+            if (removed >= 0 && removed < boundary) boundary--;
+            candidate.insert (boundary, source);
+            return candidate;
+        }
+
+        public GenericArray<TileConfig>? preview_folder_insert (string folder_name,
+                                                               string source_id, int boundary,
+                                                               bool allow_new = false) {
+            var target = find_folder (folder_name);
+            if (target == null || source_id.has_prefix ("folder:")) return null;
+            int length = target.folder_items == null ? 0 : (int) target.folder_items.length;
+            if (boundary < 0 || boundary > length) return null;
+            int source_item = -1;
+            if (target.folder_items != null) {
+                for (uint j = 0; j < target.folder_items.length; j++)
+                    if (target.folder_items[j] == source_id) source_item = (int) j;
+            }
+            var candidate = copy_tiles ();
+            TileConfig? destination = null;
+            for (uint i = 0; i < candidate.length; i++)
+                if (candidate[i].size == TileSize.FOLDER && candidate[i].folder_name == folder_name)
+                    destination = candidate[i];
+            // Reordering within the destination must retain even a one-item folder.
+            if (source_item >= 0) {
+                destination.folder_items.remove_index (source_item);
+                if (source_item < boundary) boundary--;
+            } else {
+                int removed;
+                if (take_source (candidate, source_id, out removed) == null && !allow_new) return null;
+            }
+            if (destination.folder_items == null)
+                destination.folder_items = new GenericArray<string> ();
+            destination.folder_items.insert (boundary, source_id);
+            return candidate;
+        }
+
+        public bool commit_candidate (GenericArray<TileConfig>? candidate) {
+            if (candidate == null) return false;
+            bool same = candidate.length == tiles.length;
+            for (uint i = 0; same && i < tiles.length; i++) {
+                var a = tiles[i];
+                var b = candidate[i];
+                same = a.desktop_id == b.desktop_id && a.size == b.size && a.folder_name == b.folder_name;
+                if ((a.folder_items == null) != (b.folder_items == null)) same = false;
+                if (same && a.folder_items != null && b.folder_items != null) {
+                    same = a.folder_items.length == b.folder_items.length;
+                    for (uint j = 0; same && j < a.folder_items.length; j++)
+                        same = a.folder_items[j] == b.folder_items[j];
+                }
+            }
+            if (same) return false;
+            tiles = candidate;
+            return true;
+        }
+
         // --- Mutations (return true if data changed) ---
 
         public bool handle_drop (string source_id, string target_id) {
@@ -58,82 +168,26 @@ namespace XimperShellLauncher {
                 return add_to_folder (target_id.substring ("folder:".length), source_id);
             }
 
-            // If source is inside a folder, extract it first
-            int idx_a = find_index (source_id);
-            if (idx_a < 0 && !source_id.has_prefix ("folder:")) {
-                extract_from_any_folder (source_id);
-                idx_a = find_index (source_id);
-            }
-
-            int idx_b = find_index (target_id);
-            if (idx_a >= 0 && idx_b >= 0 && idx_a != idx_b) {
-                var tmp = tiles[idx_a];
-                tiles[idx_a] = tiles[idx_b];
-                tiles[idx_b] = tmp;
-                return true;
-            }
-            return false;
-        }
-
-        private void extract_from_any_folder (string desktop_id) {
-            for (uint i = 0; i < tiles.length; i++) {
-                var tc = tiles[i];
-                if (tc.size != TileSize.FOLDER || tc.folder_items == null) continue;
-                for (uint j = 0; j < tc.folder_items.length; j++) {
-                    if (tc.folder_items[j] == desktop_id) {
-                        tc.folder_items.remove_index (j);
-                        if (tc.folder_items.length == 0) {
-                            tiles.remove_index (i);
-                        }
-                        tiles.add (new TileConfig (desktop_id, TileSize.SMALL));
-                        return;
-                    }
-                }
-            }
+            int boundary = find_index (target_id);
+            if (boundary < 0) return false;
+            return commit_candidate (preview_insert (source_id, boundary));
         }
 
         public bool add_to_folder (string folder_name, string desktop_id) {
-            for (uint i = 0; i < tiles.length; i++) {
-                var tc = tiles[i];
-                if (tc.size == TileSize.FOLDER && tc.folder_name == folder_name && tc.folder_items != null) {
-                    // Already in folder?
-                    for (uint j = 0; j < tc.folder_items.length; j++) {
-                        if (tc.folder_items[j] == desktop_id) return false;
-                    }
-                    tc.folder_items.add (desktop_id);
-                    break;
-                }
-            }
-            // Remove standalone tile
-            for (uint i = 0; i < tiles.length; i++) {
-                if (tiles[i].desktop_id == desktop_id && tiles[i].size != TileSize.FOLDER) {
-                    tiles.remove_index (i);
-                    break;
-                }
-            }
-            return true;
+            var folder = find_folder (folder_name);
+            if (folder == null) return false;
+            int boundary = folder.folder_items == null ? 0 : (int) folder.folder_items.length;
+            return commit_candidate (preview_folder_insert (folder_name, desktop_id, boundary));
         }
 
         public bool remove_from_folder (string folder_name, string desktop_id) {
-            for (uint i = 0; i < tiles.length; i++) {
-                var tc = tiles[i];
-                if (tc.size == TileSize.FOLDER && tc.folder_name == folder_name && tc.folder_items != null) {
-                    for (uint j = 0; j < tc.folder_items.length; j++) {
-                        if (tc.folder_items[j] == desktop_id) {
-                            tc.folder_items.remove_index (j);
-                            break;
-                        }
-                    }
-                    // Remove empty folder
-                    if (tc.folder_items.length == 0) {
-                        tiles.remove_index (i);
-                    }
-                    break;
-                }
+            var folder = find_folder (folder_name);
+            if (folder == null || folder.folder_items == null) return false;
+            for (uint j = 0; j < folder.folder_items.length; j++) {
+                if (folder.folder_items[j] == desktop_id)
+                    return commit_candidate (preview_insert (desktop_id, (int) tiles.length));
             }
-            // Add as standalone tile
-            tiles.add (new TileConfig (desktop_id, TileSize.SMALL));
-            return true;
+            return false;
         }
 
         public bool ungroup_folder (string folder_name) {
@@ -179,12 +233,8 @@ namespace XimperShellLauncher {
                         if (tc.folder_items[j] == id_a) idx_a = (int) j;
                         if (tc.folder_items[j] == id_b) idx_b = (int) j;
                     }
-                    if (idx_a >= 0 && idx_b >= 0 && idx_a != idx_b) {
-                        var tmp = tc.folder_items[idx_a];
-                        tc.folder_items[idx_a] = tc.folder_items[idx_b];
-                        tc.folder_items[idx_b] = tmp;
-                        return true;
-                    }
+                    if (idx_a >= 0 && idx_b >= 0)
+                        return commit_candidate (preview_folder_insert (folder_name, id_a, idx_b));
                     break;
                 }
             }

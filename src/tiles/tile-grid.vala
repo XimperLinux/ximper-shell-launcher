@@ -4,6 +4,7 @@ namespace XimperShellLauncher {
 
         private weak Application app;
         private TileBoard? board;
+        private bool rebuild_pending = false;
 
         public signal void tile_activated (AppEntry entry);
         public signal void pin_requested (string desktop_id);
@@ -15,7 +16,8 @@ namespace XimperShellLauncher {
 
             add_css_class ("tile-grid");
             hexpand = true;
-            valign = Gtk.Align.START;
+            vexpand = true;
+            valign = Gtk.Align.FILL;
             margin_top = 16;
             margin_bottom = 16;
 
@@ -23,6 +25,11 @@ namespace XimperShellLauncher {
         }
 
         public void build_from_config () {
+            if (board != null && board.drag_in_progress) {
+                rebuild_pending = true;
+                return;
+            }
+            rebuild_pending = false;
             if (board != null) {
                 board.cleanup ();
                 board = null;
@@ -72,6 +79,16 @@ namespace XimperShellLauncher {
             });
             board.layout_changed.connect (() => {
                 if (owner != null) owner.save_layout ();
+            });
+            weak TileGrid weak_self = this;
+            board.drag_finished.connect (() => {
+                var self = weak_self;
+                if (self == null || !self.rebuild_pending) return;
+                Idle.add (() => {
+                    var current = weak_self;
+                    if (current != null && current.rebuild_pending) current.build_from_config ();
+                    return Source.REMOVE;
+                });
             });
             board.pin_requested.connect ((id) => {
                 if (owner != null) owner.pin_requested (id);

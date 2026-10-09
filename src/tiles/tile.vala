@@ -286,29 +286,37 @@ namespace XimperShellLauncher {
             base.dispose ();
         }
 
+        public bool board_managed_dnd { get; set; default = false; }
+        public signal void drag_state_changed (bool active);
+
         private void setup_drag () {
             var source = new Gtk.DragSource ();
             source.set_actions (Gdk.DragAction.MOVE);
 
+            Gdk.Paintable? frozen_icon = null;
             source.prepare.connect ((x, y) => {
+                frozen_icon = new Gtk.WidgetPaintable (this).get_current_image ();
                 var id = app_entry.desktop_id ?? "";
                 return new Gdk.ContentProvider.for_value (id);
             });
 
             source.drag_begin.connect ((drag) => {
-                var paintable = new Gtk.WidgetPaintable (this);
-                source.set_icon (paintable, get_width () / 2, get_height () / 2);
-                add_css_class ("tile-dragging");
+                if (frozen_icon != null)
+                    source.set_icon (frozen_icon, get_width () / 2, get_height () / 2);
+                if (!board_managed_dnd) add_css_class ("tile-dragging");
+                drag_state_changed (true);
             });
 
             source.drag_end.connect ((drag, delete_data) => {
                 remove_css_class ("tile-dragging");
+                drag_state_changed (false);
             });
 
             add_owned_controller (source);
 
             // Drop target — accepts string (desktop_id)
             var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            target.accept.connect (() => !board_managed_dnd);
             target.drop.connect ((val, x, y) => {
                 var source_id = (string) val;
                 if (source_id == null || source_id == app_entry.desktop_id) return false;
