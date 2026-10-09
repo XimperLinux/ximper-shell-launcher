@@ -9,7 +9,10 @@ Supports Hyprland and Niri through compositor helpers.
 
 ## Features
 
-- Fullscreen or floating launcher in both tiles and Wofi modes.
+- Fullscreen or floating launcher in tiles, Wofi, and combined (application list + tiles) modes.
+- A loading capsule above search in every mode: an immediate looping left-to-right rounded segment, then a smooth return to the compact solid capsule before fading on completion. Respects disabled animations; previous results stay visible. Zen reference-source links are in `src/search/loading-indicator.vala`; GTK rendering and the completion transition are original.
+- One shared virtualized application list for Wofi, combined mode, and search; optional alphabetical sorting with letter headers. Combined mode supports the list on either side and has no profile/power sidebar.
+- In combined mode, typing smoothly expands the list over the tiles into full-width search results; clearing the query slides it back. The animation is mirrored for a right-side list. Alphabetical section letters are bold. The previous list stays visible while new results are prepared separately, then the complete model is replaced at once (no empty intermediate list). Stale results cannot be activated while a query is pending.
 - Small, medium, and large application tiles; animated folders; drag-and-drop rearrangement and folder management.
 - Keyboard navigation, fuzzy application search, and results from GNOME Search Providers.
 - Optional per-menu wallpaper, background dimming, and opacity controls.
@@ -55,6 +58,9 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "cell_size": 0,
   "layer": "overlay",
   "launcher_mode": "tiles",
+  "app_list_side": "left",
+  "app_list_sort": "alphabetical",
+  "search_sort": "relevance",
   "window_mode": "floating",
   "close_on_focus_loss": true,
   "floating_x": 0,
@@ -93,15 +99,18 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `max_columns` | int | `0` | Max tile columns (0 = auto, up to 18) |
 | `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
-| `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"` or compact `"wofi"` |
-| `window_mode` | string | `"floating"` | Window mode for both tiles and Wofi modes: `"fullscreen"` or `"floating"` |
+| `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"`, compact `"wofi"`, or `"combined"` (list + tiles) |
+| `app_list_side` | string | `"left"` | Application list side in combined mode: `"left"` or `"right"` |
+| `app_list_sort` | string | `"alphabetical"` | Empty-query list in Wofi/combined: `"alphabetical"` with letter headers, or `"relevance"` by launch frequency |
+| `search_sort` | string | `"relevance"` | Local search results: `"relevance"` by match score and launch frequency, or `"alphabetical"`; provider order is unchanged |
+| `window_mode` | string | `"floating"` | Window mode for all launcher interfaces: `"fullscreen"` or `"floating"` |
 | `close_on_focus_loss` | bool | `true` | Close the floating launcher when it loses focus |
 | `floating_x` | int | `0` | Horizontal offset of the floating launcher in pixels |
 | `floating_y` | int | `24` | Vertical offset of the floating launcher in pixels |
-| `floating_width` | int | `1120` | Width of the floating launcher in pixels; used by both tiles and Wofi modes |
-| `floating_height` | int | `880` | Height of the floating launcher in pixels; used by both tiles and Wofi modes |
-| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; used by both tiles and Wofi modes |
-| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; used by both tiles and Wofi modes |
+| `floating_width` | int | `1120` | Width of the floating launcher in pixels; shared by all interfaces |
+| `floating_height` | int | `880` | Height of the floating launcher in pixels; shared by all interfaces |
+| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; shared by all interfaces |
+| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; shared by all interfaces |
 | `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |
 | `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
 | `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |
@@ -111,6 +120,8 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `search.providers_enabled` | bool | `true` | Enable all external GNOME Search Providers globally; local application search stays enabled when this is `false` |
 | `search.providers` | array | `[]` | Ordered search providers; each entry has a desktop-file `id` and an `enabled` flag |
 | `groups` | array | | Tile groups with tiles and folders |
+
+To enable combined mode, set `"launcher_mode": "combined"` and run `ximper-shell-launcher --reload`. Set `"app_list_side": "right"` to place the list on the right. Existing tile/folder layouts are reused unchanged. Alphabetical grouping uses Unicode letters; names starting with digits or symbols appear under `#`.
 
 `monitor_index` is accepted only as a legacy setting and is migrated to `output` when the configuration is saved. Use the monitor connector name instead, because display indexes are not stable.
 

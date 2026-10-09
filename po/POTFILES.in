@@ -1,6 +1,7 @@
 src/application.vala
 src/config.vala
-src/folder-tile.vala
-src/grid-window.vala
-src/search-bar.vala
-src/tile.vala
+src/tiles/folder-tile.vala
+src/window/grid-window.vala
+src/search/search-bar.vala
+src/search/application-list.vala
+src/tiles/tile.vala

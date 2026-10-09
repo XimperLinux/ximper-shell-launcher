@@ -13,7 +13,10 @@ namespace XimperShellLauncher {
         private Gtk.Box wallpaper_dimmer;
         private Gtk.Overlay top_overlay;
         private Gtk.Overlay root_overlay;
+        private Gtk.Box browse_box;
+        private CombinedView combined_view;
         private bool wofi_mode = false;
+        private bool combined_mode = false;
         private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
         private WindowGeometry window_geometry;
@@ -49,7 +52,7 @@ namespace XimperShellLauncher {
                 close_grid ();
             });
             search_bar.search_changed.connect ((is_searching) => {
-                content_stack.visible_child_name = is_searching ? "search" : "tiles";
+                update_content (is_searching);
             });
             top_overlay.set_child (search_bar);
 
@@ -81,7 +84,12 @@ namespace XimperShellLauncher {
             });
 
             scrolled.set_child (tile_grid);
-            content_stack.add_named (scrolled, "tiles");
+            browse_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            browse_box.add_css_class ("application-browser");
+            browse_box.append (scrolled);
+            content_stack.add_named (browse_box, "tiles");
+            combined_view = new CombinedView ();
+            content_stack.add_named (combined_view, "combined");
             content_stack.add_named (search_bar.results_widget, "search");
             content_stack.visible_child_name = "tiles";
 
@@ -182,27 +190,45 @@ namespace XimperShellLauncher {
             var key_controller = new Gtk.EventControllerKey ();
             key_controller.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
             key_controller.key_pressed.connect ((keyval, keycode, state) => {
+                // Let popovers handle their own keyboard navigation and Escape.
+                if (search_bar.results_widget.has_open_popover || tile_grid.get_active_popover () != null)
+                    return false;
                 if (keyval == Gdk.Key.Escape) {
                     close_grid ();
                     return true;
                 }
                 if ((keyval == Gdk.Key.Down || keyval == Gdk.Key.Up) &&
-                    search_bar.is_searching () && content_stack.visible_child_name == "search") {
+                    list_navigation_active ()) {
                     return search_bar.navigate_results (keyval == Gdk.Key.Down ? 1 : -1);
                 }
                 if ((keyval == Gdk.Key.Return || keyval == Gdk.Key.KP_Enter) &&
-                    search_bar.is_searching () && content_stack.visible_child_name == "search") {
+                    list_navigation_active ()) {
                     return search_bar.activate_selected_result ();
                 }
                 // Arrow down from search → focus first tile
                 if (keyval == Gdk.Key.Down && search_bar.search_entry.has_focus &&
-                    !search_bar.is_searching () && content_stack.visible_child_name == "tiles") {
-                    tile_grid.focus_first_tile ();
+                    !search_bar.is_searching () && (combined_mode || content_stack.visible_child_name == "tiles")) {
+                    if (combined_mode) search_bar.navigate_results (1);
+                    else tile_grid.focus_first_tile ();
                     return true;
+                }
+                if (combined_mode && !search_bar.is_searching () &&
+                    !search_bar.search_entry.has_focus &&
+                    (keyval == Gdk.Key.Left || keyval == Gdk.Key.Right)) {
+                    bool towards_tiles = app.config.app_list_side == AppListSide.LEFT
+                        ? keyval == Gdk.Key.Right : keyval == Gdk.Key.Left;
+                    if (list_has_focus () && towards_tiles) {
+                        tile_grid.focus_first_tile ();
+                        return true;
+                    }
+                    if (!list_has_focus () && !towards_tiles) {
+                        search_bar.navigate_results (1);
+                        return true;
+                    }
                 }
                 // Arrow up from tiles → back to search
                 if (keyval == Gdk.Key.Up) {
-                    if (tile_grid.is_at_top_row ()) {
+                    if (!list_has_focus () && tile_grid.is_at_top_row ()) {
                         search_bar.search_entry.grab_focus ();
                         return true;
                     }
@@ -210,6 +236,54 @@ namespace XimperShellLauncher {
                 return false;
             });
             ((Gtk.Widget) this).add_controller (key_controller);
+        }
+
+        private bool list_has_focus () {
+            var focused = get_focus ();
+            return focused != null && focused.is_ancestor (search_bar.results_widget);
+        }
+
+        private bool list_navigation_active () {
+            return content_stack.visible_child_name == "search" ||
+                (combined_mode && (search_bar.is_searching () || list_has_focus ()));
+        }
+
+        private void update_content (bool searching) {
+            var list = search_bar.results_widget;
+            if (combined_mode) {
+                if (list.get_parent () != combined_view) {
+                    content_stack.remove (list);
+                    browse_box.remove (scrolled);
+                    combined_view.attach (scrolled, list, app.config.app_list_side);
+                }
+                list.width_request = -1;
+                list.hexpand = true;
+                list.set_column_mode (false, true);
+                combined_view.set_side (app.config.app_list_side);
+                combined_view.set_searching (searching, visible);
+                content_stack.transition_type = Gtk.StackTransitionType.NONE;
+                content_stack.visible_child_name = "combined";
+            } else {
+                if (list.get_parent () == combined_view) {
+                    combined_view.detach ();
+                    browse_box.append (scrolled);
+                    content_stack.add_named (list, "search");
+                }
+                list.set_column_mode (false, false);
+                content_stack.transition_type = Gtk.StackTransitionType.CROSSFADE;
+                content_stack.visible_child_name = searching || wofi_mode ? "search" : "tiles";
+            }
+        }
+
+        private void configure_interface () {
+            wofi_mode = app.config.launcher_mode == LauncherMode.WOFI;
+            combined_mode = app.config.launcher_mode == LauncherMode.COMBINED;
+            remove_css_class ("wofi-mode");
+            remove_css_class ("combined-mode");
+            if (wofi_mode) add_css_class ("wofi-mode");
+            if (combined_mode) add_css_class ("combined-mode");
+            search_bar.set_browse_mode (wofi_mode || combined_mode, app.config.app_list_sort);
+            update_content (search_bar.is_searching ());
         }
 
         private void setup_click_close () {
@@ -317,6 +391,8 @@ namespace XimperShellLauncher {
         }
 
         public void reload_from_config () {
+            configure_interface ();
+            search_bar.refresh ();
             tile_grid.build_from_config ();
             update_wallpaper ();
             update_wallpaper_appearance ();
@@ -326,12 +402,10 @@ namespace XimperShellLauncher {
         }
 
         public void open_grid () {
-            wofi_mode = false;
-            remove_css_class ("wofi-mode");
-            search_bar.set_wofi_mode (false);
+            configure_interface ();
             search_bar.reset ();
             tile_grid.build_from_config ();
-            content_stack.visible_child_name = "tiles";
+            update_content (false);
             ignore_next_focus_leave = true;
             focus_leave_armed = false;
             window_geometry.invalidate_monitor ();
@@ -344,19 +418,7 @@ namespace XimperShellLauncher {
         }
 
         public void open_wofi () {
-            wofi_mode = true;
-            add_css_class ("wofi-mode");
-            search_bar.set_wofi_mode (true);
-            search_bar.reset ();
-            content_stack.visible_child_name = "search";
-            ignore_next_focus_leave = true;
-            focus_leave_armed = false;
-            window_geometry.invalidate_monitor ();
-            apply_window_mode ();
-
-            set_visible (true);
-            present ();
-            search_bar.search_entry.grab_focus ();
+            open_grid ();
         }
 
 
@@ -386,7 +448,11 @@ namespace XimperShellLauncher {
                 return;
             }
 
-            if (content_stack.visible_child_name == "tiles") {
+            if (list_navigation_active () || (combined_mode && search_bar.search_entry.has_focus)) {
+                if (dy != 0) search_bar.navigate_results (dy);
+                else if (dx != 0 && combined_mode && !search_bar.is_searching ())
+                    tile_grid.focus_first_tile ();
+            } else if (combined_mode || content_stack.visible_child_name == "tiles") {
                 if (dy < 0 && tile_grid.is_at_top_row ()) {
                     search_bar.search_entry.grab_focus ();
                 } else {
@@ -403,13 +469,15 @@ namespace XimperShellLauncher {
                 return;
             }
 
-            tile_grid.gamepad_activate ();
+            if (list_navigation_active ()) search_bar.activate_selected_result ();
+            else tile_grid.gamepad_activate ();
         }
 
         public void gamepad_context_menu () {
             if (!visible || popover_navigator.active) return;
-            tile_grid.gamepad_context_menu ();
-            var popover = tile_grid.get_active_popover ();
+            if (list_navigation_active ()) search_bar.results_widget.open_selected_context_menu ();
+            else tile_grid.gamepad_context_menu ();
+            var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
             if (popover != null) {
                 popover_navigator.attach (popover);
             }
@@ -419,12 +487,16 @@ namespace XimperShellLauncher {
             if (!visible) return;
 
             if (popover_navigator.active) {
-                var popover = tile_grid.get_active_popover ();
+                var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
                 if (popover != null) popover.popdown ();
                 popover_navigator.reset ();
                 return;
             }
 
+            if (search_bar.results_widget.has_open_popover) {
+                search_bar.results_widget.get_active_popover ().popdown ();
+                return;
+            }
             if (tile_grid.has_open_folder ()) {
                 tile_grid.gamepad_close_folder ();
             } else {
@@ -444,7 +516,8 @@ namespace XimperShellLauncher {
         public void gamepad_scroll (int direction) {
             if (!visible) return;
             if (popover_navigator.active) return;
-            var adj = scrolled.vadjustment;
+            var adj = list_navigation_active ()
+                ? search_bar.results_widget.vadjustment : scrolled.vadjustment;
             adj.value += direction * adj.page_size * 0.3;
         }
     }

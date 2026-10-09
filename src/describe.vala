@@ -16,6 +16,12 @@ namespace XimperShellLauncher {
         builder.add_string_value (config.layer);
         builder.set_member_name ("launcher_mode");
         builder.add_string_value (config.launcher_mode.to_string ());
+        builder.set_member_name ("app_list_side");
+        builder.add_string_value (config.app_list_side.to_string ());
+        builder.set_member_name ("app_list_sort");
+        builder.add_string_value (config.app_list_sort.to_string ());
+        builder.set_member_name ("search_sort");
+        builder.add_string_value (config.search_sort.to_string ());
         builder.set_member_name ("window_mode");
         builder.add_string_value (config.window_mode.to_string ());
         builder.set_member_name ("close_on_focus_loss");
@@ -116,7 +122,16 @@ namespace XimperShellLauncher {
             { "background", "bottom", "top", "overlay" }
         );
         add_enum_property (
-            builder, "launcher_mode", "Launcher mode", "tiles", { "tiles", "wofi" }
+            builder, "launcher_mode", "Launcher mode", "tiles", { "tiles", "wofi", "combined" }
+        );
+        add_enum_property (
+            builder, "app_list_side", "Application list side", "left", { "left", "right" }
+        );
+        add_enum_property (
+            builder, "app_list_sort", "Application list sorting", "alphabetical", { "relevance", "alphabetical" }
+        );
+        add_enum_property (
+            builder, "search_sort", "Local search sorting", "relevance", { "relevance", "alphabetical" }
         );
         add_enum_property (
             builder, "window_mode", "Window mode", "floating", { "floating", "fullscreen" }

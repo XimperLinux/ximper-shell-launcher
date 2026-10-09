@@ -2,15 +2,40 @@ namespace XimperShellLauncher {
 
     public enum LauncherMode {
         TILES,
-        WOFI;
+        WOFI,
+        COMBINED;
 
         public static LauncherMode from_string (string val) {
+            if (val == "combined") return COMBINED;
             return val == "wofi" ? WOFI : TILES;
         }
 
         public string to_string () {
+            if (this == COMBINED) return "combined";
             return this == WOFI ? "wofi" : "tiles";
         }
+    }
+
+    public enum AppListSide {
+        LEFT,
+        RIGHT;
+
+        public static AppListSide from_string (string value) {
+            return value == "right" ? RIGHT : LEFT;
+        }
+
+        public string to_string () { return this == RIGHT ? "right" : "left"; }
+    }
+
+    public enum AppListSort {
+        RELEVANCE,
+        ALPHABETICAL;
+
+        public static AppListSort from_string (string value) {
+            return value == "alphabetical" ? ALPHABETICAL : RELEVANCE;
+        }
+
+        public string to_string () { return this == ALPHABETICAL ? "alphabetical" : "relevance"; }
     }
 
     public enum WindowMode {

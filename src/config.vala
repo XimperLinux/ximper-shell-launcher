@@ -6,6 +6,9 @@ namespace XimperShellLauncher {
         public int cell_size { get; set; default = 0; }
         public string layer { get; set; default = "overlay"; }
         public LauncherMode launcher_mode { get; set; default = LauncherMode.TILES; }
+        public AppListSide app_list_side { get; set; default = AppListSide.LEFT; }
+        public AppListSort app_list_sort { get; set; default = AppListSort.ALPHABETICAL; }
+        public AppListSort search_sort { get; set; default = AppListSort.RELEVANCE; }
         public WindowMode window_mode { get; set; default = WindowMode.FLOATING; }
         public bool close_on_focus_loss { get; set; default = true; }
         public int floating_x { get; set; default = 0; }
@@ -71,6 +74,12 @@ namespace XimperShellLauncher {
                 }
                 if (root.has_member ("launcher_mode"))
                     launcher_mode = LauncherMode.from_string (root.get_string_member ("launcher_mode"));
+                if (root.has_member ("app_list_side"))
+                    app_list_side = AppListSide.from_string (root.get_string_member ("app_list_side"));
+                if (root.has_member ("app_list_sort"))
+                    app_list_sort = AppListSort.from_string (root.get_string_member ("app_list_sort"));
+                if (root.has_member ("search_sort"))
+                    search_sort = AppListSort.from_string (root.get_string_member ("search_sort"));
                 if (root.has_member ("window_mode"))
                     window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
                 if (root.has_member ("close_on_focus_loss"))
@@ -184,6 +193,9 @@ namespace XimperShellLauncher {
             cell_size = 0;
             layer = "overlay";
             launcher_mode = LauncherMode.TILES;
+            app_list_side = AppListSide.LEFT;
+            app_list_sort = AppListSort.ALPHABETICAL;
+            search_sort = AppListSort.RELEVANCE;
             window_mode = WindowMode.FLOATING;
             close_on_focus_loss = true;
             floating_x = 0;
@@ -240,6 +252,12 @@ namespace XimperShellLauncher {
             builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("launcher_mode");
             builder.add_string_value (launcher_mode.to_string ());
+            builder.set_member_name ("app_list_side");
+            builder.add_string_value (app_list_side.to_string ());
+            builder.set_member_name ("app_list_sort");
+            builder.add_string_value (app_list_sort.to_string ());
+            builder.set_member_name ("search_sort");
+            builder.add_string_value (search_sort.to_string ());
             builder.set_member_name ("window_mode");
             builder.add_string_value (window_mode.to_string ());
             builder.set_member_name ("close_on_focus_loss");

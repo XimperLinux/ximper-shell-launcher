@@ -18,6 +18,7 @@ grid_sources = files(
   'dbus-service.vala',
 
   'window/grid-window.vala',
+  'window/combined-view.vala',
   'window/window-geometry.vala',
   'window/popover-navigator.vala',
   'window/non-measuring-background.vala',
@@ -31,6 +32,9 @@ grid_sources = files(
   'tiles/folder-animator.vala',
 
   'search/search-bar.vala',
+  'search/loading-indicator.vala',
+  'search/application-list.vala',
+  'search/application-ordering.vala',
   'search/search-model.vala',
   'search/search-provider.vala',
 
