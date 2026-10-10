@@ -12,6 +12,7 @@ grid_sources = files(
   'config.vapi',
   'main.vala',
   'application.vala',
+  'presets.vala',
   'config.vala',
   'animation-config.vala',
   'config-types.vala',

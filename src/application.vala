@@ -26,9 +26,35 @@ namespace XimperShellLauncher {
                     "describe", 0, 0, OptionArg.NONE, null,
                     _("Print configuration and parameter metadata as JSON"), null
                 },
+                { "preset", 0, 0, OptionArg.STRING, null, _("Apply a preset, replacing the current tile layout"), "NAME" },
+                { "list-presets", 0, 0, OptionArg.NONE, null, _("List available presets"), null },
                 { null }
             };
             add_main_option_entries (options);
+        }
+
+        private static string? preset_option_error (VariantDict options) {
+            string? name = null;
+            if (!options.lookup ("preset", "s", out name)) return null;
+            if (name == null || !Presets.is_valid (name))
+                return _("Invalid preset. Expected exactly: 8.1, 10, ximper, wofi.\n");
+            if (options.contains ("describe") || options.contains ("reload") || options.contains ("list-presets"))
+                return _("--preset cannot be combined with --describe, --reload or --list-presets.\n");
+            return null;
+        }
+
+        protected override int handle_local_options (VariantDict options) {
+            // Runs before registration/startup: invalid requests cannot create config.
+            string? error = preset_option_error (options);
+            if (error != null) {
+                stderr.printf ("%s", error);
+                return 1;
+            }
+            if (options.contains ("list-presets")) {
+                stdout.printf ("%s", Presets.list_description ());
+                return 0;
+            }
+            return -1;
         }
 
         protected override void startup () {
@@ -62,6 +88,33 @@ namespace XimperShellLauncher {
 
         protected override int command_line (ApplicationCommandLine cmdline) {
             var options = cmdline.get_options_dict ();
+
+            string? error = preset_option_error (options);
+            if (error != null) {
+                cmdline.printerr ("%s", error);
+                return 1;
+            }
+            string? preset = null;
+            if (options.lookup ("preset", "s", out preset)) {
+                if (grid_window != null && grid_window.layout_busy) {
+                    cmdline.printerr ("%s", _("Cannot apply a preset while a tile drag is active.\n"));
+                    return 1;
+                }
+                // Preserve unrelated settings as currently saved on disk,
+                // even if an external editor changed them since startup.
+                config.load ();
+                app_provider.scan ();
+                Presets.apply (preset, config, app_provider.apps);
+                config.save ();
+                if (grid_window != null) {
+                    grid_window.settle_transition ();
+                    grid_window.reload_from_config ();
+                }
+                cmdline.print (_("Preset '%s' applied; the previous tile layout was replaced.\n"), preset);
+                activate ();
+                if (options.contains ("toggle")) toggle_grid ();
+                return 0;
+            }
 
             if (options.contains ("describe")) {
                 cmdline.print ("%s", describe_json (config));

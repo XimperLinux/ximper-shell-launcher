@@ -12,6 +12,10 @@ namespace XimperShellLauncher {
         builder.add_int_value (config.max_columns);
         builder.set_member_name ("cell_size");
         builder.add_int_value (config.cell_size);
+        builder.set_member_name ("tile_icon_size");
+        builder.add_int_value (config.tile_icon_size);
+        builder.set_member_name ("tile_square_labels");
+        builder.add_boolean_value (config.tile_square_labels);
         builder.set_member_name ("layer");
         builder.add_string_value (config.layer);
         builder.set_member_name ("launcher_mode");
@@ -20,6 +24,8 @@ namespace XimperShellLauncher {
         builder.add_string_value (config.tile_mode.to_string ());
         builder.set_member_name ("group_layout");
         builder.add_string_value (config.group_layout.to_string ());
+        builder.set_member_name ("groups_enabled");
+        builder.add_boolean_value (config.groups_enabled);
         builder.set_member_name ("app_list_side");
         builder.add_string_value (config.app_list_side.to_string ());
         builder.set_member_name ("app_list_sort");
@@ -135,6 +141,9 @@ namespace XimperShellLauncher {
         add_integer_property (
             builder, "cell_size", "Tile cell size (0 = automatic)", 0, 0, 512
         );
+        add_integer_property (builder, "tile_icon_size", "Tile icon size (0 = automatic)", 0, 0, 128);
+        add_boolean_property (builder, "tile_square_labels", "Show names on square tiles", false);
+        add_boolean_property (builder, "groups_enabled", "Show tile groups", true);
         add_enum_property (
             builder, "layer", "Layer-shell layer", "overlay",
             { "background", "bottom", "top", "overlay" }

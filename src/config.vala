@@ -7,10 +7,13 @@ namespace XimperShellLauncher {
 
         public int max_columns { get; set; default = 0; }
         public int cell_size { get; set; default = 0; }
+        public int tile_icon_size { get; set; default = 0; }
+        public bool tile_square_labels { get; set; default = false; }
         public string layer { get; set; default = "overlay"; }
         public LauncherMode launcher_mode { get; set; default = LauncherMode.TILES; }
         public TileMode tile_mode { get; set; default = TileMode.ALL; }
         public GroupLayout group_layout { get; set; default = GroupLayout.VERTICAL; }
+        public bool groups_enabled { get; set; default = true; }
         public AppListSide app_list_side { get; set; default = AppListSide.LEFT; }
         public AppListSort app_list_sort { get; set; default = AppListSort.ALPHABETICAL; }
         public AppListSort search_sort { get; set; default = AppListSort.RELEVANCE; }
@@ -75,6 +78,10 @@ namespace XimperShellLauncher {
                     max_columns = (int) root.get_int_member ("max_columns");
                 if (root.has_member ("cell_size"))
                     cell_size = (int) root.get_int_member ("cell_size");
+                if (root.has_member ("tile_icon_size"))
+                    tile_icon_size = int.min (128, int.max (0, (int) root.get_int_member ("tile_icon_size")));
+                if (root.has_member ("tile_square_labels"))
+                    tile_square_labels = root.get_boolean_member ("tile_square_labels");
                 if (root.has_member ("layer")) {
                     var layer_node = root.get_member ("layer");
                     if (layer_node.get_value_type () == typeof (string))
@@ -90,6 +97,8 @@ namespace XimperShellLauncher {
                     tile_mode = TileMode.from_string (root.get_string_member ("tile_mode"));
                 if (root.has_member ("group_layout"))
                     group_layout = GroupLayout.from_string (root.get_string_member ("group_layout"));
+                if (root.has_member ("groups_enabled"))
+                    groups_enabled = root.get_boolean_member ("groups_enabled");
                 if (root.has_member ("app_list_side"))
                     app_list_side = AppListSide.from_string (root.get_string_member ("app_list_side"));
                 if (root.has_member ("app_list_sort"))
@@ -213,10 +222,13 @@ namespace XimperShellLauncher {
             animation_hide = AnimationProfile.hiding ();
             max_columns = 0;
             cell_size = 0;
+            tile_icon_size = 0;
+            tile_square_labels = false;
             layer = "overlay";
             launcher_mode = LauncherMode.TILES;
             tile_mode = TileMode.ALL;
             group_layout = GroupLayout.VERTICAL;
+            groups_enabled = true;
             app_list_side = AppListSide.LEFT;
             app_list_sort = AppListSort.ALPHABETICAL;
             search_sort = AppListSort.RELEVANCE;
@@ -321,6 +333,10 @@ namespace XimperShellLauncher {
             builder.add_int_value (max_columns);
             builder.set_member_name ("cell_size");
             builder.add_int_value (cell_size);
+            builder.set_member_name ("tile_icon_size");
+            builder.add_int_value (tile_icon_size);
+            builder.set_member_name ("tile_square_labels");
+            builder.add_boolean_value (tile_square_labels);
             builder.set_member_name ("layer");
             builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("launcher_mode");
@@ -329,6 +345,8 @@ namespace XimperShellLauncher {
             builder.add_string_value (tile_mode.to_string ());
             builder.set_member_name ("group_layout");
             builder.add_string_value (group_layout.to_string ());
+            builder.set_member_name ("groups_enabled");
+            builder.add_boolean_value (groups_enabled);
             builder.set_member_name ("app_list_side");
             builder.add_string_value (app_list_side.to_string ());
             builder.set_member_name ("app_list_sort");

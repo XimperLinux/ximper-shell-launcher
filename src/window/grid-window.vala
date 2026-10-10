@@ -62,6 +62,8 @@ namespace XimperShellLauncher {
         }
         private SearchBar search_bar;
         private TileGrid tile_grid;
+        public bool layout_busy { get { return tile_grid != null && tile_grid.other_board_dragging (); } }
+        private bool horizontal_tiles { get { return app.config.groups_enabled && app.config.group_layout == GroupLayout.HORIZONTAL; } }
         private Gtk.ScrolledWindow scrolled;
         private uint tile_drag_scroll_tick;
         private bool tile_drag_hovering;
@@ -146,7 +148,7 @@ namespace XimperShellLauncher {
             var tile_scroll = new Gtk.EventControllerScroll (Gtk.EventControllerScrollFlags.BOTH_AXES);
             tile_scroll.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
             tile_scroll.scroll.connect ((dx, dy) => {
-                if (app.config.group_layout != GroupLayout.HORIZONTAL || dx != 0 || dy == 0) return false;
+                if (!horizontal_tiles || dx != 0 || dy == 0) return false;
                 // Mouse wheels produce vertical deltas: in the horizontal tile
                 // area they scroll sideways, without affecting the app list.
                 var adjustment = scrolled.hadjustment;
@@ -399,9 +401,9 @@ namespace XimperShellLauncher {
         }
 
         private void configure_interface () {
-            scrolled.hscrollbar_policy = app.config.group_layout == GroupLayout.HORIZONTAL
+            scrolled.hscrollbar_policy = horizontal_tiles
                 ? Gtk.PolicyType.AUTOMATIC : Gtk.PolicyType.NEVER;
-            scrolled.vscrollbar_policy = app.config.group_layout == GroupLayout.HORIZONTAL
+            scrolled.vscrollbar_policy = horizontal_tiles
                 ? Gtk.PolicyType.NEVER : Gtk.PolicyType.AUTOMATIC;
             wofi_mode = app.config.launcher_mode == LauncherMode.WOFI;
             combined_mode = app.config.launcher_mode == LauncherMode.COMBINED;
@@ -702,7 +704,7 @@ namespace XimperShellLauncher {
                 int64 now = clock.get_frame_time ();
                 double dt = previous_time == 0 ? 0 : double.min (0.05, (now - previous_time) / 1000000.0);
                 previous_time = now;
-                bool horizontal = window.app.config.group_layout == GroupLayout.HORIZONTAL;
+                bool horizontal = window.horizontal_tiles;
                 double extent = horizontal ? widget.get_width () : widget.get_height ();
                 double position = horizontal ? window.tile_drag_x : window.tile_drag_y;
                 double edge = double.min (48, extent / 4);
@@ -723,7 +725,7 @@ namespace XimperShellLauncher {
             if (popover_navigator.active) return;
             var adj = list_navigation_active ()
                 ? search_bar.results_widget.vadjustment :
-                (app.config.group_layout == GroupLayout.HORIZONTAL ? scrolled.hadjustment : scrolled.vadjustment);
+                (horizontal_tiles ? scrolled.hadjustment : scrolled.vadjustment);
             adj.value += direction * adj.page_size * 0.3;
         }
     }

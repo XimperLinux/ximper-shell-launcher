@@ -166,3 +166,45 @@ msgstr ""
 #: src/tiles/tile-grid.vala
 msgid "New group"
 msgstr ""
+
+#: src/application.vala
+msgid "Apply a preset, replacing the current tile layout"
+msgstr ""
+
+#: src/application.vala
+msgid "List available presets"
+msgstr ""
+
+#: src/application.vala
+msgid "Invalid preset. Expected exactly: 8.1, 10, ximper, wofi.\n"
+msgstr ""
+
+#: src/application.vala
+msgid "--preset cannot be combined with --describe, --reload or --list-presets.\n"
+msgstr ""
+
+#: src/application.vala
+msgid "Cannot apply a preset while a tile drag is active.\n"
+msgstr ""
+
+#: src/application.vala
+#, c-format
+msgid "Preset '%s' applied; the previous tile layout was replaced.\n"
+msgstr ""
+
+#: src/presets.vala
+msgid ""
+"8.1 — fullscreen category tiles\n"
+"10 — floating list with System and Internet tiles\n"
+"ximper — fullscreen category folders\n"
+"wofi — compact floating application list\n"
+"Applying a preset replaces the current tile layout.\n"
+msgstr ""
+
+#: src/presets.vala
+msgid "Science"
+msgstr ""
+
+#: src/presets.vala
+msgid "Other"
+msgstr ""

@@ -8,8 +8,12 @@ namespace XimperShellLauncher {
         private string? drag_id;
         private bool drag_committed;
         private Gtk.Box? new_group_zone;
+        private Gtk.Picture? new_group_preview;
+        private uint rebuild_idle;
         private int drop_viewport_width;
         private int drop_viewport_height;
+        private int last_board_height = 160;
+        private bool horizontal_groups { get { return app.config.groups_enabled && app.config.group_layout == GroupLayout.HORIZONTAL; } }
         public bool has_active_drag { get { return drag_source != null && !drag_committed; } }
         public signal void drag_state_changed (bool active);
 
@@ -17,7 +21,7 @@ namespace XimperShellLauncher {
             drop_viewport_width = width;
             drop_viewport_height = height;
             if (new_group_zone == null) return;
-            bool horizontal = app.config.group_layout == GroupLayout.HORIZONTAL;
+            bool horizontal = horizontal_groups;
             int tail = int.max (horizontal ? 160 : 72, (horizontal ? width : height) / 2);
             int old_width, old_height;
             new_group_zone.get_size_request (out old_width, out old_height);
@@ -60,6 +64,7 @@ namespace XimperShellLauncher {
                 // live model is replaced; no signals/saves between replacements.
                 drag_source.apply_drag_candidate (remaining);
                 destination.apply_drag_candidate (candidate);
+                destination.show_committed_preview (drag_source.drag_image);
                 drag_source.commit_source_transfer ();
                 drag_committed = true;
                 rebuild_pending = true;
@@ -67,23 +72,38 @@ namespace XimperShellLauncher {
                 return true;
             }
             bool changed = destination.drag_model.commit_candidate (candidate);
-            if (changed) save_layout ();
+            if (changed) {
+                if (source_matches (id)) destination.show_committed_preview (drag_source.drag_image);
+                save_layout ();
+            }
             return changed;
         }
         public void end_drag (TileBoard board) {
             if (board == drag_source) {
                 drag_source = null; drag_id = null; drag_committed = false;
                 if (new_group_zone != null) {
-                    new_group_zone.opacity = 0;
+                    if (new_group_preview == null) new_group_zone.opacity = 0;
                     new_group_zone.can_target = false;
                     new_group_zone.remove_css_class ("drop-active");
                 }
                 drag_state_changed (false);
             }
-            if (rebuild_pending && !other_board_dragging ()) {
-                weak TileGrid owner = this;
-                Idle.add (() => { if (owner != null && owner.rebuild_pending && !owner.other_board_dragging ()) owner.build_from_config (); return Source.REMOVE; });
-            }
+            schedule_rebuild ();
+        }
+
+        private void schedule_rebuild () {
+            if (!rebuild_pending || other_board_dragging () || rebuild_idle != 0) return;
+            weak TileGrid owner = this;
+            // Coalesce drag-end notifications and run before GTK redraw, while
+            // still leaving the GtkDragSource signal stack before destruction.
+            rebuild_idle = Idle.add (() => {
+                var grid = owner;
+                if (grid != null) {
+                    grid.rebuild_idle = 0;
+                    if (grid.rebuild_pending && !grid.other_board_dragging ()) grid.build_from_config ();
+                }
+                return Source.REMOVE;
+            }, Priority.HIGH_IDLE);
         }
 
         private Gtk.Popover? group_popover;
@@ -111,13 +131,23 @@ namespace XimperShellLauncher {
         public void build_from_config () {
             if (other_board_dragging ()) { rebuild_pending = true; return; }
             rebuild_pending = false;
+            // Horizontal boards share the same content height. Seed replacement
+            // boards with that allocation, not the startup fallback; an interim
+            // two-row layout would change scroll bounds for one frame.
+            if (orientation == Gtk.Orientation.HORIZONTAL) {
+                for (uint i = 0; i < boards.length; i++) {
+                    int height = boards[i].get_height ();
+                    if (height > 0) { last_board_height = height; break; }
+                }
+            }
             for (uint i = 0; i < boards.length; i++) boards[i].cleanup ();
             boards = new GenericArray<TileBoard> ();
             names = new GenericArray<string> ();
             if (group_popover != null) { group_popover.unparent (); group_popover = null; }
             new_group_zone = null;
+            new_group_preview = null;
             while (get_first_child () != null) remove (get_first_child ());
-            orientation = app.config.group_layout == GroupLayout.HORIZONTAL ?
+            orientation = horizontal_groups ?
                 Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL;
             if (orientation == Gtk.Orientation.HORIZONTAL) add_css_class ("horizontal-groups");
             else remove_css_class ("horizontal-groups");
@@ -140,6 +170,27 @@ namespace XimperShellLauncher {
                     }
                     groups.add (copy);
                 }
+            }
+            if (!app.config.groups_enabled && groups.length > 0) {
+                var flat = new GroupConfig ("");
+                var folder_names = new HashTable<string, bool> (str_hash, str_equal);
+                for (uint i = 0; i < groups.length; i++) {
+                    for (uint j = 0; j < groups[i].tiles.length; j++) {
+                        var tile = groups[i].tiles[j];
+                        if (tile.size == TileSize.FOLDER) {
+                            string original = tile.folder_name ?? _("Folder");
+                            string name = original;
+                            int suffix = 2;
+                            while (folder_names.contains (name)) name = "%s (%d)".printf (original, suffix++);
+                            tile.folder_name = name;
+                            tile.desktop_id = "folder:" + name;
+                            folder_names.insert (name, true);
+                        }
+                        flat.tiles.add (tile);
+                    }
+                }
+                groups = new GenericArray<GroupConfig> ();
+                groups.add (flat);
             }
             if (groups.length == 0) groups.add (new GroupConfig (""));
             int default_index = -1;
@@ -169,66 +220,68 @@ namespace XimperShellLauncher {
                 uint index = i;
                 var section = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
                 section.add_css_class ("tile-group");
-                section.hexpand = app.config.group_layout == GroupLayout.VERTICAL;
-                section.valign = app.config.group_layout == GroupLayout.HORIZONTAL ? Gtk.Align.FILL : Gtk.Align.START;
-                var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
-                header.add_css_class ("tile-group-header");
-                header.margin_start = GridPacker.MIN_MARGIN;
-                header.margin_end = GridPacker.MIN_MARGIN;
-                var title = new Gtk.Label (groups[i].name == "" ? _("Applications") : groups[i].name);
-                title.add_css_class ("heading");
-                title.hexpand = true;
-                title.ellipsize = Pango.EllipsizeMode.END;
-                title.xalign = 0;
-                header.append (title);
-                var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 4);
-                actions.add_css_class ("tile-group-actions");
-                actions.opacity = 0;
-                actions.can_target = false;
-                var fade = new Adw.TimedAnimation (header, 0, 0, 150,
-                    new Adw.PropertyAnimationTarget (actions, "opacity"));
-                fade.easing = Adw.Easing.EASE_OUT_CUBIC;
-                var motion = new Gtk.EventControllerMotion ();
-                var focus = new Gtk.EventControllerFocus ();
-                motion.enter.connect (() => fade_group_actions (actions, fade, true));
-                motion.leave.connect (() => fade_group_actions (actions, fade, focus.contains_focus));
-                focus.enter.connect (() => fade_group_actions (actions, fade, true));
-                focus.leave.connect (() => fade_group_actions (actions, fade, motion.contains_pointer));
-                header.add_controller (motion);
-                header.add_controller (focus);
-                var rename = new Gtk.Button.from_icon_name ("document-edit-symbolic");
-                rename.add_css_class ("flat");
-                rename.tooltip_text = _("Rename group");
-                rename.clicked.connect (() => name_editor (rename, groups[index].name, (text) => {
-                    save_layout (); app.config.groups[index].name = text; persist_rebuild ();
-                }));
-                actions.append (rename);
-                var folder = new Gtk.Button.from_icon_name ("folder-new-symbolic");
-                folder.add_css_class ("flat");
-                folder.tooltip_text = _("Create Folder");
-                folder.clicked.connect (() => name_editor (folder, _("Folder"), (text) => {
-                    save_layout ();
-                    var model = new TileModel (app.config.groups[index].tiles);
-                    if (model.has_folder (text)) return;
-                    model.tiles.add (new TileConfig.folder (text, new GenericArray<string> ()));
-                    persist_rebuild ();
-                }));
-                actions.append (folder);
-                var create = new Gtk.Button.from_icon_name ("list-add-symbolic");
-                create.add_css_class ("flat");
-                create.tooltip_text = _("Create group");
-                create.clicked.connect (() => name_editor (create, "", (text) => {
-                    save_layout (); app.config.groups.add (new GroupConfig (text)); persist_rebuild ();
-                }));
-                header.append (actions);
-                if (groups.length == 1 && groups[index].tiles.length == 0)
-                    header.append (create);
-                else
-                    actions.append (create);
-                section.append (header);
-                var board = new TileBoard (app, groups[i].tiles);
+                section.hexpand = !horizontal_groups;
+                section.valign = horizontal_groups ? Gtk.Align.FILL : Gtk.Align.START;
+                if (app.config.groups_enabled) {
+                    var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
+                    header.add_css_class ("tile-group-header");
+                    header.margin_start = GridPacker.MIN_MARGIN;
+                    header.margin_end = GridPacker.MIN_MARGIN;
+                    var title = new Gtk.Label (groups[i].name == "" ? _("Applications") : groups[i].name);
+                    title.add_css_class ("heading");
+                    title.hexpand = true;
+                    title.ellipsize = Pango.EllipsizeMode.END;
+                    title.xalign = 0;
+                    header.append (title);
+                    var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 4);
+                    actions.add_css_class ("tile-group-actions");
+                    actions.opacity = 0;
+                    actions.can_target = false;
+                    var fade = new Adw.TimedAnimation (header, 0, 0, 150,
+                        new Adw.PropertyAnimationTarget (actions, "opacity"));
+                    fade.easing = Adw.Easing.EASE_OUT_CUBIC;
+                    var motion = new Gtk.EventControllerMotion ();
+                    var focus = new Gtk.EventControllerFocus ();
+                    motion.enter.connect (() => fade_group_actions (actions, fade, true));
+                    motion.leave.connect (() => fade_group_actions (actions, fade, focus.contains_focus));
+                    focus.enter.connect (() => fade_group_actions (actions, fade, true));
+                    focus.leave.connect (() => fade_group_actions (actions, fade, motion.contains_pointer));
+                    header.add_controller (motion);
+                    header.add_controller (focus);
+                    var rename = new Gtk.Button.from_icon_name ("document-edit-symbolic");
+                    rename.add_css_class ("flat");
+                    rename.tooltip_text = _("Rename group");
+                    rename.clicked.connect (() => name_editor (rename, groups[index].name, (text) => {
+                        save_layout (); app.config.groups[index].name = text; persist_rebuild ();
+                    }));
+                    actions.append (rename);
+                    var folder = new Gtk.Button.from_icon_name ("folder-new-symbolic");
+                    folder.add_css_class ("flat");
+                    folder.tooltip_text = _("Create Folder");
+                    folder.clicked.connect (() => name_editor (folder, _("Folder"), (text) => {
+                        save_layout ();
+                        var model = new TileModel (app.config.groups[index].tiles);
+                        if (model.has_folder (text)) return;
+                        model.tiles.add (new TileConfig.folder (text, new GenericArray<string> ()));
+                        persist_rebuild ();
+                    }));
+                    actions.append (folder);
+                    var create = new Gtk.Button.from_icon_name ("list-add-symbolic");
+                    create.add_css_class ("flat");
+                    create.tooltip_text = _("Create group");
+                    create.clicked.connect (() => name_editor (create, "", (text) => {
+                        save_layout (); app.config.groups.add (new GroupConfig (text)); persist_rebuild ();
+                    }));
+                    header.append (actions);
+                    if (groups.length == 1 && groups[index].tiles.length == 0)
+                        header.append (create);
+                    else
+                        actions.append (create);
+                    section.append (header);
+                }
+                var board = new TileBoard (app, groups[i].tiles, last_board_height);
                 board.group_grid = this;
-                board.vexpand = app.config.group_layout == GroupLayout.HORIZONTAL;
+                board.vexpand = horizontal_groups;
                 boards.add (board); names.add (groups[i].name);
                 weak TileGrid weak_grid = this;
                 board.tile_activated.connect ((e) => { var grid = weak_grid; if (grid != null) grid.tile_activated (e); });
@@ -238,13 +291,12 @@ namespace XimperShellLauncher {
                 board.extend_menu.connect ((menu, popover, id) => { var grid = weak_grid; if (grid != null) grid.extend_tile_menu (index, menu, popover, id); });
                 board.drag_finished.connect (() => {
                     var grid = weak_grid;
-                    if (grid == null || !grid.rebuild_pending || grid.other_board_dragging ()) return;
-                    Idle.add (() => { var current = weak_grid; if (current != null && current.rebuild_pending) current.build_from_config (); return Source.REMOVE; });
+                    if (grid != null) grid.schedule_rebuild ();
                 });
                 section.append (board);
                 append (section);
             }
-            append_new_group_zone ();
+            if (app.config.groups_enabled) append_new_group_zone ();
         }
 
         private void append_new_group_zone () {
@@ -254,7 +306,7 @@ namespace XimperShellLauncher {
             // scroll beyond the last group before starting a drag.
             zone.opacity = 0;
             zone.can_target = false;
-            bool horizontal = app.config.group_layout == GroupLayout.HORIZONTAL;
+            bool horizontal = horizontal_groups;
             zone.set_size_request (horizontal ? 160 : -1, horizontal ? -1 : 72);
             zone.hexpand = !horizontal;
             zone.vexpand = horizontal;
@@ -298,6 +350,18 @@ namespace XimperShellLauncher {
             tile.transient = false;
             group.tiles.add (tile);
             groups.add (group);
+            if (new_group_zone != null && drag_source.drag_image != null) {
+                var label = new_group_zone.get_first_child ();
+                if (label != null) { label.vexpand = false; label.halign = Gtk.Align.START; }
+                var image = drag_source.drag_image;
+                new_group_preview = new Gtk.Picture.for_paintable (image);
+                new_group_preview.can_shrink = true;
+                new_group_preview.can_target = false;
+                new_group_preview.halign = Gtk.Align.START;
+                new_group_preview.valign = Gtk.Align.START;
+                new_group_preview.set_size_request (int.max (1, image.get_intrinsic_width ()), int.max (1, image.get_intrinsic_height ()));
+                new_group_zone.append (new_group_preview);
+            }
             drag_committed = true;
             rebuild_pending = true;
             app.config.groups = groups;
@@ -367,7 +431,7 @@ namespace XimperShellLauncher {
                 });
                 menu.append (move);
             }
-            if (id.has_prefix ("folder:")) {
+            if (app.config.groups_enabled && id.has_prefix ("folder:")) {
                 var convert = new Gtk.Button.with_label (_("Convert folder to group"));
                 convert.add_css_class ("flat");
                 convert.clicked.connect (() => {

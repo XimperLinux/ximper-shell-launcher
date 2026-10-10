@@ -140,6 +140,12 @@
     background: alpha(@accent_bg_color, 0.12);
 }
 
+/* Accepted drops keep the frozen tile until the real widget is ready. */
+.tile-insertion-gap.committed-tile-preview {
+    border: none;
+    background: none;
+}
+
 .tile.tile-drop-into-folder {
     box-shadow: 0 0 0 3px @accent_bg_color;
 }

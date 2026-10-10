@@ -167,3 +167,50 @@ msgstr "Открепить от лаунчера"
 #: src/tiles/tile-grid.vala
 msgid "New group"
 msgstr "Новая группа"
+
+#: src/application.vala
+msgid "Apply a preset, replacing the current tile layout"
+msgstr "Применить пресет, заменив текущую раскладку плиток"
+
+#: src/application.vala
+msgid "List available presets"
+msgstr "Показать доступные пресеты"
+
+#: src/application.vala
+msgid "Invalid preset. Expected exactly: 8.1, 10, ximper, wofi.\n"
+msgstr "Неизвестный пресет. Допустимы только: 8.1, 10, ximper, wofi.\n"
+
+#: src/application.vala
+msgid "--preset cannot be combined with --describe, --reload or --list-presets.\n"
+msgstr "--preset нельзя совмещать с --describe, --reload или --list-presets.\n"
+
+#: src/application.vala
+msgid "Cannot apply a preset while a tile drag is active.\n"
+msgstr "Нельзя применить пресет во время перетаскивания плитки.\n"
+
+#: src/application.vala
+#, c-format
+msgid "Preset '%s' applied; the previous tile layout was replaced.\n"
+msgstr "Пресет «%s» применён; предыдущая раскладка плиток заменена.\n"
+
+#: src/presets.vala
+msgid ""
+"8.1 — fullscreen category tiles\n"
+"10 — floating list with System and Internet tiles\n"
+"ximper — fullscreen category folders\n"
+"wofi — compact floating application list\n"
+"Applying a preset replaces the current tile layout.\n"
+msgstr ""
+"8.1 — полноэкранные группы по категориям\n"
+"10 — плавающее меню со списком и плитками Системы и Интернета\n"
+"ximper — полноэкранные плитки с папками по категориям\n"
+"wofi — компактный плавающий список приложений\n"
+"Применение пресета заменяет текущую раскладку плиток.\n"
+
+#: src/presets.vala
+msgid "Science"
+msgstr "Наука"
+
+#: src/presets.vala
+msgid "Other"
+msgstr "Другие"

@@ -11,6 +11,8 @@ namespace XimperShellLauncher {
         private Gtk.Label? name_label;
         private bool menu_visible = false;
         private int loaded_icon_size = 0;
+        private int configured_icon_size;
+        private bool square_labels;
         private bool cleaned_up = false;
         private GenericArray<Gtk.EventController> owned_controllers =
             new GenericArray<Gtk.EventController> ();
@@ -23,7 +25,10 @@ namespace XimperShellLauncher {
         public signal void create_folder_requested (Tile tile);
         public signal void extend_menu (Gtk.Box menu, Gtk.Popover popover);
 
-        public Tile (AppEntry entry, TileSize size, int cell_px = 64) {
+        public Tile (AppEntry entry, TileSize size, int cell_px = 64,
+                     int icon_px = 0, bool show_square_labels = false) {
+            configured_icon_size = icon_px;
+            square_labels = show_square_labels;
             this.app_entry = entry;
             this.tile_size = size;
 
@@ -225,7 +230,7 @@ namespace XimperShellLauncher {
             remove_css_class ("tile-medium");
             remove_css_class ("tile-large");
 
-            int icon_sz = (int) (cell_px * 0.5);
+            int icon_sz = configured_icon_size > 0 ? int.min (configured_icon_size, int.max (1, cell_px - 28)) : (int) (cell_px * 0.5);
             int gap = 6; // matches SPACING in TileGroup
 
             switch (size) {
@@ -233,7 +238,10 @@ namespace XimperShellLauncher {
                     add_css_class ("tile-small");
                     set_size_request (cell_px, cell_px);
                     icon_image.pixel_size = icon_sz;
-                    name_label.visible = false;
+                    name_label.visible = square_labels;
+                    name_label.xalign = square_labels ? 0 : 0.5f;
+                    content_box.orientation = Gtk.Orientation.VERTICAL;
+                    content_box.spacing = square_labels ? 4 : 0;
                     break;
 
                 case TileSize.MEDIUM:
@@ -248,7 +256,7 @@ namespace XimperShellLauncher {
                 case TileSize.LARGE:
                     add_css_class ("tile-large");
                     set_size_request (cell_px * 2 + gap, cell_px * 2 + gap);
-                    icon_image.pixel_size = (int) (cell_px * 0.7);
+                    icon_image.pixel_size = configured_icon_size > 0 ? icon_sz : (int) (cell_px * 0.7);
                     name_label.visible = true;
                     content_box.orientation = Gtk.Orientation.VERTICAL;
                     content_box.spacing = 8;

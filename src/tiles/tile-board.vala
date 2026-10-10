@@ -9,8 +9,12 @@ namespace XimperShellLauncher {
         private TileDragController drag_controller;
         private bool rebuild_after_drag = false;
         private int viewport_height = 160;
-        public bool horizontal { get { return app.config.group_layout == GroupLayout.HORIZONTAL; } }
+        public bool horizontal { get { return app.config.groups_enabled && app.config.group_layout == GroupLayout.HORIZONTAL; } }
         public TileModel drag_model { get { return model; } }
+        public Gdk.Paintable? drag_image { get { return drag_controller.source_image; } }
+        public void show_committed_preview (Gdk.Paintable? image) {
+            drag_controller.show_committed_preview (image);
+        }
         private void update_viewport_height (int height) {
             viewport_height = int.max (8, height);
             if (!drag_in_progress &&
@@ -57,8 +61,9 @@ namespace XimperShellLauncher {
         public signal void pin_requested (string desktop_id);
         public signal void unpin_requested (string desktop_id);
 
-        public TileBoard (Application app, GenericArray<TileConfig> configs) {
+        public TileBoard (Application app, GenericArray<TileConfig> configs, int initial_viewport_height = 160) {
             this.app = app;
+            this.viewport_height = int.max (8, initial_viewport_height);
             this.model = new TileModel (configs);
             this.packer = new GridPacker ();
             this.animator = new FolderAnimator (this);
@@ -181,6 +186,9 @@ namespace XimperShellLauncher {
                 build_folder_content ();
             }
 
+            // The destination is now real: remove the retained drag image in
+            // the same rebuild, not an earlier drag-finished frame.
+            drag_controller.clear_committed_preview ();
             queue_resize ();
         }
 
@@ -226,7 +234,8 @@ namespace XimperShellLauncher {
             var entry = app.app_provider.find_by_desktop_id (tc.desktop_id);
             if (entry == null) return null;
 
-            var tile = new Tile (entry, tc.size, packer.cell_size);
+            var tile = new Tile (entry, tc.size, packer.cell_size,
+                app.config.tile_icon_size, app.config.tile_square_labels);
             tile.board_managed_dnd = true;
             string menu_app_id = tile.app_entry.desktop_id;
             tile.extend_menu.connect ((menu, popover) => {
@@ -281,7 +290,8 @@ namespace XimperShellLauncher {
                 var entry = app.app_provider.find_by_desktop_id (item_id);
                 if (entry == null) continue;
 
-                var tile = new Tile (entry, TileSize.SMALL, packer.cell_size);
+                var tile = new Tile (entry, TileSize.SMALL, packer.cell_size,
+                    app.config.tile_icon_size, app.config.tile_square_labels);
                 tile.board_managed_dnd = true;
                 string menu_item_id = tile.app_entry.desktop_id;
                 tile.extend_menu.connect ((menu, popover) => {
@@ -416,7 +426,7 @@ namespace XimperShellLauncher {
             natural_baseline = -1;
 
             if (orientation == Gtk.Orientation.HORIZONTAL) {
-                if (app.config.group_layout == GroupLayout.HORIZONTAL) {
+                if (horizontal) {
                     minimum = natural = int.max (horizontal_group_width (), drag_controller.preview_right () + packer.margin);
                 } else {
                     minimum = 200;

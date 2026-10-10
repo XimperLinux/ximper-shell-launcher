@@ -55,6 +55,40 @@ ximper-shell-launcher --describe  # print the current configuration and supporte
 
 `--reload` reloads configuration/applications and rebuilds the interface, not CSS. `--describe` prints `config`, `runtime`, `paths`, and parameter/provider `metadata`. It is not a pure headless schema tool: a new instance performs GUI startup, which can create or migrate configuration. Commands forwarded to a running instance use its configuration. Output differs from the on-disk schema: `config.search_providers` is flat, whereas the file uses `search.providers`. Do not copy the whole output to `config.json`. `runtime.running` is a constant, not an independent health probe. Combined flags take priority in this order: describe, toggle, reload.
 
+### Command-line presets
+
+```sh
+ximper-shell-launcher --list-presets
+ximper-shell-launcher --preset 8.1
+ximper-shell-launcher --preset 10
+ximper-shell-launcher --preset ximper
+ximper-shell-launcher --preset wofi
+# Apply and also toggle visibility:
+ximper-shell-launcher --preset 8.1 --toggle
+```
+
+**Applying a preset replaces the manual layout with a newly generated one, without confirmation.** There are no saved preset profiles or automatic restoration. Generation uses installed visible `.desktop` apps and their categories. Select presets by command, not a config preset-name field; resulting ordinary settings are persisted automatically. Unrelated search, wallpaper and output settings are preserved.
+
+| Name | Interface | Fresh layout |
+|---|---|---|
+| `8.1` | Fullscreen tiles, horizontal groups, pinned | All visible apps grouped by category, no folders |
+| `10` | Bottom-left floating combined view, list left, vertical groups | Only System/Settings/TerminalEmulator/FileManager and Network apps in System and Internet groups; all other apps remain in the list/search |
+| `ximper` | Fullscreen all-app tiles, groups disabled | Category folders plus standalone singleton and uncategorized apps |
+| `wofi` | Compact centered floating list | A fresh categorized folder layout is saved but tiles are not displayed |
+
+Only the four exact names above are accepted, without `win` prefixes. `--preset` cannot be combined with `--describe`, `--reload` or `--list-presets`; invalid requests return nonzero before GUI startup. `--list-presets` exits without GUI startup. Applying during DnD is rejected. Without `--toggle`, the command itself does not change menu visibility; an existing interface is rebuilt immediately.
+
+Approximate geometry at GTK's base scale, not a pixel-identical Windows theme:
+
+| Preset | Square / wide / large tile | Icon |
+|---|---|---|
+| `8.1` | 150×150 / 306×150 / 306×306 | 64 px |
+| `10` | 100×100 / 206×100 / 206×206 | 48 px, approximate |
+
+Launcher `small / medium / large` map to Windows **medium-square**, wide and large; there is no separate Windows 70×70 small tile. These presets enable square-tile names. The existing 6 px cell gap is retained. Very short horizontal viewports shrink cells to fit.
+
+Sources: Microsoft [desktop tile/icon dimensions and scaling](https://learn.microsoft.com/en-us/windows/win32/shell/desktop-app-tiles-on-the-start-screen), [nominal 70/150/310 tile sizes](https://learn.microsoft.com/en-us/uwp/api/windows.ui.startscreen.tilesize), [Windows 10 proportions: 1×1, 2×2, 4×2, 4×4](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/customize-the-start-screen). Windows 8.1's 150 square and 64 icon at 100% are documented; 310 wide/large implies a 10 px gap. Windows 10 proportions are documented, but our 100 px square and 48 icon are aesthetic approximations, not verified native menu measurements. Physical pixels depend on display scaling.
+
 ## Compositor Support
 
 The launcher uses compositor helpers for compositor-specific behavior:
@@ -121,6 +155,9 @@ This example includes sample applications/providers, not a universal initial lay
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"`, compact `"wofi"`, or `"combined"` (list + tiles) |
 | `tile_mode` | string | `"all"` | Tile area: `"all"` applications or only launcher `"pinned"` entries. Independent of `launcher_mode`; applies to `tiles` and `combined` |
+| `groups_enabled` | bool | `true` | Show group headers/actions. False gives one flat folder-capable board with no group DnD tail; edits save one unnamed group |
+| `tile_icon_size` | int | `0` | Tile icon size: 0 uses existing automatic sizes, otherwise 1–128 px clamped to the cell |
+| `tile_square_labels` | bool | `false` | Show square-tile names; enabled by `8.1` and `10` presets |
 | `group_layout` | string | `"vertical"` | Groups stacked `"vertical"` or side by side `"horizontal"` with horizontal scrolling; independent of tile mode |
 | `app_list_side` | string | `"left"` | Application list side in combined mode: `"left"` or `"right"` |
 | `app_list_sort` | string | `"alphabetical"` | Empty-query list in Wofi/combined: `"alphabetical"` with letter headers, or `"relevance"` by launch frequency |

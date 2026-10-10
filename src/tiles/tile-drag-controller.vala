@@ -42,6 +42,10 @@ namespace XimperShellLauncher {
         private weak Gtk.Widget? source_widget;
         // Keep the removed source invisible until deferred board destruction.
         private weak Gtk.Widget? transferred_widget;
+        private Gdk.Paintable? source_paintable;
+        private Gtk.Picture? committed_preview;
+        private bool retained_positions;
+        public Gdk.Paintable? source_image { get { return source_paintable; } }
         private string? source_id;
         private string? preview_key;
         private string? highlighted_folder;
@@ -136,6 +140,8 @@ namespace XimperShellLauncher {
             if (disposed) return;
             transferred_widget = null;
             source_widget = widget;
+            // Freeze the complete tile before hiding its live GtkDragSource.
+            source_paintable = new Gtk.WidgetPaintable (widget).get_current_image ();
             source_id = id;
             local_drag = true;
             committed = false;
@@ -149,6 +155,33 @@ namespace XimperShellLauncher {
                 if (positions[i].placement.widget == widget) positions[i].hidden = true;
             }
             widget.opacity = 0;
+        }
+
+        public void show_committed_preview (Gdk.Paintable? image) {
+            if (disposed || image == null || !gap.visible || gap_w <= 0 || gap_h <= 0) return;
+            clear_committed_preview ();
+            committed_preview = new Gtk.Picture.for_paintable (image);
+            committed_preview.can_shrink = true;
+            committed_preview.content_fit = Gtk.ContentFit.FILL;
+            committed_preview.can_target = false;
+            committed_preview.hexpand = committed_preview.vexpand = true;
+            gap.append (committed_preview);
+            gap.add_css_class ("committed-tile-preview");
+            gap.visible = true;
+            board.queue_allocate ();
+        }
+
+        public void clear_committed_preview () {
+            if (committed_preview != null) {
+                gap.remove (committed_preview);
+                committed_preview = null;
+            }
+            gap.remove_css_class ("committed-tile-preview");
+            gap.visible = false;
+            if (retained_positions) {
+                positions = new GenericArray<DragTilePosition> ();
+                retained_positions = false;
+            }
         }
 
         public void commit_source_transfer () {
@@ -593,11 +626,22 @@ namespace XimperShellLauncher {
                 positions[i].placement.widget.opacity = positions[i].placement.widget == transferred_widget ? 0 : 1;
                 positions[i].placement.widget.remove_css_class ("tile-drop-into-folder");
             }
-            positions = new GenericArray<DragTilePosition> ();
+            retained_positions = committed_preview != null;
+            if (retained_positions) {
+                // Keep neighbors at their accepted positions too; returning
+                // them to old placement coordinates would look like a reorder.
+                for (uint i = 0; i < positions.length; i++) {
+                    positions[i].x = positions[i].target_x;
+                    positions[i].y = positions[i].target_y;
+                }
+            } else {
+                positions = new GenericArray<DragTilePosition> ();
+            }
             candidate = null;
             candidate_cells = null;
             preview_key = null;
             source_widget = null;
+            source_paintable = null;
             source_id = null;
             hit_tiles = null;
             hit_cells = null;
@@ -608,7 +652,9 @@ namespace XimperShellLauncher {
             original_folder = null;
             folder_preview_bottom = 0;
             committed = local_drag = hovering = finishing = false;
-            gap.visible = false;
+            // Keep the accepted tile visible while a different source board is
+            // still finishing. Rebuild replaces it with the real widget.
+            gap.visible = committed_preview != null;
             board.drag_preview_finished (rebuild);
         }
 
@@ -669,6 +715,8 @@ namespace XimperShellLauncher {
             if (animation != null) animation.pause ();
             animation = null;
             if (board != null) board.remove_controller (target);
+            clear_committed_preview ();
+            source_paintable = null;
             if (gap.get_parent () != null) gap.unparent ();
             hit_tiles = null;
             hit_cells = null;
