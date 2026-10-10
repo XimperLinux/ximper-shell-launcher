@@ -16,6 +16,28 @@ namespace XimperShellLauncher {
         }
     }
 
+    public enum TileMode {
+        ALL,
+        PINNED;
+
+        public static TileMode from_string (string value) {
+            return value == "pinned" ? PINNED : ALL;
+        }
+
+        public string to_string () { return this == PINNED ? "pinned" : "all"; }
+    }
+
+    public enum GroupLayout {
+        VERTICAL,
+        HORIZONTAL;
+
+        public static GroupLayout from_string (string value) {
+            return value == "horizontal" ? HORIZONTAL : VERTICAL;
+        }
+
+        public string to_string () { return this == HORIZONTAL ? "horizontal" : "vertical"; }
+    }
+
     public enum AppListSide {
         LEFT,
         RIGHT;
@@ -142,6 +164,8 @@ namespace XimperShellLauncher {
         public TileSize size;
         public GenericArray<string>? folder_items;
         public string? folder_name;
+        // Runtime-only ALL-mode catalog entry, not a launcher pin.
+        public bool transient;
 
         public TileConfig (string desktop_id, TileSize size) {
             this.desktop_id = desktop_id;

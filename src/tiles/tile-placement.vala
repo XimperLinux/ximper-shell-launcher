@@ -41,12 +41,29 @@ namespace XimperShellLauncher {
         public int cell_size { get; private set; default = 80; }
         public int margin { get; private set; default = 24; }
 
+        public bool horizontal { get; private set; default = false; }
+        public int rows { get; private set; default = 2; }
+        public int content_height { get; private set; default = 160; }
+        public int folder_rows { get { return int.max (1, (content_height - FOLDER_HEADER_H - SPACING + SPACING) / (cell_size + SPACING)); } }
+
+        public bool compute_for_height (int height, int cfg_cell) {
+            int cell = cfg_cell > 0 ? cfg_cell : 70;
+            // Keep a large (2x2) tile accessible even in a short floating menu.
+            cell = int.max (1, int.min (cell, (int.max (8, height) - SPACING) / 2));
+            int count = int.max (2, (height + SPACING) / (cell + SPACING));
+            bool changed = !horizontal || rows != count || cell_size != cell || content_height != height;
+            horizontal = true; rows = count; cell_size = cell;
+            content_height = height; margin = MIN_MARGIN;
+            return changed;
+        }
+
         public const int SPACING = 6;
         public const int MIN_MARGIN = 24;
         public const int FOLDER_HEADER_H = 32;
 
         // Returns true if layout params changed
         public bool compute_for_size (int width, int cfg_cell, int max_col) {
+            horizontal = false;
             int usable = width - MIN_MARGIN * 2;
             if (usable < 200) usable = 200;
 
@@ -82,6 +99,7 @@ namespace XimperShellLauncher {
         }
 
         public GenericArray<CellPlacement> pack (GenericArray<TileConfig> tiles) {
+            if (horizontal) return pack_horizontal (tiles);
             var max_rows = (int) tiles.length * 2 + 4;
             bool[,] occupied = new bool[max_rows, columns];
             var result = new GenericArray<CellPlacement> ();
@@ -105,6 +123,31 @@ namespace XimperShellLauncher {
                 result.add (new CellPlacement (col, row, cs, rs, (int) i));
             }
 
+            return result;
+        }
+
+        private GenericArray<CellPlacement> pack_horizontal (GenericArray<TileConfig> tiles) {
+            int max_columns = (int) tiles.length * 2 + 4;
+            bool[,] occupied = new bool[rows, max_columns];
+            var result = new GenericArray<CellPlacement> ();
+            int cursor = 0;
+            for (uint i = 0; i < tiles.length; i++) {
+                int cs, rs;
+                get_spans (tiles[i].size, out cs, out rs);
+                int col = 0, row = 0;
+                for (int anchor = cursor; anchor < max_columns * rows; anchor++) {
+                    col = anchor / rows; row = anchor % rows;
+                    if (row + rs > rows || col + cs > max_columns) continue;
+                    bool free = true;
+                    for (int r = row; r < row + rs; r++)
+                        for (int c = col; c < col + cs; c++)
+                            if (occupied[r, c]) free = false;
+                    if (free) { cursor = anchor + 1; break; }
+                }
+                for (int r = row; r < row + rs; r++)
+                    for (int c = col; c < col + cs; c++) occupied[r, c] = true;
+                result.add (new CellPlacement (col, row, cs, rs, (int) i));
+            }
             return result;
         }
 
@@ -134,6 +177,7 @@ namespace XimperShellLauncher {
 
         public int compute_folder_height (int item_count) {
             if (item_count <= 0) return 0;
+            if (horizontal) return content_height;
             int rows = (item_count + columns - 1) / columns;
             return rows * (cell_size + SPACING) + FOLDER_HEADER_H + SPACING;
         }

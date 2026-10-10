@@ -40,6 +40,8 @@ namespace XimperShellLauncher {
         private int hit_folder_height = 0;
         private Adw.TimedAnimation? animation;
         private weak Gtk.Widget? source_widget;
+        // Keep the removed source invisible until deferred board destruction.
+        private weak Gtk.Widget? transferred_widget;
         private string? source_id;
         private string? preview_key;
         private string? highlighted_folder;
@@ -86,6 +88,8 @@ namespace XimperShellLauncher {
             gap.set_parent (board);
             target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             target.preload = true;
+            // TileGrid resolves the actual live source board, not the payload
+            // folder name (which is intentionally only unique within a group).
             target.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
             weak TileDragController weak_self = this;
             target.enter.connect ((x, y) => {
@@ -118,8 +122,10 @@ namespace XimperShellLauncher {
                 if (self == null) return false;
                 string? id = value.get_string ();
                 if (id == null || !self.update_hover (id, x, y) || self.candidate == null) return false;
-                self.committed = self.model.commit_candidate (self.candidate);
-                if (self.committed) self.board.drag_layout_committed ();
+                var grid = self.board.group_grid;
+                self.committed = grid != null ? grid.commit_drop (self.board, id, self.candidate) : self.model.commit_candidate (self.candidate);
+                if (self.committed && grid == null) self.board.drag_layout_committed ();
+                if (!self.committed) return false;
                 if (!self.local_drag) self.finish_drag ();
                 return true;
             });
@@ -128,6 +134,7 @@ namespace XimperShellLauncher {
 
         public void begin_source (Gtk.Widget widget, string id) {
             if (disposed) return;
+            transferred_widget = null;
             source_widget = widget;
             source_id = id;
             local_drag = true;
@@ -144,6 +151,14 @@ namespace XimperShellLauncher {
             widget.opacity = 0;
         }
 
+        public void commit_source_transfer () {
+            if (disposed || !local_drag) return;
+            committed = true;
+            transferred_widget = source_widget;
+            if (animation != null) animation.pause ();
+            animation = null;
+        }
+
         public void end_source () {
             if (disposed) return;
             local_drag = false;
@@ -155,7 +170,7 @@ namespace XimperShellLauncher {
             if (positions.length > 0) return;
             int row, height;
             original_folder = board.get_drag_folder_baseline (out row, out height);
-            original_folder_y = folder_y = (row + 1) * (packer.cell_size + GridPacker.SPACING);
+            original_folder_y = folder_y = packer.horizontal ? 0 : (row + 1) * (packer.cell_size + GridPacker.SPACING);
             original_folder_height = folder_height = height;
             var placements = board.get_drag_placements ();
             for (uint i = 0; i < placements.length; i++) {
@@ -188,9 +203,10 @@ namespace XimperShellLauncher {
             if (hit_source_id == id && hit_tiles != null) return true;
             // Pack the remaining tiles once, without either the source or its
             // preview gap. Moving the visual gap must never move input targets.
-            var remaining = model.preview_insert (id, (int) model.tiles.length, allow_new);
+            bool cross = board.group_grid != null && board.group_grid.is_cross_drag (board, id);
+            var remaining = cross ? model.copy_tiles () : model.preview_insert (id, (int) model.tiles.length, allow_new);
             if (remaining == null) return false;
-            for (uint i = 0; i < remaining.length; i++) {
+            if (!cross) for (uint i = 0; i < remaining.length; i++) {
                 if (remaining[i].desktop_id == id) { remaining.remove_index (i); break; }
             }
             // An emptied source folder still exists in the live model until
@@ -231,7 +247,10 @@ namespace XimperShellLauncher {
         private bool update_hover (string id, double x, double y) {
             if (disposed || committed) return committed;
             bool allow_new = app.app_provider.find_by_desktop_id (id) != null;
-            if (!allow_new && original_index (id) < 0) return false;
+            if (id.has_prefix ("folder:") && !local_drag &&
+                !(board.group_grid != null && board.group_grid.source_matches (id))) return false;
+            if (!allow_new && original_index (id) < 0 &&
+                !(board.group_grid != null && board.group_grid.source_matches (id))) return false;
             capture_positions ();
             finishing = false;
             source_id = id;
@@ -248,7 +267,8 @@ namespace XimperShellLauncher {
                 var folder = model.find_folder (folder_name);
                 boundary = folder != null && folder.folder_items != null ? (int) folder.folder_items.length : 0;
             } else if (open_folder != null && !id.has_prefix ("folder:") &&
-                y >= folder_top && y < folder_bottom) {
+                (packer.horizontal ? x >= board.folder_panel_x (hit_tiles) && y >= GridPacker.FOLDER_HEADER_H + GridPacker.SPACING && y < packer.content_height :
+                y >= folder_top && y < folder_bottom)) {
                 folder_anchor_active = false;
                 folder_name = open_folder;
                 boundary = folder_boundary (open_folder, x, y, folder_top);
@@ -257,10 +277,10 @@ namespace XimperShellLauncher {
             }
             string key = id + "|" + (folder_name ?? "") + "|" + boundary.to_string ();
             if (preview_key == key) return candidate != null;
-            var next = folder_name == null
-                ? model.preview_insert (id, boundary, allow_new)
-                : model.preview_folder_insert (folder_name, id, boundary, allow_new);
-            if (next == null) return false;
+            var grid = board.group_grid;
+            var next = grid != null ? grid.preview_drop (board, id, boundary, folder_name) :
+                (folder_name == null ? model.preview_insert (id, boundary, allow_new) : model.preview_folder_insert (folder_name, id, boundary, allow_new));
+            if (next == null) { restore_preview (false); return false; }
             candidate = next;
             candidate_cells = packer.pack (candidate);
             update_folder_geometry ();
@@ -274,10 +294,12 @@ namespace XimperShellLauncher {
             var folder = model.find_folder (name);
             int count = folder != null && folder.folder_items != null ? (int) folder.folder_items.length : 0;
             int stride = packer.cell_size + GridPacker.SPACING;
-            int col = ((int) x - packer.margin) / stride;
-            int row = ((int) y - top) / stride;
-            int index = int.max (0, row) * packer.columns + col.clamp (0, packer.columns - 1);
-            bool after = x - packer.margin - col * stride > packer.cell_size / 2.0;
+            int origin_x = packer.horizontal ? board.folder_panel_x (hit_tiles) : packer.margin;
+            if (packer.horizontal) top = GridPacker.FOLDER_HEADER_H + GridPacker.SPACING;
+            int col = int.max (0, ((int) x - origin_x) / stride);
+            int row = int.max (0, ((int) y - top) / stride);
+            int index = packer.horizontal ? col * packer.folder_rows + row.clamp (0, packer.folder_rows - 1) : row * packer.columns + col.clamp (0, packer.columns - 1);
+            bool after = packer.horizontal ? y - top - row * stride > packer.cell_size / 2.0 : x - origin_x - col * stride > packer.cell_size / 2.0;
             var visible_items = folder != null ? folder.folder_items : null;
             if (hit_tiles != null) {
                 for (uint i = 0; i < hit_tiles.length; i++) {
@@ -331,21 +353,23 @@ namespace XimperShellLauncher {
                 double dy = y < cy ? cy - y : (y > cy + ch ? y - cy - ch : 0);
                 // Choose the row first. Far-right empty space in a short last
                 // row belongs after that row, not to a full row above it.
-                if (dy < nearest_row_distance ||
-                    (dy == nearest_row_distance && dx < nearest_column_distance)) {
-                    nearest_row_distance = dy;
-                    nearest_column_distance = dx;
-                    bool after = y >= cy + ch || (y >= cy && x >= cx + cw / 2.0);
+                double primary = packer.horizontal ? dx : dy;
+                double secondary = packer.horizontal ? dy : dx;
+                if (primary < nearest_row_distance ||
+                    (primary == nearest_row_distance && secondary < nearest_column_distance)) {
+                    nearest_row_distance = primary;
+                    nearest_column_distance = secondary;
+                    bool after = packer.horizontal ? x >= cx + cw || (x >= cx && y >= cy + ch / 2.0) : y >= cy + ch || (y >= cy && x >= cx + cw / 2.0);
                     nearest = index + (after ? 1 : 0);
                 }
             }
-            return y >= grid_bottom ? (int) model.tiles.length : nearest;
+            return !packer.horizontal && y >= grid_bottom ? (int) model.tiles.length : nearest;
         }
 
         private void hit_cell_rect (CellPlacement cell, out int x, out int y, out int w, out int h) {
             x = packer.margin + cell.col * (packer.cell_size + GridPacker.SPACING);
             y = cell.row * (packer.cell_size + GridPacker.SPACING);
-            if (hit_folder_row >= 0 && (cell.row > hit_folder_row ||
+            if (!packer.horizontal && hit_folder_row >= 0 && (cell.row > hit_folder_row ||
                 (cell.row <= hit_folder_row && cell.row + cell.row_span > hit_folder_row + 1)))
                 y += hit_folder_height;
             w = cell.col_span * packer.cell_size + (cell.col_span - 1) * GridPacker.SPACING;
@@ -355,7 +379,7 @@ namespace XimperShellLauncher {
         private void cell_rect (CellPlacement cell, out int x, out int y, out int w, out int h) {
             x = packer.margin + cell.col * (packer.cell_size + GridPacker.SPACING);
             y = cell.row * (packer.cell_size + GridPacker.SPACING);
-            if (has_folder_geometry) {
+            if (has_folder_geometry && !packer.horizontal) {
                 if (preview_folder_row >= 0 && (cell.row > preview_folder_row ||
                     (cell.row <= preview_folder_row && cell.row + cell.row_span > preview_folder_row + 1)))
                     y += preview_folder_height;
@@ -380,7 +404,7 @@ namespace XimperShellLauncher {
             preview_folder_row = -1;
             preview_folder_height = 0;
             folder_preview_bottom = 0;
-            target_folder_y = original_folder_y;
+            target_folder_y = packer.horizontal ? 0 : original_folder_y;
             target_folder_height = 0;
             var folder = candidate_folder (original_folder);
             if (folder == null || folder.folder_items == null) return;
@@ -389,7 +413,7 @@ namespace XimperShellLauncher {
                 if (candidate[cell.config_index].desktop_id != folder.desktop_id) continue;
                 preview_folder_row = cell.row;
                 preview_folder_height = packer.compute_folder_height ((int) folder.folder_items.length);
-                target_folder_y = (cell.row + 1) * (packer.cell_size + GridPacker.SPACING);
+                target_folder_y = packer.horizontal ? 0 : (cell.row + 1) * (packer.cell_size + GridPacker.SPACING);
                 target_folder_height = preview_folder_height;
                 folder_preview_bottom = (int) target_folder_y + preview_folder_height;
                 break;
@@ -431,10 +455,11 @@ namespace XimperShellLauncher {
                         if (board.get_drag_folder (out top, out bottom) != original_folder) break;
                         for (uint k = 0; k < folder.folder_items.length; k++) {
                             if (folder.folder_items[k] != id) continue;
-                            position.target_x = packer.margin + (int) (k % packer.columns) *
-                                (packer.cell_size + GridPacker.SPACING);
-                            position.target_y = top + (int) (k / packer.columns) *
-                                (packer.cell_size + GridPacker.SPACING);
+                            if (packer.horizontal) board.folder_item_position ((int) k, out position.target_x, out position.target_y, candidate);
+                            else {
+                                position.target_x = packer.margin + (int) (k % packer.columns) * (packer.cell_size + GridPacker.SPACING);
+                                position.target_y = top + (int) (k / packer.columns) * (packer.cell_size + GridPacker.SPACING);
+                            }
                             position.hidden = false;
                             break;
                         }
@@ -470,8 +495,11 @@ namespace XimperShellLauncher {
                         folder_preview_bottom = top + rows * (packer.cell_size + GridPacker.SPACING);
                         for (uint j = 0; j < folder.folder_items.length; j++) {
                             if (folder.folder_items[j] != source_id) continue;
-                            gap_x = packer.margin + (int) (j % packer.columns) * (packer.cell_size + GridPacker.SPACING);
-                            gap_y = top + (int) (j / packer.columns) * (packer.cell_size + GridPacker.SPACING);
+                            if (packer.horizontal) board.folder_item_position ((int) j, out gap_x, out gap_y, candidate);
+                            else {
+                                gap_x = packer.margin + (int) (j % packer.columns) * (packer.cell_size + GridPacker.SPACING);
+                                gap_y = top + (int) (j / packer.columns) * (packer.cell_size + GridPacker.SPACING);
+                            }
                             gap_w = gap_h = packer.cell_size;
                             gap.visible = true;
                             break;
@@ -562,7 +590,7 @@ namespace XimperShellLauncher {
             animation = null;
             bool rebuild = committed;
             for (uint i = 0; i < positions.length; i++) {
-                positions[i].placement.widget.opacity = 1;
+                positions[i].placement.widget.opacity = positions[i].placement.widget == transferred_widget ? 0 : 1;
                 positions[i].placement.widget.remove_css_class ("tile-drop-into-folder");
             }
             positions = new GenericArray<DragTilePosition> ();
@@ -587,6 +615,12 @@ namespace XimperShellLauncher {
         public bool get_position (TilePlacement placement, out int x, out int y, out bool hidden) {
             x = y = 0;
             hidden = false;
+            if (placement.widget == transferred_widget) {
+                x = placement.x;
+                y = placement.y;
+                hidden = true;
+                return true;
+            }
             for (uint i = 0; i < positions.length; i++) {
                 var p = positions[i];
                 if (p.placement != placement) continue;
@@ -607,6 +641,17 @@ namespace XimperShellLauncher {
             gap.measure (Gtk.Orientation.HORIZONTAL, -1, out minimum, out natural, null, null);
             gap.measure (Gtk.Orientation.VERTICAL, gap_w, out minimum, out natural, null, null);
             gap.allocate (gap_w, gap_h, -1, new Gsk.Transform ().translate (point));
+        }
+
+        public int folder_panel_left () { return board.folder_panel_x (candidate); }
+
+        public int preview_right () {
+            int edge = gap.visible ? gap_x + gap_w : 0;
+            for (uint i = 0; i < positions.length; i++) {
+                var p = positions[i];
+                if (!p.hidden) edge = int.max (edge, p.target_x + p.placement.w);
+            }
+            return edge;
         }
 
         public int preview_bottom () {

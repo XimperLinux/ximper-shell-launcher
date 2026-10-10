@@ -63,6 +63,10 @@ namespace XimperShellLauncher {
         private SearchBar search_bar;
         private TileGrid tile_grid;
         private Gtk.ScrolledWindow scrolled;
+        private uint tile_drag_scroll_tick;
+        private bool tile_drag_hovering;
+        private double tile_drag_x;
+        private double tile_drag_y;
         private Gtk.Stack content_stack;
         private Adw.ToastOverlay toast_overlay;
         private Gtk.Box background;
@@ -139,6 +143,19 @@ namespace XimperShellLauncher {
             scrolled.vexpand = true;
             scrolled.hexpand = true;
             scrolled.hscrollbar_policy = Gtk.PolicyType.NEVER;
+            var tile_scroll = new Gtk.EventControllerScroll (Gtk.EventControllerScrollFlags.BOTH_AXES);
+            tile_scroll.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
+            tile_scroll.scroll.connect ((dx, dy) => {
+                if (app.config.group_layout != GroupLayout.HORIZONTAL || dx != 0 || dy == 0) return false;
+                // Mouse wheels produce vertical deltas: in the horizontal tile
+                // area they scroll sideways, without affecting the app list.
+                var adjustment = scrolled.hadjustment;
+                double step = tile_scroll.get_unit () == Gdk.ScrollUnit.WHEEL
+                    ? double.max (32, adjustment.step_increment) : 1;
+                adjustment.value += dy * step;
+                return true;
+            });
+            scrolled.add_controller (tile_scroll);
 
             tile_grid = new TileGrid (app);
             tile_grid.tile_activated.connect ((entry) => {
@@ -153,6 +170,40 @@ namespace XimperShellLauncher {
             });
 
             scrolled.set_child (tile_grid);
+            var tile_viewport = tile_grid.get_parent () as Gtk.Viewport;
+            if (tile_viewport != null) tile_viewport.scroll_to_focus = true;
+            weak GridWindow drag_window = this;
+            weak Gtk.Viewport focus_viewport = tile_viewport;
+            tile_grid.drag_state_changed.connect ((active) => {
+                var window = drag_window;
+                if (window == null) return;
+                if (focus_viewport != null) focus_viewport.scroll_to_focus = !active;
+                if (!active) window.stop_tile_drag_scroll ();
+            });
+            scrolled.hadjustment.notify["page-size"].connect (() => {
+                var window = drag_window;
+                if (window != null) window.update_tile_drop_tail ();
+            });
+            scrolled.vadjustment.notify["page-size"].connect (() => {
+                var window = drag_window;
+                if (window != null) window.update_tile_drop_tail ();
+            });
+            var drag_motion = new Gtk.DropControllerMotion ();
+            drag_motion.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
+            drag_motion.enter.connect ((x, y) => {
+                var window = drag_window;
+                if (window != null) window.track_tile_drag_pointer (x, y);
+            });
+            drag_motion.motion.connect ((x, y) => {
+                var window = drag_window;
+                if (window != null) window.track_tile_drag_pointer (x, y);
+            });
+            drag_motion.leave.connect (() => {
+                var window = drag_window;
+                if (window != null) window.stop_tile_drag_scroll ();
+            });
+            scrolled.add_controller (drag_motion);
+            update_tile_drop_tail ();
             browse_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
             browse_box.add_css_class ("application-browser");
             browse_box.append (scrolled);
@@ -348,6 +399,10 @@ namespace XimperShellLauncher {
         }
 
         private void configure_interface () {
+            scrolled.hscrollbar_policy = app.config.group_layout == GroupLayout.HORIZONTAL
+                ? Gtk.PolicyType.AUTOMATIC : Gtk.PolicyType.NEVER;
+            scrolled.vscrollbar_policy = app.config.group_layout == GroupLayout.HORIZONTAL
+                ? Gtk.PolicyType.NEVER : Gtk.PolicyType.AUTOMATIC;
             wofi_mode = app.config.launcher_mode == LauncherMode.WOFI;
             combined_mode = app.config.launcher_mode == LauncherMode.COMBINED;
             remove_css_class ("wofi-mode");
@@ -371,6 +426,7 @@ namespace XimperShellLauncher {
         }
 
         private void setup_config_updates () {
+            app.config.launcher_layout_changed.connect (() => { tile_grid.build_from_config (); });
             app.config.notify["wallpaper-path"].connect (() => {
                 update_wallpaper ();
             });
@@ -616,11 +672,58 @@ namespace XimperShellLauncher {
             toggle_menu ();
         }
 
+        private void update_tile_drop_tail () {
+            tile_grid.set_drop_viewport_size ((int) scrolled.hadjustment.page_size,
+                (int) scrolled.vadjustment.page_size);
+        }
+
+        private void stop_tile_drag_scroll () {
+            tile_drag_hovering = false;
+            if (tile_drag_scroll_tick != 0) {
+                scrolled.remove_tick_callback (tile_drag_scroll_tick);
+                tile_drag_scroll_tick = 0;
+            }
+        }
+
+        private void track_tile_drag_pointer (double x, double y) {
+            tile_drag_x = x;
+            tile_drag_y = y;
+            tile_drag_hovering = true;
+            if (tile_drag_scroll_tick != 0 || !tile_grid.has_active_drag) return;
+            weak GridWindow owner = this;
+            int64 previous_time = 0;
+            tile_drag_scroll_tick = scrolled.add_tick_callback ((widget, clock) => {
+                var window = owner;
+                if (window == null) return Source.REMOVE;
+                if (!window.tile_drag_hovering || !window.tile_grid.has_active_drag || !window.interactive) {
+                    window.tile_drag_scroll_tick = 0;
+                    return Source.REMOVE;
+                }
+                int64 now = clock.get_frame_time ();
+                double dt = previous_time == 0 ? 0 : double.min (0.05, (now - previous_time) / 1000000.0);
+                previous_time = now;
+                bool horizontal = window.app.config.group_layout == GroupLayout.HORIZONTAL;
+                double extent = horizontal ? widget.get_width () : widget.get_height ();
+                double position = horizontal ? window.tile_drag_x : window.tile_drag_y;
+                double edge = double.min (48, extent / 4);
+                double proximity = 0;
+                if (edge > 0 && position < edge) proximity = -double.min (1, (edge - position) / edge);
+                else if (edge > 0 && position > extent - edge) proximity = double.min (1, (position - extent + edge) / edge);
+                if (proximity != 0) {
+                    var adjustment = horizontal ? window.scrolled.hadjustment : window.scrolled.vadjustment;
+                    double speed = (proximity < 0 ? -1 : 1) * (80 + 420 * proximity.abs ());
+                    adjustment.value += speed * dt;
+                }
+                return Source.CONTINUE;
+            });
+        }
+
         public void gamepad_scroll (int direction) {
             if (!interactive) return;
             if (popover_navigator.active) return;
             var adj = list_navigation_active ()
-                ? search_bar.results_widget.vadjustment : scrolled.vadjustment;
+                ? search_bar.results_widget.vadjustment :
+                (app.config.group_layout == GroupLayout.HORIZONTAL ? scrolled.hadjustment : scrolled.vadjustment);
             adj.value += direction * adj.page_size * 0.3;
         }
     }

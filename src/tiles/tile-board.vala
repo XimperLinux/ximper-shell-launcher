@@ -8,6 +8,35 @@ namespace XimperShellLauncher {
         private FolderAnimator animator;
         private TileDragController drag_controller;
         private bool rebuild_after_drag = false;
+        private int viewport_height = 160;
+        public bool horizontal { get { return app.config.group_layout == GroupLayout.HORIZONTAL; } }
+        public TileModel drag_model { get { return model; } }
+        private void update_viewport_height (int height) {
+            viewport_height = int.max (8, height);
+            if (!drag_in_progress &&
+                (group_grid == null || !group_grid.other_board_dragging (this)) &&
+                packer.compute_for_height (viewport_height, app.config.cell_size)) rebuild ();
+        }
+        public int folder_panel_x (GenericArray<TileConfig>? configs = null) {
+            int edge = packer.margin;
+            var cells = packer.pack (configs ?? model.tiles);
+            for (uint i = 0; i < cells.length; i++)
+                edge = int.max (edge, packer.margin + (cells[i].col + cells[i].col_span) * (packer.cell_size + GridPacker.SPACING));
+            return edge + GridPacker.SPACING;
+        }
+        public void folder_item_position (int index, out int x, out int y, GenericArray<TileConfig>? configs = null) {
+            int stride = packer.cell_size + GridPacker.SPACING;
+            x = horizontal ? folder_panel_x (configs) + index / packer.folder_rows * stride : packer.margin + index % packer.columns * stride;
+            y = horizontal ? GridPacker.FOLDER_HEADER_H + GridPacker.SPACING + index % packer.folder_rows * stride :
+                (folder_row + 1) * stride + GridPacker.FOLDER_HEADER_H + GridPacker.SPACING + index / packer.columns * stride;
+        }
+        public void commit_source_transfer () {
+            drag_controller.commit_source_transfer ();
+        }
+        public void apply_drag_candidate (GenericArray<TileConfig> candidate) {
+            model.commit_candidate (candidate);
+            rebuild_after_drag = true;
+        }
 
         private GenericArray<TilePlacement> placements;
         private Gtk.Widget? folder_header;
@@ -20,6 +49,8 @@ namespace XimperShellLauncher {
         private int folder_item_count;
 
         public bool drag_in_progress { get { return drag_controller != null && drag_controller.busy; } }
+        public weak TileGrid? group_grid;
+        public signal void extend_menu (Gtk.Box menu, Gtk.Popover popover, string id);
         public signal void drag_finished ();
         public signal void layout_changed ();
         public signal void tile_activated (AppEntry entry);
@@ -38,9 +69,7 @@ namespace XimperShellLauncher {
             vexpand = true;
             focusable = true;
 
-            if (model.purge_missing (app.app_provider)) {
-                save_directly ();
-            }
+            model.purge_missing (app.app_provider);
 
             setup_keyboard ();
             drag_controller = new TileDragController (this, app, model, packer);
@@ -48,12 +77,6 @@ namespace XimperShellLauncher {
             rebuild ();
         }
 
-        private void save_directly () {
-            var new_groups = new GenericArray<GroupConfig> ();
-            new_groups.add (model.to_group_config (""));
-            app.config.groups = new_groups;
-            app.config.save ();
-        }
 
         private void cleanup_widget (Gtk.Widget widget) {
             var tile = widget as Tile;
@@ -75,15 +98,27 @@ namespace XimperShellLauncher {
                     screen_w = monitor.geometry.width;
                 }
             }
-            packer.compute_for_size (screen_w, app.config.cell_size, app.config.max_columns);
+            if (horizontal) packer.compute_for_height (viewport_height, app.config.cell_size);
+            else packer.compute_for_size (screen_w, app.config.cell_size, app.config.max_columns);
+        }
+
+        private int horizontal_group_width () {
+            int edge = folder_panel_x () - GridPacker.SPACING;
+            if (open_folder_id != null) {
+                int count = model.count_folder_items (open_folder_id, app.app_provider);
+                edge = folder_panel_x () + int.max (1, (count + packer.folder_rows - 1) / packer.folder_rows) * (packer.cell_size + GridPacker.SPACING);
+            }
+            return int.max (200, edge + packer.margin);
         }
 
         private void rebuild () {
             // A Gtk.DragSource must survive until drag_end, even after a drop.
-            if (drag_controller != null && drag_controller.busy) {
+            if ((drag_controller != null && drag_controller.busy) ||
+                (group_grid != null && group_grid.other_board_dragging (this))) {
                 rebuild_after_drag = true;
                 return;
             }
+            if (horizontal) packer.compute_for_height (viewport_height, app.config.cell_size);
             // Remove all children
             for (uint i = 0; i < placements.length; i++) {
                 cleanup_widget (placements[i].widget);
@@ -150,7 +185,7 @@ namespace XimperShellLauncher {
         }
 
         private bool is_below_folder (int row_start, int row_end) {
-            if (open_folder_id == null) return false;
+            if (horizontal || open_folder_id == null) return false;
             if (row_start > folder_row) return true;
             // Large tiles starting at folder row but spanning past it
             if (row_start <= folder_row && row_end > folder_row + 1) return true;
@@ -162,6 +197,10 @@ namespace XimperShellLauncher {
             if (tc.size == TileSize.FOLDER && tc.folder_items != null) {
                 var ftile = new FolderTile (app, tc.folder_name ?? "Folder", tc.folder_items, packer.cell_size);
                 ftile.board_managed_dnd = true;
+                string menu_folder_id = ftile.folder_id;
+                ftile.extend_menu.connect ((menu, popover) => {
+                    if (owner != null) owner.extend_menu (menu, popover, menu_folder_id);
+                });
                 weak FolderTile weak_folder = ftile;
                 ftile.drag_state_changed.connect ((active) => {
                     var source = weak_folder;
@@ -189,6 +228,10 @@ namespace XimperShellLauncher {
 
             var tile = new Tile (entry, tc.size, packer.cell_size);
             tile.board_managed_dnd = true;
+            string menu_app_id = tile.app_entry.desktop_id;
+            tile.extend_menu.connect ((menu, popover) => {
+                if (owner != null) owner.extend_menu (menu, popover, menu_app_id);
+            });
             weak Tile weak_tile = tile;
             tile.drag_state_changed.connect ((active) => {
                 var source = weak_tile;
@@ -215,8 +258,6 @@ namespace XimperShellLauncher {
             var fc = model.find_folder (open_folder_id);
             if (fc == null || fc.folder_items == null) return;
 
-            int base_y = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
-
             // Header label
             var header = new Gtk.Label (fc.folder_name);
             header.add_css_class ("folder-header-label");
@@ -232,7 +273,6 @@ namespace XimperShellLauncher {
             zone.set_parent (this);
             folder_drop_zone = zone;
 
-            int content_y = base_y + GridPacker.FOLDER_HEADER_H + GridPacker.SPACING;
             var fname = fc.folder_name;
             int placed = 0;
 
@@ -243,6 +283,10 @@ namespace XimperShellLauncher {
 
                 var tile = new Tile (entry, TileSize.SMALL, packer.cell_size);
                 tile.board_managed_dnd = true;
+                string menu_item_id = tile.app_entry.desktop_id;
+                tile.extend_menu.connect ((menu, popover) => {
+                    if (owner != null) owner.extend_menu (menu, popover, menu_item_id);
+                });
                 weak Tile weak_tile = tile;
                 tile.drag_state_changed.connect ((active) => {
                     var source = weak_tile;
@@ -260,10 +304,8 @@ namespace XimperShellLauncher {
                     if (owner != null) owner.on_reorder_in_folder (fname, src_id, tgt_id);
                 });
 
-                int col = placed % packer.columns;
-                int row = placed / packer.columns;
-                int x = packer.margin + col * (packer.cell_size + GridPacker.SPACING);
-                int y = content_y + row * (packer.cell_size + GridPacker.SPACING);
+                int x, y;
+                folder_item_position (placed, out x, out y);
 
                 tile.set_parent (this);
                 var placement = new TilePlacement (tile, x, y, packer.cell_size, packer.cell_size);
@@ -278,7 +320,11 @@ namespace XimperShellLauncher {
         // --- Widget overrides ---
 
         protected override void size_allocate (int width, int height, int baseline) {
-            if (!drag_controller.busy &&
+            // Unlike Gtk.Box (whose layout manager allocates its children), this
+            // custom widget receives the actual content allocation here. Header,
+            // search and container margins have already been accounted for.
+            if (horizontal) update_viewport_height (height);
+            if (!horizontal && !drag_controller.busy &&
                 packer.compute_for_size (width, app.config.cell_size, app.config.max_columns)) {
                 rebuild ();
             }
@@ -315,7 +361,7 @@ namespace XimperShellLauncher {
             }
 
             drag_controller.allocate_gap ();
-            int folder_render_y = (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
+            int folder_render_y = horizontal ? 0 : (folder_row + 1) * (packer.cell_size + GridPacker.SPACING);
             int folder_render_height = animated_offset;
             int drag_folder_y, drag_folder_height;
             bool folder_visible = true;
@@ -327,9 +373,9 @@ namespace XimperShellLauncher {
             }
 
             if (folder_header != null) {
-                int hx = packer.margin + 8;
+                int hx = (horizontal ? drag_controller.folder_panel_left () : packer.margin) + 8;
                 int hy = folder_render_y;
-                int hw = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
+                int hw = horizontal ? int.max (packer.cell_size, width - hx - packer.margin) : packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
 
                 int mw2, nw2, mh2, nh2;
                 folder_header.measure (Gtk.Orientation.HORIZONTAL, -1, out mw2, out nw2, null, null);
@@ -343,10 +389,10 @@ namespace XimperShellLauncher {
             }
 
             if (folder_drop_zone != null && folder_row >= 0) {
-                int zone_x = packer.margin;
+                int zone_x = horizontal ? drag_controller.folder_panel_left () : packer.margin;
                 int zone_y = folder_render_y;
-                int zone_w = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
-                int zone_h = folder_render_height;
+                int zone_w = horizontal ? int.max (packer.cell_size, width - zone_x - packer.margin) : packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
+                int zone_h = horizontal ? viewport_height : folder_render_height;
                 folder_drop_zone.opacity = folder_visible ? 1 : 0;
 
                 int zmw, znw, zmh, znh;
@@ -360,7 +406,7 @@ namespace XimperShellLauncher {
         }
 
         protected override Gtk.SizeRequestMode get_request_mode () {
-            return Gtk.SizeRequestMode.HEIGHT_FOR_WIDTH;
+            return horizontal ? Gtk.SizeRequestMode.CONSTANT_SIZE : Gtk.SizeRequestMode.HEIGHT_FOR_WIDTH;
         }
 
         protected override void measure (Gtk.Orientation orientation, int for_size,
@@ -370,9 +416,14 @@ namespace XimperShellLauncher {
             natural_baseline = -1;
 
             if (orientation == Gtk.Orientation.HORIZONTAL) {
-                minimum = 200;
-                natural = packer.columns * (packer.cell_size + GridPacker.SPACING) + packer.margin * 2;
+                if (app.config.group_layout == GroupLayout.HORIZONTAL) {
+                    minimum = natural = int.max (horizontal_group_width (), drag_controller.preview_right () + packer.margin);
+                } else {
+                    minimum = 200;
+                    natural = packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING + packer.margin * 2;
+                }
             } else {
+                if (horizontal) { minimum = natural = 0; return; }
                 int ao = compute_animated_offset ();
                 int max_bot = 0;
                 for (uint i = 0; i < placements.length; i++) {
@@ -421,6 +472,7 @@ namespace XimperShellLauncher {
         }
 
         private int compute_animated_offset () {
+            if (horizontal) return 0;
             int uniform_offset = target_folder_height;
             for (uint i = 0; i < placements.length; i++) {
                 if (!placements[i].below) continue;
@@ -444,6 +496,7 @@ namespace XimperShellLauncher {
         }
 
         public bool drag_cell_below_folder (int first_row, int last_row) {
+            if (horizontal) return false;
             if (!drag_controller.has_folder_geometry) return is_below_folder (first_row, last_row);
             int row = drag_controller.preview_folder_row;
             return row >= 0 && (first_row > row || (first_row <= row && last_row > row + 1));
@@ -454,6 +507,11 @@ namespace XimperShellLauncher {
         }
 
         public string? get_drag_folder (out int top, out int bottom) {
+            if (horizontal) {
+                top = GridPacker.FOLDER_HEADER_H + GridPacker.SPACING;
+                bottom = viewport_height;
+                return open_folder_id;
+            }
             int row = drag_controller.has_folder_geometry ? drag_controller.preview_folder_row : folder_row;
             int height = drag_controller.has_folder_geometry ? drag_controller.preview_folder_height : target_folder_height;
             top = (row + 1) * (packer.cell_size + GridPacker.SPACING)
@@ -464,6 +522,7 @@ namespace XimperShellLauncher {
 
         private void begin_tile_drag (Gtk.Widget source, string id) {
             animator.reset ();
+            if (group_grid != null) group_grid.begin_drag (this, id);
             drag_controller.begin_source (source, id);
             queue_allocate ();
         }
@@ -479,13 +538,22 @@ namespace XimperShellLauncher {
             }
             queue_resize ();
             queue_allocate ();
+            if (group_grid != null) group_grid.end_drag (this);
             drag_finished ();
         }
 
         // --- Folder animation ---
 
         private void toggle_folder (FolderTile folder, int cell_row) {
+            if (drag_in_progress) return;
             animator.cancel ();
+            if (horizontal) {
+                open_folder_id = open_folder_id == folder.folder_name ? null : folder.folder_name;
+                animator.reset ();
+                rebuild ();
+                if (open_folder_id != null) focus_folder_first ();
+                return;
+            }
 
             if (open_folder_id == folder.folder_name) {
                 // Close same folder: cascade out → slide up → rebuild
@@ -574,7 +642,7 @@ namespace XimperShellLauncher {
             for (uint i = 0; i < placements.length; i++) {
                 var p = placements[i];
                 int last_row = (p.y + p.h - 1) / (packer.cell_size + GridPacker.SPACING);
-                p.below = last_row > folder_row;
+                p.below = !horizontal && last_row > folder_row;
             }
         }
 
@@ -588,15 +656,20 @@ namespace XimperShellLauncher {
 
         private bool on_key_pressed (uint keyval, uint keycode, Gdk.ModifierType state) {
             switch (keyval) {
-                case Gdk.Key.Left: return navigate_focus (-1, 0);
-                case Gdk.Key.Right: return navigate_focus (1, 0);
-                case Gdk.Key.Up: return navigate_focus (0, -1);
-                case Gdk.Key.Down: return navigate_focus (0, 1);
+                case Gdk.Key.Left: return route_navigation (-1, 0);
+                case Gdk.Key.Right: return route_navigation (1, 0);
+                case Gdk.Key.Up: return route_navigation (0, -1);
+                case Gdk.Key.Down: return route_navigation (0, 1);
                 case Gdk.Key.Return:
                 case Gdk.Key.KP_Enter:
                 case Gdk.Key.space: return activate_focused ();
                 default: return false;
             }
+        }
+
+        private bool route_navigation (int dx, int dy) {
+            if (group_grid != null) return group_grid.navigate_groups (dx, dy);
+            return navigate_focus (dx, dy);
         }
 
         public int get_focused_index () {
@@ -614,13 +687,18 @@ namespace XimperShellLauncher {
             return get_visual_y (placements[idx]);
         }
 
-        public void focus_first () {
-            if (placements.length > 0) {
-                set_tile_focus (0);
-            }
+        public bool focus_first () {
+            if (placements.length == 0) return false;
+            set_tile_focus (0);
+            return true;
+        }
+
+        public void clear_tile_focus () {
+            for (uint i = 0; i < placements.length; i++) placements[i].widget.remove_css_class ("tile-focused");
         }
 
         private void set_tile_focus (int idx) {
+            if (group_grid != null) group_grid.clear_other_focus (this);
             for (uint i = 0; i < placements.length; i++) {
                 placements[i].widget.remove_css_class ("tile-focused");
             }
@@ -803,7 +881,8 @@ namespace XimperShellLauncher {
         }
 
         public void close_open_folder () {
-            if (open_folder_id == null) return;
+            if (open_folder_id == null || drag_in_progress) return;
+            if (horizontal) { close_folder_state (); rebuild (); return; }
             animator.cancel ();
             animator.run_cascade (animator.cascade_progress, 0.0, () => {
                 animator.run_slide (animator.slide_progress, 0.0, () => {
@@ -819,8 +898,8 @@ namespace XimperShellLauncher {
             }
         }
 
-        public GroupConfig to_config (string group_name) {
-            return model.to_group_config (group_name);
+        public GroupConfig to_config (string group_name, bool include_transient = false) {
+            return model.to_group_config (group_name, include_transient);
         }
 
         private bool cleaned_up = false;

@@ -74,6 +74,8 @@ This example includes sample applications/providers, not a universal initial lay
   "cell_size": 0,
   "layer": "overlay",
   "launcher_mode": "tiles",
+  "tile_mode": "all",
+  "group_layout": "vertical",
   "app_list_side": "left",
   "app_list_sort": "alphabetical",
   "search_sort": "relevance",
@@ -114,10 +116,12 @@ This example includes sample applications/providers, not a universal initial lay
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `max_columns` | int | `0` | Column limit (0 = automatic, capped at 18); actual grid has at least 4 columns and rounds odd counts down to an even count |
-| `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
+| `max_columns` | int | `0` | Column limit in vertical layout (0 = automatic, capped at 18); actual grid has at least 4 columns and rounds odd counts down to an even count. Horizontal group growth is not capped by this setting |
+| `cell_size` | int | `0` | Cell size in pixels (0 = automatic from board width in vertical layout, 70 in horizontal layout) |
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"`, compact `"wofi"`, or `"combined"` (list + tiles) |
+| `tile_mode` | string | `"all"` | Tile area: `"all"` applications or only launcher `"pinned"` entries. Independent of `launcher_mode`; applies to `tiles` and `combined` |
+| `group_layout` | string | `"vertical"` | Groups stacked `"vertical"` or side by side `"horizontal"` with horizontal scrolling; independent of tile mode |
 | `app_list_side` | string | `"left"` | Application list side in combined mode: `"left"` or `"right"` |
 | `app_list_sort` | string | `"alphabetical"` | Empty-query list in Wofi/combined: `"alphabetical"` with letter headers, or `"relevance"` by launch frequency |
 | `search_sort` | string | `"relevance"` | Local search results: `"relevance"` by match score and launch frequency, or `"alphabetical"`; provider order is unchanged |
@@ -173,7 +177,13 @@ Slide moves the **whole menu from/to the selected usable-screen edge, without fa
 
 ### Layout, migration, and limits
 
-The first configuration is generated from installed visible applications: categories with at least two applications become folders. Other applications are added as small tiles. Configured groups are merged into one board; saving layout writes one unnamed group. Missing/hidden applications are purged, and folders with fewer than two items are ungrouped when the board is rebuilt. Applications not represented in the layout are automatically added, so removing a standalone tile is not permanent application hiding.
+The first configuration is generated from installed visible applications: categories with at least two applications become folders. Other applications are added as small tiles. Groups retain their names, order, tiles and folders separately when saving. Missing/hidden apps are omitted and removed on the next layout save. Empty and single-item folders are retained.
+
+In `all` mode, applications absent from saved groups appear as transient entries in the unnamed Applications group, without being pinned. Creating/renaming groups does not pin the entire catalog. Explicitly moving/resizing a tile or putting it in a folder saves (pins) it. In `pinned` mode only saved `groups` entries are displayed; the existing saved layout already counts as pinned. Tile and application-list context menus offer launcher pin/unpin separately from Dock. Unpinned apps remain in the catalog in `all`, disappear from tiles in `pinned`, and remain searchable/listed in either mode.
+
+Groups are separated by titles and spacing, without their own backgrounds. Header actions appear on hover or keyboard focus: rename the group, create an empty folder, or add a group with `+`. In an empty layout `+` remains visible. Convert folder to group replaces a folder with a new group bearing its name and all its applications. Move to group context-menu actions move tiles/folders between groups. Drag-and-drop works within and across groups: move tiles and entire folders, insert apps into another group's folder, or extract apps from an open folder. Previews do not mutate config; successful drops commit both groups with one save, while cancellation preserves the baseline. Tile size and folder contents are retained. Moving the last entry automatically removes the emptied source group, including menu moves and converting its last folder into a group. Intentionally created empty groups are retained for later additions. Drops are rejected without changes if the destination already has a same-named folder or any of the moved apps. Folder names must be unique within a group. Dragging a launcher tile or folder reveals a New group drop zone after the last group. Dropping there creates a group and moves the entry without duplication; cancellation creates nothing. The new group is named Group and can be renamed using its header. An empty tail of approximately half the visible tile viewport is permanently reserved after the last group, so it can be scrolled into view before dragging. The zone label and border are only visible during dragging. Holding a dragged tile near the tile-area edge smoothly scrolls in that direction; dropping or leaving the area stops auto-scrolling.
+
+For a Windows 10-like structure use `launcher_mode: "combined"`, `tile_mode: "pinned"`, `group_layout: "vertical"`, `app_list_side: "left"`. For Windows 8.1-inspired horizontal groups use `group_layout: "horizontal"` in either tile mode. Apply configuration edits with `--reload`. Horizontal groups fill downward within the actual allocated tile-area height, then grow columns to the right and shift later groups. Tile scrolling is horizontal only; the height accounts for search, headers and floating/fullscreen window geometry. In this layout `max_columns` does not cap group growth; `cell_size` controls cell size (shrinking in very short areas to fit a large tile). Open folders expand into a separate panel to the right of their group's tiles, also height-bounded and growing right. Vertical layout and its folder animations remain unchanged. These are structural options, not pixel-identical Windows themes.
 
 If the launcher config is absent, legacy `ximper-shell/tile-menu/config.json` is copied. Numeric layers, `monitor_index`, and `wofi_width`/`wofi_height` are migrated and saved during loading. Defaults in the table describe scalar settings; `groups` depend on installed applications. Metadata ranges from `--describe` are advisory, not loader validation: `max_columns` metadata is 0–20, floating dimensions 1–10000, while the runtime limits above apply. Positive column limits are not capped at 18. Position presets additionally fit the requested size to the monitor; custom placement does not. `output` selection applies only to floating windows. Fullscreen uses whole-output anchoring; floating respects reserved panel space (exclusive zone 0 versus fullscreen -1).
 

@@ -130,3 +130,39 @@ msgstr ""
 #: src/tile.vala:190
 msgid "Remove"
 msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Create group"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Rename group"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Folder"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Group"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Move to group: %s"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "Convert folder to group"
+msgstr ""
+
+#: src/tiles/tile-grid.vala src/search/application-list.vala
+msgid "Pin to Launcher"
+msgstr ""
+
+#: src/tiles/tile-grid.vala src/search/application-list.vala
+msgid "Unpin from Launcher"
+msgstr ""
+
+#: src/tiles/tile-grid.vala
+msgid "New group"
+msgstr ""

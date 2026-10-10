@@ -119,6 +119,7 @@ namespace XimperShellLauncher {
             add_owned_controller (target);
         }
 
+        public signal void extend_menu (Gtk.Box menu, Gtk.Popover popover);
         public signal void ungroup_requested (FolderTile folder);
         public signal void rename_requested (FolderTile folder, string new_name);
 
@@ -155,6 +156,7 @@ namespace XimperShellLauncher {
             });
             menu_box.append (ungroup_btn);
 
+            extend_menu (menu_box, popover);
             popover.set_child (menu_box);
             popover.popup ();
             active_popover = popover;

@@ -9,6 +9,8 @@ namespace XimperShellLauncher {
         public int cell_size { get; set; default = 0; }
         public string layer { get; set; default = "overlay"; }
         public LauncherMode launcher_mode { get; set; default = LauncherMode.TILES; }
+        public TileMode tile_mode { get; set; default = TileMode.ALL; }
+        public GroupLayout group_layout { get; set; default = GroupLayout.VERTICAL; }
         public AppListSide app_list_side { get; set; default = AppListSide.LEFT; }
         public AppListSort app_list_sort { get; set; default = AppListSort.ALPHABETICAL; }
         public AppListSort search_sort { get; set; default = AppListSort.RELEVANCE; }
@@ -38,6 +40,7 @@ namespace XimperShellLauncher {
         public string config_file { get { return config_path; } }
 
         public signal void output_changed ();
+        public signal void launcher_layout_changed ();
 
         public ConfigManager () {
             output = new GenericArray<string> ();
@@ -83,6 +86,10 @@ namespace XimperShellLauncher {
                 }
                 if (root.has_member ("launcher_mode"))
                     launcher_mode = LauncherMode.from_string (root.get_string_member ("launcher_mode"));
+                if (root.has_member ("tile_mode"))
+                    tile_mode = TileMode.from_string (root.get_string_member ("tile_mode"));
+                if (root.has_member ("group_layout"))
+                    group_layout = GroupLayout.from_string (root.get_string_member ("group_layout"));
                 if (root.has_member ("app_list_side"))
                     app_list_side = AppListSide.from_string (root.get_string_member ("app_list_side"));
                 if (root.has_member ("app_list_sort"))
@@ -208,6 +215,8 @@ namespace XimperShellLauncher {
             cell_size = 0;
             layer = "overlay";
             launcher_mode = LauncherMode.TILES;
+            tile_mode = TileMode.ALL;
+            group_layout = GroupLayout.VERTICAL;
             app_list_side = AppListSide.LEFT;
             app_list_sort = AppListSort.ALPHABETICAL;
             search_sort = AppListSort.RELEVANCE;
@@ -256,6 +265,53 @@ namespace XimperShellLauncher {
             output_changed ();
         }
 
+        // Group membership is launcher pinning, independent of Dock pins.
+        public bool is_pinned_in_launcher (string desktop_id) {
+            for (uint i = 0; i < groups.length; i++) {
+                for (uint j = 0; j < groups[i].tiles.length; j++) {
+                    var tile = groups[i].tiles[j];
+                    if (tile.size != TileSize.FOLDER && tile.desktop_id == desktop_id) return true;
+                    if (tile.folder_items != null) {
+                        for (uint k = 0; k < tile.folder_items.length; k++)
+                            if (tile.folder_items[k] == desktop_id) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public void pin_in_launcher (string desktop_id) {
+            if (is_pinned_in_launcher (desktop_id)) return;
+            if (groups.length == 0) groups.add (new GroupConfig (""));
+            groups[0].tiles.add (new TileConfig (desktop_id, TileSize.SMALL));
+            save ();
+            launcher_layout_changed ();
+        }
+
+        public void unpin_from_launcher (string desktop_id) {
+            bool changed = false;
+            for (uint i = 0; i < groups.length; i++) {
+                var tiles = groups[i].tiles;
+                for (int j = (int) tiles.length - 1; j >= 0; j--) {
+                    var tile = tiles[j];
+                    if (tile.size != TileSize.FOLDER && tile.desktop_id == desktop_id) {
+                        tiles.remove_index (j);
+                        changed = true;
+                    } else if (tile.folder_items != null) {
+                        for (int k = (int) tile.folder_items.length - 1; k >= 0; k--) {
+                            if (tile.folder_items[k] == desktop_id) {
+                                tile.folder_items.remove_index (k);
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!changed) return;
+            save ();
+            launcher_layout_changed ();
+        }
+
         public void save () {
             var builder = new Json.Builder ();
 
@@ -269,6 +325,10 @@ namespace XimperShellLauncher {
             builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("launcher_mode");
             builder.add_string_value (launcher_mode.to_string ());
+            builder.set_member_name ("tile_mode");
+            builder.add_string_value (tile_mode.to_string ());
+            builder.set_member_name ("group_layout");
+            builder.add_string_value (group_layout.to_string ());
             builder.set_member_name ("app_list_side");
             builder.add_string_value (app_list_side.to_string ());
             builder.set_member_name ("app_list_sort");

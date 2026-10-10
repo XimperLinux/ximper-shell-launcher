@@ -34,8 +34,7 @@ namespace XimperShellLauncher {
             for (uint i = 0; i < tiles.length; i++) {
                 if (tiles[i].size == TileSize.FOLDER &&
                     tiles[i].folder_name == name &&
-                    tiles[i].folder_items != null &&
-                    tiles[i].folder_items.length > 0)
+                    tiles[i].folder_items != null)
                     return true;
             }
             return false;
@@ -52,11 +51,12 @@ namespace XimperShellLauncher {
             return count;
         }
 
-        private GenericArray<TileConfig> copy_tiles () {
+        public GenericArray<TileConfig> copy_tiles () {
             var result = new GenericArray<TileConfig> ();
             for (uint i = 0; i < tiles.length; i++) {
                 var tc = new TileConfig (tiles[i].desktop_id, tiles[i].size);
                 tc.folder_name = tiles[i].folder_name;
+                tc.transient = tiles[i].transient;
                 if (tiles[i].folder_items != null) {
                     tc.folder_items = new GenericArray<string> ();
                     for (uint j = 0; j < tiles[i].folder_items.length; j++)
@@ -85,14 +85,53 @@ namespace XimperShellLauncher {
                 for (uint j = 0; j < folder.folder_items.length; j++) {
                     if (folder.folder_items[j] != id) continue;
                     folder.folder_items.remove_index (j);
-                    if (folder.folder_items.length == 0) {
-                        candidate.remove_index (i);
-                        removed_index = (int) i;
-                    }
                     return new TileConfig (id, TileSize.SMALL);
                 }
             }
             return null;
+        }
+
+        public TileConfig? detached_source (string id, out GenericArray<TileConfig> remaining) {
+            remaining = copy_tiles ();
+            int removed;
+            return take_source (remaining, id, out removed);
+        }
+
+        public bool contains_app (string id) {
+            if (find_index (id) >= 0) return true;
+            for (uint i = 0; i < tiles.length; i++) {
+                var items = tiles[i].folder_items;
+                for (uint j = 0; items != null && j < items.length; j++)
+                    if (items[j] == id) return true;
+            }
+            return false;
+        }
+
+        public GenericArray<TileConfig>? preview_receive (TileConfig source, int boundary, string? folder_name) {
+            if (source.size == TileSize.FOLDER) {
+                // Folder names identify widgets within one board; reject a
+                // collision rather than silently merging unrelated folders.
+                if (folder_name != null || find_folder (source.folder_name ?? "") != null) return null;
+                if (source.folder_items != null)
+                    for (uint i = 0; i < source.folder_items.length; i++)
+                        if (contains_app (source.folder_items[i])) return null;
+            } else if (contains_app (source.desktop_id)) return null;
+            var candidate = copy_tiles ();
+            source.transient = false;
+            if (folder_name == null) {
+                if (boundary < 0 || boundary > candidate.length) return null;
+                candidate.insert (boundary, source);
+            } else {
+                if (source.size == TileSize.FOLDER) return null;
+                TileConfig? folder = null;
+                for (uint i = 0; i < candidate.length; i++)
+                    if (candidate[i].size == TileSize.FOLDER && candidate[i].folder_name == folder_name) folder = candidate[i];
+                if (folder == null) return null;
+                if (folder.folder_items == null) folder.folder_items = new GenericArray<string> ();
+                if (boundary < 0 || boundary > folder.folder_items.length) return null;
+                folder.folder_items.insert (boundary, source.desktop_id);
+            }
+            return candidate;
         }
 
         // Boundary is an index in the ORIGINAL live array, not the candidate.
@@ -107,6 +146,7 @@ namespace XimperShellLauncher {
                 source = new TileConfig (source_id, TileSize.SMALL);
             }
             if (removed >= 0 && removed < boundary) boundary--;
+            source.transient = false;
             candidate.insert (boundary, source);
             return candidate;
         }
@@ -148,7 +188,7 @@ namespace XimperShellLauncher {
             for (uint i = 0; same && i < tiles.length; i++) {
                 var a = tiles[i];
                 var b = candidate[i];
-                same = a.desktop_id == b.desktop_id && a.size == b.size && a.folder_name == b.folder_name;
+                same = a.desktop_id == b.desktop_id && a.size == b.size && a.folder_name == b.folder_name && a.transient == b.transient;
                 if ((a.folder_items == null) != (b.folder_items == null)) same = false;
                 if (same && a.folder_items != null && b.folder_items != null) {
                     same = a.folder_items.length == b.folder_items.length;
@@ -214,6 +254,7 @@ namespace XimperShellLauncher {
         }
 
         public bool rename_folder (string old_name, string new_name) {
+            if (old_name != new_name && has_folder (new_name)) return false;
             for (uint i = 0; i < tiles.length; i++) {
                 if (tiles[i].size == TileSize.FOLDER && tiles[i].folder_name == old_name) {
                     tiles[i].folder_name = new_name;
@@ -275,7 +316,10 @@ namespace XimperShellLauncher {
 
             var items = new GenericArray<string> ();
             items.add (desktop_id);
-            tiles.insert (idx, new TileConfig.folder (app_name, items));
+            string name = app_name;
+            int suffix = 2;
+            while (has_folder (name)) name = "%s (%d)".printf (app_name, suffix++);
+            tiles.insert (idx, new TileConfig.folder (name, items));
             return true;
         }
 
@@ -292,17 +336,6 @@ namespace XimperShellLauncher {
                         changed = true;
                     }
                 }
-                // If folder has fewer than 2 items, ungroup
-                if (tc.size == TileSize.FOLDER && tc.folder_items.length < 2) {
-                    var insert_pos = (int) i + 1;
-                    for (uint k = 0; k < tc.folder_items.length; k++) {
-                        tiles.insert (insert_pos, new TileConfig (tc.folder_items[k], TileSize.SMALL));
-                        insert_pos++;
-                    }
-                    tiles.remove_index (i);
-                    changed = true;
-                    i--;
-                }
             }
 
             // Remove standalone tiles for missing apps
@@ -318,12 +351,17 @@ namespace XimperShellLauncher {
             return changed;
         }
 
-        public GroupConfig to_group_config (string group_name) {
+        public GroupConfig to_group_config (string group_name, bool include_transient = false) {
             var config = new GroupConfig (group_name);
             for (uint i = 0; i < tiles.length; i++) {
+                if (tiles[i].transient && !include_transient) continue;
                 var tc = new TileConfig (tiles[i].desktop_id, tiles[i].size);
                 tc.folder_name = tiles[i].folder_name;
-                tc.folder_items = tiles[i].folder_items;
+                if (tiles[i].folder_items != null) {
+                    tc.folder_items = new GenericArray<string> ();
+                    for (uint j = 0; j < tiles[i].folder_items.length; j++)
+                        tc.folder_items.add (tiles[i].folder_items[j]);
+                }
                 config.tiles.add (tc);
             }
             return config;

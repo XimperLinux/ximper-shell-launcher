@@ -16,6 +16,10 @@ namespace XimperShellLauncher {
         builder.add_string_value (config.layer);
         builder.set_member_name ("launcher_mode");
         builder.add_string_value (config.launcher_mode.to_string ());
+        builder.set_member_name ("tile_mode");
+        builder.add_string_value (config.tile_mode.to_string ());
+        builder.set_member_name ("group_layout");
+        builder.add_string_value (config.group_layout.to_string ());
         builder.set_member_name ("app_list_side");
         builder.add_string_value (config.app_list_side.to_string ());
         builder.set_member_name ("app_list_sort");
@@ -137,6 +141,12 @@ namespace XimperShellLauncher {
         );
         add_enum_property (
             builder, "launcher_mode", "Launcher mode", "tiles", { "tiles", "wofi", "combined" }
+        );
+        add_enum_property (
+            builder, "tile_mode", "Tile mode", "all", { "all", "pinned" }
+        );
+        add_enum_property (
+            builder, "group_layout", "Group layout", "vertical", { "vertical", "horizontal" }
         );
         add_enum_property (
             builder, "app_list_side", "Application list side", "left", { "left", "right" }

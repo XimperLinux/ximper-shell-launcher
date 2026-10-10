@@ -21,6 +21,7 @@ namespace XimperShellLauncher {
         public signal void pin_to_dock_requested (Tile tile);
         public signal void unpin_from_dock_requested (Tile tile);
         public signal void create_folder_requested (Tile tile);
+        public signal void extend_menu (Gtk.Box menu, Gtk.Popover popover);
 
         public Tile (AppEntry entry, TileSize size, int cell_px = 64) {
             this.app_entry = entry;
@@ -191,8 +192,11 @@ namespace XimperShellLauncher {
                 popover.popdown ();
                 remove_requested (this);
             });
-            menu_box.append (remove_btn);
+            // Group-managed tiles expose the explicit launcher pin/unpin
+            // action supplied by TileGrid instead of an ambiguous Remove.
+            if (!board_managed_dnd) menu_box.append (remove_btn);
 
+            extend_menu (menu_box, popover);
             popover.set_child (menu_box);
             popover.popup ();
             menu_visible = true;

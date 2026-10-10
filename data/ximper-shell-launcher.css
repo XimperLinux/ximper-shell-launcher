@@ -201,13 +201,38 @@
 /* Groups */
 .tile-group {
     margin-bottom: 12px;
+    min-width: 280px;
+}
+
+/* Horizontal boards consume the full available height below the header. */
+.tile-grid.horizontal-groups .tile-group {
+    margin-bottom: 0;
 }
 
 .tile-group-header {
     font-weight: bold;
     font-size: 15px;
     color: @window_fg_color;
-    padding: 8px 4px;
+    padding: 4px 0;
+}
+
+/* Hidden actions keep their space so hovering never shifts the title or tiles. */
+.tile-group-actions button {
+    padding: 4px;
+}
+
+/* Only shown during a launcher tile/folder drag, never a permanent button. */
+.new-group-drop-zone {
+    border: 1px dashed alpha(@window_fg_color, 0.25);
+    border-radius: 8px;
+    padding: 12px;
+    color: alpha(@window_fg_color, 0.65);
+}
+
+.new-group-drop-zone.drop-active {
+    border-color: @accent_bg_color;
+    background-color: alpha(@accent_bg_color, 0.12);
+    color: @window_fg_color;
 }
 
 /* Folders */

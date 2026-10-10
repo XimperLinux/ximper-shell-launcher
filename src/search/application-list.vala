@@ -370,6 +370,18 @@ namespace XimperShellLauncher {
                 });
                 box.append (button);
             }
+            if (box.get_first_child () != null)
+                box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
+            bool launcher_pinned = app.config.is_pinned_in_launcher (entry.desktop_id);
+            var launcher_button = new Gtk.Button.with_label (
+                launcher_pinned ? _("Unpin from Launcher") : _("Pin to Launcher"));
+            launcher_button.add_css_class ("flat");
+            launcher_button.clicked.connect (() => {
+                popover.popdown ();
+                if (launcher_pinned) app.config.unpin_from_launcher (entry.desktop_id);
+                else app.config.pin_in_launcher (entry.desktop_id);
+            });
+            box.append (launcher_button);
             if (app.is_dock_running ()) {
                 if (box.get_first_child () != null)
                     box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
