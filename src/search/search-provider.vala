@@ -1,5 +1,33 @@
 namespace XimperShellLauncher {
 
+    private class ProviderSearchBatch : Object {
+        public string query;
+        public string[] terms;
+        public uint64 generation;
+        public Cancellable cancellable = new Cancellable ();
+        public GenericArray<ProviderSearchJob> jobs = new GenericArray<ProviderSearchJob> ();
+        public uint pending = 0;
+        public signal void finished ();
+        public ProviderSearchBatch (string query, uint64 generation) {
+            this.query = query;
+            this.terms = query.split (" ");
+            this.generation = generation;
+        }
+    }
+
+    private class ProviderSearchJob : Object {
+        public ProviderSearchBatch batch;
+        public SearchProviderInfo provider;
+        public GenericArray<string>? previous_ids;
+        public GenericArray<string> ids = new GenericArray<string> ();
+        public GenericArray<SearchResult> results = new GenericArray<SearchResult> ();
+        public bool succeeded = false;
+        public ProviderSearchJob (ProviderSearchBatch batch, SearchProviderInfo provider) {
+            this.batch = batch;
+            this.provider = provider;
+        }
+    }
+
     public class SearchProviderManager : Object {
 
         public GenericArray<SearchProviderInfo> providers;
@@ -103,64 +131,136 @@ namespace XimperShellLauncher {
             new HashTable<string, GenericArray<string>> (str_hash, str_equal);
         private string? prev_query = null;
 
+        private const uint MAX_ACTIVE_JOBS = 4;
+        private uint active_jobs = 0;
+        private uint64 generation = 0;
+        private ProviderSearchBatch? current_batch;
+        private GenericArray<ProviderSearchJob> queue = new GenericArray<ProviderSearchJob> ();
+        private bool pumping = false;
+
+        private bool is_current (ProviderSearchBatch batch) {
+            return batch.generation == generation && !batch.cancellable.is_cancelled ();
+        }
+
+        private void settle_job (ProviderSearchJob job) {
+            if (--job.batch.pending == 0) {
+                var batch = job.batch;
+                // Defer even synchronous completion until search reaches yield.
+                Idle.add (() => { batch.finished (); return Source.REMOVE; });
+            }
+        }
+
+        private void pump_queue () {
+            if (pumping) return;
+            pumping = true;
+            uint i = 0;
+            while (i < queue.length) {
+                var job = queue[i];
+                if (!is_current (job.batch)) {
+                    queue.remove_index (i);
+                    settle_job (job);
+                    continue;
+                }
+                if (active_jobs >= MAX_ACTIVE_JOBS) { i++; continue; }
+                queue.remove_index (i);
+                active_jobs++;
+                search_provider.begin (job, (obj, res) => {
+                    try {
+                        job.results = search_provider.end (res);
+                        job.succeeded = true;
+                    } catch (Error e) {
+                        // Provider unavailable or timed out, skip.
+                    }
+                    active_jobs--;
+                    settle_job (job);
+                    pump_queue ();
+                });
+            }
+            pumping = false;
+        }
+
         public async GenericArray<SearchResult> search (string query, Cancellable? cancellable = null) {
-            var all_results = new GenericArray<SearchResult> ();
-            if (!config.search_providers_enabled) return all_results;
-
-            var terms = query.split (" ");
+            if (current_batch != null) current_batch.cancellable.cancel ();
+            var batch = new ProviderSearchBatch (query, ++generation);
+            current_batch = batch;
+            ulong cancel_handler = 0;
+            if (cancellable != null) {
+                cancel_handler = cancellable.connect (() => {
+                    batch.cancellable.cancel ();
+                    // External cancellation may originate off the main thread.
+                    Idle.add (() => { pump_queue (); return Source.REMOVE; });
+                });
+            }
             bool is_subsearch = prev_query != null && query.has_prefix (prev_query) && query != prev_query;
-
-            for (uint i = 0; i < providers.length; i++) {
-                var provider = providers[i];
-
-                if (cancellable != null && cancellable.is_cancelled ()) break;
-                if (!config.is_search_provider_enabled (provider.desktop_id)) continue;
-
-                try {
-                    GenericArray<string>? prev_ids = null;
+            if (config.search_providers_enabled) {
+                for (uint i = 0; i < providers.length; i++) {
+                    var provider = providers[i];
+                    if (!config.is_search_provider_enabled (provider.desktop_id)) continue;
+                    var job = new ProviderSearchJob (batch, provider);
                     if (is_subsearch) {
-                        prev_ids = prev_results.lookup (provider.bus_name);
+                        var cached = prev_results.lookup (provider.bus_name);
+                        if (cached != null) {
+                            job.previous_ids = new GenericArray<string> ();
+                            for (uint j = 0; j < cached.length; j++) job.previous_ids.add (cached[j]);
+                        }
                     }
-
-                    var results = yield search_provider (provider, terms, prev_ids, cancellable);
-                    for (uint j = 0; j < results.length; j++) {
-                        all_results.add (results[j]);
-                    }
-                } catch (Error e) {
-                    // Provider unavailable or timed out, skip
+                    batch.jobs.add (job);
+                    queue.add (job);
+                    batch.pending++;
                 }
             }
-
-            prev_query = query;
+            ulong finished_handler = batch.finished.connect (() => { search.callback (); });
+            if (batch.pending == 0)
+                Idle.add (() => { batch.finished (); return Source.REMOVE; });
+            pump_queue ();
+            yield;
+            batch.disconnect (finished_handler);
+            if (cancellable != null && cancel_handler != 0) cancellable.disconnect (cancel_handler);
+            var all_results = new GenericArray<SearchResult> ();
+            if (is_current (batch)) {
+                prev_results.remove_all ();
+                // Aggregate by configured slots rather than response order.
+                for (uint i = 0; i < batch.jobs.length; i++) {
+                    var job = batch.jobs[i];
+                    if (!job.succeeded) continue;
+                    prev_results.insert (job.provider.bus_name, job.ids);
+                    for (uint j = 0; j < job.results.length; j++) all_results.add (job.results[j]);
+                }
+                prev_query = batch.query;
+            }
+            if (current_batch == batch) current_batch = null;
+            // Break ownership cycles after all callbacks have settled.
+            batch.jobs.remove_range (0, batch.jobs.length);
             return all_results;
         }
 
         public void reset_search () {
+            generation++;
+            if (current_batch != null) current_batch.cancellable.cancel ();
+            current_batch = null;
             prev_results.remove_all ();
             prev_query = null;
+            pump_queue ();
         }
 
-        private async GenericArray<SearchResult> search_provider (
-            SearchProviderInfo provider,
-            string[] terms,
-            GenericArray<string>? previous_ids,
-            Cancellable? cancellable
-        ) throws Error {
+        private async GenericArray<SearchResult> search_provider (ProviderSearchJob job) throws Error {
+            var provider = job.provider;
+            var cancellable = job.batch.cancellable;
             var results = new GenericArray<SearchResult> ();
 
             var conn = yield Bus.get (BusType.SESSION, cancellable);
 
             Variant? ids_variant;
 
-            if (previous_ids != null && previous_ids.length > 0) {
+            if (job.previous_ids != null && job.previous_ids.length > 0) {
                 // GetSubsearchResultSet — refine previous results
                 var prev_builder = new VariantBuilder (new VariantType ("as"));
-                for (uint i = 0; i < previous_ids.length; i++) {
-                    if (previous_ids[i] != null)
-                        prev_builder.add ("s", previous_ids[i]);
+                for (uint i = 0; i < job.previous_ids.length; i++) {
+                    if (job.previous_ids[i] != null)
+                        prev_builder.add ("s", job.previous_ids[i]);
                 }
                 var terms_builder = new VariantBuilder (new VariantType ("as"));
-                foreach (var t in terms) {
+                foreach (var t in job.batch.terms) {
                     if (t != null) terms_builder.add ("s", t);
                 }
 
@@ -179,7 +279,7 @@ namespace XimperShellLauncher {
             } else {
                 // GetInitialResultSet
                 var terms_builder = new VariantBuilder (new VariantType ("as"));
-                foreach (var t in terms) {
+                foreach (var t in job.batch.terms) {
                     if (t != null) terms_builder.add ("s", t);
                 }
                 var terms_tuple = new Variant.tuple ({terms_builder.end ()});
@@ -204,8 +304,8 @@ namespace XimperShellLauncher {
                 if (ids.length >= 5) break;
             }
 
-            // Cache for subsearch
-            prev_results.insert (provider.bus_name, ids);
+            // Job-local until the current batch commits after metadata.
+            job.ids = ids;
 
             if (ids.length == 0) return results;
 
