@@ -2,6 +2,7 @@ namespace XimperShellLauncher {
 
     public class ConfigManager : Object {
 
+        public SidebarConfig sidebar = new SidebarConfig ();
         public AnimationProfile animation_open = AnimationProfile.opening ();
         public AnimationProfile animation_hide = AnimationProfile.hiding ();
 
@@ -69,6 +70,7 @@ namespace XimperShellLauncher {
 
                 var root = parser.get_root ().get_object ();
                 bool config_migrated = false;
+                sidebar = SidebarConfig.read (SidebarConfig.member (root, "sidebar"));
                 var opening = AnimationProfile.object_member (root, "animation_open");
                 if (opening != null) animation_open.read (opening);
                 var hiding = AnimationProfile.object_member (root, "animation_hide");
@@ -218,6 +220,7 @@ namespace XimperShellLauncher {
         }
 
         private void reset_to_defaults () {
+            sidebar = new SidebarConfig ();
             animation_open = AnimationProfile.opening ();
             animation_hide = AnimationProfile.hiding ();
             max_columns = 0;
@@ -407,6 +410,8 @@ namespace XimperShellLauncher {
             }
             builder.end_array ();
             builder.end_object ();
+            builder.set_member_name ("sidebar");
+            sidebar.serialize (builder);
             builder.set_member_name ("groups");
             builder.begin_array ();
             if (groups == null) groups = new GenericArray<GroupConfig> ();

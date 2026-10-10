@@ -157,6 +157,59 @@ Providers not listed in `search.providers` remain enabled and follow configured 
 </details>
 
 <details>
+<summary>Configurable action panel</summary>
+
+A fixed panel of your own commands, applications, folders and menus, available in every interface and window mode. No hover expansion; labels are either always visible or replaced by tooltips. Add `sidebar` to the existing config and run `--reload`:
+
+```json
+{
+  "sidebar": {
+    "enabled": true,
+    "position": "below-search",
+    "show_labels": false,
+    "start": [{
+      "type": "command", "label": "My action",
+      "icon": "system-run-symbolic", "argv": ["notify-send", "Example"]
+    }],
+    "end": [{
+      "type": "folder", "label": "Home",
+      "icon": "user-home-symbolic", "path": "~", "close_launcher": true
+    }, {
+      "type": "menu", "label": "Power", "icon": "system-shutdown-symbolic",
+      "items": [{
+        "type": "command", "label": "Power off",
+        "argv": ["systemctl", "poweroff"], "confirm": true
+      }]
+    }]
+  }
+}
+```
+
+These are examples, not automatically installed buttons. Actions only run on activation; `confirm: true` requires confirmation with initial focus on Cancel.
+
+| Field | Default | Purpose |
+|---|---|---|
+| `enabled` | `false` | Enable the panel |
+| `position` | `left` | `left`, `right`: vertical; `above-search`, `below-search`: horizontal |
+| `show_labels` | `false` | Always show labels beside icons |
+| `background_opacity` | `0` | Theme-colored panel background opacity, 0–100%; 0 means no background |
+| `width` / `height` | `0` | Side-panel width / horizontal-strip height; 0 means automatic |
+| `icon_size` | `24` | Icon size, 8–64 px |
+| `button_height` | `44` | Button height, 24–96 px |
+| `spacing` / `padding` | `4` / `6` | Gap / inset, up to 32 / 24 px |
+| `start` / `end` | `[]` | Top/bottom buttons in a side panel, left/right in a horizontal strip |
+
+Automatic side-panel width is 56 px, or 200 px with labels. Horizontal strips fill the available width. Overflow scrolls within each section without enlarging the window. Width is capped at 400 px and height at 160 px; undersized dimensions are raised to the necessary minimum.
+
+Entry types: `command` (`argv`, optional `cwd`), `application` (`desktop_id`), `folder` (`path`), `menu` (`items`, up to eight levels), `separator`. Common fields: `label`, `icon`, `confirm`, `close_launcher`; the last two default to false. Icons are theme names or local files; applications can use their desktop name/icon. Paths and working directories accept absolute paths and `~`/`~/…`.
+
+**No implicit shell:** arguments, including spaces, `;` and `$()`, are passed literally. For shell syntax explicitly use `["sh", "-c", "…"]`. Commands run with your own permissions; successful process creation does not guarantee command success. `close_launcher: true` hides the launcher after the launch request is accepted.
+
+Cancel, closing and reload discard pending confirmation. Invalid entries remain disabled and retain their data when saved. Tile changes and presets preserve the panel. Keyboard/gamepad navigation follows its orientation; Escape/B first cancels confirmation or goes back through a menu. Cross-axis arrows return to the main area; Tab works normally.
+
+</details>
+
+<details>
 <summary>Opening and closing animations</summary>
 
 Choose `none`, `fade`, `slide`, `zoom` or `pop` independently for opening and closing. The default is a slide from the top. For example:

@@ -76,6 +76,8 @@ namespace XimperShellLauncher {
         builder.add_boolean_value (config.search_providers_enabled);
         builder.set_member_name ("search_providers");
         add_config_search_provider_array (builder, config);
+        builder.set_member_name ("sidebar");
+        config.sidebar.serialize (builder, false);
         builder.set_member_name ("groups");
         builder.begin_array ();
         for (uint i = 0; i < config.groups.length; i++) {
@@ -132,6 +134,7 @@ namespace XimperShellLauncher {
         builder.begin_object ();
         add_animation_schema (builder, "animation_open", AnimationProfile.opening ());
         add_animation_schema (builder, "animation_hide", AnimationProfile.hiding ());
+        add_sidebar_schema (builder);
         builder.end_object ();
         builder.set_member_name ("properties");
         builder.begin_object ();
@@ -202,6 +205,42 @@ namespace XimperShellLauncher {
         generator.set_root (builder.get_root ());
         generator.set_pretty (true);
         return generator.to_data (null) + "\n";
+    }
+
+    private void add_sidebar_schema (Json.Builder builder) {
+        builder.set_member_name ("sidebar"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("object");
+        builder.set_member_name ("consumer_compatibility"); builder.add_string_value ("unverified");
+        builder.set_member_name ("default"); new SidebarConfig ().serialize (builder);
+        builder.set_member_name ("properties"); builder.begin_object ();
+        add_boolean_property (builder, "enabled", "Show action panel", false);
+        add_enum_property (builder, "position", "Action panel position", "left",
+            { "left", "right", "above-search", "below-search" });
+        add_boolean_property (builder, "show_labels", "Show action labels", false);
+        add_integer_property (builder, "background_opacity", "Panel background opacity (%)", 0, 0, 100);
+        add_integer_property (builder, "width", "Vertical panel width (0 = automatic)", 0, 0, 400);
+        add_integer_property (builder, "height", "Horizontal panel height (0 = automatic)", 0, 0, 160);
+        add_integer_property (builder, "icon_size", "Action icon size", 24, 8, 64);
+        add_integer_property (builder, "button_height", "Button height", 44, 24, 96);
+        add_integer_property (builder, "spacing", "Button spacing", 4, 0, 32);
+        add_integer_property (builder, "padding", "Panel padding", 6, 0, 24);
+        string[] sections = { "start", "end" };
+        foreach (string section in sections) {
+            builder.set_member_name (section); builder.begin_object ();
+            builder.set_member_name ("type"); builder.add_string_value ("array");
+            builder.set_member_name ("items"); builder.begin_object ();
+            builder.set_member_name ("type"); builder.add_string_value ("object");
+            builder.set_member_name ("action_types"); builder.begin_array ();
+            foreach (string kind in new string[] { "command", "application", "folder", "menu", "separator" }) builder.add_string_value (kind);
+            builder.end_array ();
+            builder.set_member_name ("fields"); builder.begin_array ();
+            foreach (string field in new string[] { "type", "label", "icon", "confirm", "close_launcher", "argv", "cwd", "desktop_id", "path", "items" }) builder.add_string_value (field);
+            builder.end_array ();
+            builder.set_member_name ("max_menu_depth"); builder.add_int_value (8);
+            builder.set_member_name ("implicit_shell"); builder.add_boolean_value (false);
+            builder.end_object (); builder.end_object ();
+        }
+        builder.end_object (); builder.end_object ();
     }
 
     private void add_animation_schema (Json.Builder builder, string name, AnimationProfile defaults) {

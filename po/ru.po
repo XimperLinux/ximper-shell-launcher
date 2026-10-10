@@ -214,3 +214,35 @@ msgstr "Наука"
 #: src/presets.vala
 msgid "Other"
 msgstr "Другие"
+
+#: src/sidebar/sidebar-config.vala
+msgid "Action"
+msgstr "Действие"
+
+#: src/sidebar/sidebar-action-runner.vala
+msgid "Command finished unsuccessfully"
+msgstr "Команда завершилась с ошибкой"
+
+#: src/sidebar/sidebar-action-runner.vala
+msgid "Could not start action"
+msgstr "Не удалось выполнить действие"
+
+#: src/window/action-sidebar.vala
+msgid "Invalid action configuration"
+msgstr "Некорректная настройка действия"
+
+#: src/window/action-sidebar.vala
+msgid "Back"
+msgstr "Назад"
+
+#: src/window/action-sidebar.vala
+msgid "Run this action?"
+msgstr "Выполнить это действие?"
+
+#: src/window/action-sidebar.vala
+msgid "Cancel"
+msgstr "Отмена"
+
+#: src/window/action-sidebar.vala
+msgid "Run"
+msgstr "Выполнить"

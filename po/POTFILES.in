@@ -2,6 +2,9 @@ src/application.vala
 src/config.vala
 src/tiles/folder-tile.vala
 src/window/grid-window.vala
+src/window/action-sidebar.vala
+src/sidebar/sidebar-config.vala
+src/sidebar/sidebar-action-runner.vala
 src/search/search-bar.vala
 src/search/application-list.vala
 src/tiles/tile.vala

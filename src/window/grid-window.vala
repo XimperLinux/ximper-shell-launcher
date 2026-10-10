@@ -21,6 +21,7 @@ namespace XimperShellLauncher {
 
         protected override void dispose () {
             cancel_tile_focus_restore ();
+            if (action_sidebar != null) action_sidebar.cancel_pending ();
             if (monitors_handler != 0) {
                 SignalHandler.disconnect (monitor_model, monitors_handler);
                 monitors_handler = 0;
@@ -83,6 +84,10 @@ namespace XimperShellLauncher {
         private Gtk.Overlay top_overlay;
         private Gtk.Overlay root_overlay;
         private Gtk.Box browse_box;
+        private Gtk.Box main_box;
+        private Gtk.Box panel_host;
+        private ActionSidebar action_sidebar;
+        private SidebarWeakReference? sidebar_return_focus;
         private CombinedView combined_view;
         private bool wofi_mode = false;
         private bool combined_mode = false;
@@ -107,7 +112,10 @@ namespace XimperShellLauncher {
             var input_gate = new Gtk.EventControllerLegacy ();
             input_gate.propagation_phase = Gtk.PropagationPhase.CAPTURE;
             input_gate.event.connect ((event) => {
-                if (interactive) return false;
+                if (interactive) {
+                    if (action_sidebar != null && !action_sidebar.contains_focus) remember_sidebar_focus ();
+                    return false;
+                }
                 var type = event.get_event_type ();
                 return type != Gdk.EventType.KEY_PRESS && type != Gdk.EventType.KEY_RELEASE &&
                     type != Gdk.EventType.FOCUS_CHANGE;
@@ -123,7 +131,9 @@ namespace XimperShellLauncher {
         }
 
         private void build_ui () {
-            var main_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            main_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            main_box.hexpand = true;
+            main_box.vexpand = true;
 
             // Top bar: search
             top_overlay = new Gtk.Overlay ();
@@ -235,8 +245,13 @@ namespace XimperShellLauncher {
 
             main_box.append (content_stack);
 
+            panel_host = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            panel_host.append (main_box);
+            action_sidebar = new ActionSidebar ();
+            connect_sidebar_signals (this);
+            configure_sidebar ();
             toast_overlay = new Adw.ToastOverlay ();
-            toast_overlay.set_child (main_box);
+            toast_overlay.set_child (panel_host);
             toast_overlay.hexpand = true;
             toast_overlay.vexpand = true;
 
@@ -283,6 +298,103 @@ namespace XimperShellLauncher {
                 desired_open = false;
                 interactive = false;
             });
+        }
+
+        private static void connect_sidebar_signals (GridWindow window) {
+            var reference = new SidebarWeakReference (window);
+            window.action_sidebar.close_requested.connect (() => {
+                var owner = reference.get () as GridWindow;
+                if (owner != null) owner.close_grid ();
+            });
+            window.action_sidebar.error.connect ((message) => {
+                var owner = reference.get () as GridWindow;
+                if (owner != null && owner.desired_open) owner.show_toast (message);
+            });
+        }
+
+        private void remember_sidebar_focus () {
+            var focus = get_focus ();
+            if (focus == null) sidebar_return_focus = null;
+            else if (sidebar_return_focus == null || sidebar_return_focus.get () != focus)
+                sidebar_return_focus = new SidebarWeakReference (focus);
+        }
+
+        private bool focus_sidebar () {
+            remember_sidebar_focus ();
+            return action_sidebar.focus_first ();
+        }
+
+        private void configure_sidebar () {
+            bool focused = action_sidebar.contains_focus;
+            if (focused) search_bar.search_entry.grab_focus ();
+            var parent = action_sidebar.get_parent () as Gtk.Box;
+            if (parent != null) parent.remove (action_sidebar);
+            action_sidebar.configure (app.config.sidebar);
+            if (!app.config.sidebar.enabled) return;
+            switch (app.config.sidebar.position) {
+                case SidebarPosition.LEFT: panel_host.prepend (action_sidebar); break;
+                case SidebarPosition.RIGHT: panel_host.append (action_sidebar); break;
+                case SidebarPosition.ABOVE_SEARCH: main_box.prepend (action_sidebar); break;
+                case SidebarPosition.BELOW_SEARCH: main_box.insert_child_after (action_sidebar, top_overlay); break;
+            }
+        }
+
+        private bool towards_sidebar (int dx, int dy) {
+            if (!action_sidebar.visible) return false;
+            switch (app.config.sidebar.position) {
+                case SidebarPosition.LEFT: return dx < 0;
+                case SidebarPosition.RIGHT: return dx > 0;
+                case SidebarPosition.ABOVE_SEARCH: return dy < 0;
+                case SidebarPosition.BELOW_SEARCH: return dy < 0;
+            }
+            return false;
+        }
+
+        private void leave_sidebar (int dx = 0, int dy = 0) {
+            var position = app.config.sidebar.position;
+            if (dx != 0 || dy != 0) {
+                if (position == SidebarPosition.LEFT && dx < 0) return;
+                if (position == SidebarPosition.RIGHT && dx > 0) return;
+                if (position == SidebarPosition.ABOVE_SEARCH && dy < 0) return;
+                if (position == SidebarPosition.BELOW_SEARCH && dy > 0) {
+                    if (wofi_mode || combined_mode || search_bar.is_searching ()) search_bar.navigate_results (1);
+                    else tile_grid.focus_first_tile ();
+                    return;
+                }
+                if (action_sidebar.horizontal) { search_bar.search_entry.grab_focus (); return; }
+            }
+            var focus = sidebar_return_focus != null ? sidebar_return_focus.get () as Gtk.Widget : null;
+            if (focus != null && focus.get_mapped () && focus.get_root () == this)
+                focus.grab_focus ();
+            else search_bar.search_entry.grab_focus ();
+        }
+
+        private bool enter_sidebar (int dx, int dy) {
+            if (!action_sidebar.visible) return false;
+            var position = app.config.sidebar.position;
+            if (search_bar.search_entry.has_focus && position == SidebarPosition.BELOW_SEARCH && dy > 0)
+                return focus_sidebar ();
+            if (!towards_sidebar (dx, dy)) return false;
+            if (action_sidebar.horizontal && list_has_focus () && dy < 0 && search_bar.results_widget.at_start) {
+                if (position == SidebarPosition.ABOVE_SEARCH) { search_bar.search_entry.grab_focus (); return true; }
+                return focus_sidebar ();
+            }
+            bool can_enter = search_bar.search_entry.has_focus;
+            if (list_has_focus () && !action_sidebar.horizontal) {
+                can_enter = !combined_mode || search_bar.is_searching () ||
+                    (app.config.sidebar.position == SidebarPosition.LEFT && app.config.app_list_side == AppListSide.LEFT) ||
+                    (app.config.sidebar.position == SidebarPosition.RIGHT && app.config.app_list_side == AppListSide.RIGHT);
+            }
+            if (can_enter) return focus_sidebar ();
+            var focus = get_focus ();
+            if (focus != null && focus.is_ancestor (tile_grid) &&
+                (!action_sidebar.horizontal || (position == SidebarPosition.BELOW_SEARCH && tile_grid.is_at_top_row ()))) {
+                remember_sidebar_focus ();
+                tile_grid.gamepad_navigate (dx, dy);
+                if (get_focus () == focus) action_sidebar.focus_first ();
+                return true;
+            }
+            return false;
         }
 
         private void update_wallpaper () {
@@ -332,6 +444,33 @@ namespace XimperShellLauncher {
                 if (!interactive) {
                     if (keyval == Gdk.Key.Escape && desired_open) close_grid ();
                     return true;
+                }
+                if (action_sidebar.visible) {
+                    if (action_sidebar.has_popup) {
+                        if (action_sidebar.handle_key (keyval)) return true;
+                        return false;
+                    }
+                    if (action_sidebar.contains_focus) {
+                        if (action_sidebar.handle_key (keyval)) return true;
+                        if (keyval == Gdk.Key.Left || keyval == Gdk.Key.Right || keyval == Gdk.Key.Up || keyval == Gdk.Key.Down) {
+                            int dx = keyval == Gdk.Key.Left ? -1 : keyval == Gdk.Key.Right ? 1 : 0;
+                            int dy = keyval == Gdk.Key.Up ? -1 : keyval == Gdk.Key.Down ? 1 : 0;
+                            leave_sidebar (dx, dy);
+                            return true;
+                        }
+                        // Tab is handled natively, never by list shortcuts.
+                        if (keyval != Gdk.Key.Escape) return false;
+                    } else if (!search_bar.results_widget.has_open_popover && tile_grid.get_active_popover () == null) {
+                        if (search_bar.search_entry.has_focus &&
+                            ((keyval == Gdk.Key.Up && app.config.sidebar.position == SidebarPosition.ABOVE_SEARCH) ||
+                             (keyval == Gdk.Key.Down && app.config.sidebar.position == SidebarPosition.BELOW_SEARCH))) {
+                            if (focus_sidebar ()) return true;
+                        } else if (!search_bar.search_entry.has_focus) {
+                            int dx = keyval == Gdk.Key.Left ? -1 : keyval == Gdk.Key.Right ? 1 : 0;
+                            int dy = keyval == Gdk.Key.Up ? -1 : keyval == Gdk.Key.Down ? 1 : 0;
+                            if ((dx != 0 || dy != 0) && enter_sidebar (dx, dy)) return true;
+                        }
+                    }
                 }
                 // Let popovers handle their own keyboard navigation and Escape.
                 if (search_bar.results_widget.has_open_popover || tile_grid.get_active_popover () != null)
@@ -438,6 +577,7 @@ namespace XimperShellLauncher {
             gesture.pressed.connect ((n, x, y) => {
                 if (!interactive || app.config.window_mode != WindowMode.FULLSCREEN) return;
                 var widget = pick (x, y, Gtk.PickFlags.DEFAULT);
+                if (widget != null && (widget == action_sidebar || widget.is_ancestor (action_sidebar))) return;
                 if (widget == this || widget == scrolled || widget is Gtk.Viewport) {
                     close_grid ();
                 }
@@ -555,6 +695,7 @@ namespace XimperShellLauncher {
         }
 
         public void reload_from_config () {
+            configure_sidebar ();
             configure_interface ();
             search_bar.refresh ();
             tile_grid.build_from_config ();
@@ -601,6 +742,7 @@ namespace XimperShellLauncher {
         }
 
         private void close_grid () {
+            action_sidebar.cancel_pending ();
             focus_leave_armed = false;
             if (!desired_open) return;
             desired_open = false;
@@ -625,12 +767,17 @@ namespace XimperShellLauncher {
 
         public void gamepad_navigate (int dx, int dy) {
             if (!interactive) return;
+            if (action_sidebar.visible && (action_sidebar.has_popup || action_sidebar.contains_focus)) {
+                if (!action_sidebar.navigate (dx, dy) && !action_sidebar.has_popup) leave_sidebar (dx, dy);
+                return;
+            }
 
             if (popover_navigator.active) {
                 if (dy != 0) popover_navigator.navigate (dy);
                 return;
             }
 
+            if (enter_sidebar (dx, dy)) return;
             if (list_navigation_active () || (combined_mode && search_bar.search_entry.has_focus)) {
                 if (dy != 0) search_bar.navigate_results (dy);
                 else if (dx != 0 && combined_mode && !search_bar.is_searching ())
@@ -646,6 +793,10 @@ namespace XimperShellLauncher {
 
         public void gamepad_activate () {
             if (!interactive) return;
+            if (action_sidebar.visible && (action_sidebar.has_popup || action_sidebar.contains_focus)) {
+                action_sidebar.activate_focused ();
+                return;
+            }
 
             if (popover_navigator.active) {
                 popover_navigator.activate_focused ();
@@ -657,7 +808,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_context_menu () {
-            if (!interactive || popover_navigator.active) return;
+            if (!interactive || popover_navigator.active || action_sidebar.has_popup || action_sidebar.contains_focus) return;
             if (list_navigation_active ()) search_bar.results_widget.open_selected_context_menu ();
             else tile_grid.gamepad_context_menu ();
             var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
@@ -668,6 +819,8 @@ namespace XimperShellLauncher {
 
         public void gamepad_back () {
             if (!interactive) { if (desired_open) close_grid (); return; }
+            if (action_sidebar.back ()) return;
+            if (action_sidebar.contains_focus) { leave_sidebar (); return; }
 
             if (popover_navigator.active) {
                 var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
@@ -688,7 +841,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_toggle () {
-            if (popover_navigator.active) return;
+            if (popover_navigator.active || action_sidebar.has_popup) return;
             toggle_menu ();
         }
 
@@ -781,6 +934,7 @@ namespace XimperShellLauncher {
         public void gamepad_scroll (int direction) {
             if (!interactive) return;
             if (popover_navigator.active) return;
+            if (action_sidebar.has_popup || action_sidebar.contains_focus) return;
             var adj = list_navigation_active ()
                 ? search_bar.results_widget.vadjustment :
                 (horizontal_tiles ? scrolled.hadjustment : scrolled.vadjustment);

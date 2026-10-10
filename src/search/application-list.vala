@@ -156,6 +156,8 @@ namespace XimperShellLauncher {
             });
         }
 
+        public bool at_start { get { return selection.selected == 0 || selection.selected == Gtk.INVALID_LIST_POSITION; } }
+
         public bool navigate (int direction) {
             if (pending || item_count == 0 || direction == 0) return false;
             int current = selection.selected == Gtk.INVALID_LIST_POSITION
