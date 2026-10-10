@@ -133,7 +133,7 @@ Merge the settings you need into your existing file; replacing the whole file ca
 | `max_columns` | `0` | Vertical-layout column limit; 0 chooses automatically. Horizontal groups grow as needed |
 | `cell_size` | `0` | Tile cell size in pixels; 0 chooses automatically |
 | `tile_icon_size` | `0` | Icon size in pixels, up to 128; 0 chooses automatically |
-| `tile_square_labels` | `false` | Show application names on square tiles |
+| `tile_square_labels` | `false` | Show centered application names on small square tiles, up to two lines |
 | `window_mode` | `"floating"` | `floating` or `fullscreen` |
 | `close_on_focus_loss` | `true` | Close a floating menu when it loses focus |
 | `floating_position` | `"custom"` | `custom`, `center`, `top`, `bottom`, `left`, `right`, or a corner such as `bottom-left` |

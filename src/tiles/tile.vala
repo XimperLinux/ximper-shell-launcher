@@ -50,6 +50,7 @@ namespace XimperShellLauncher {
 
             icon_image = new Gtk.Image ();
             icon_image.add_css_class ("tile-icon");
+            icon_image.halign = Gtk.Align.CENTER;
             content_box.append (icon_image);
 
             name_label = new Gtk.Label (app_entry.name);
@@ -233,15 +234,41 @@ namespace XimperShellLauncher {
             int icon_sz = configured_icon_size > 0 ? int.min (configured_icon_size, int.max (1, cell_px - 28)) : (int) (cell_px * 0.5);
             int gap = 6; // matches SPACING in TileGroup
 
+            // Reset caption constraints when changing away from a small tile.
+            content_box.halign = Gtk.Align.CENTER;
+            name_label.xalign = 0.5f;
+            name_label.yalign = 0.5f;
+            name_label.justify = Gtk.Justification.CENTER;
+            name_label.wrap = false;
+            name_label.lines = -1;
+            name_label.max_width_chars = 12;
+            name_label.height_request = -1;
+
             switch (size) {
                 case TileSize.SMALL:
                     add_css_class ("tile-small");
                     set_size_request (cell_px, cell_px);
-                    icon_image.pixel_size = icon_sz;
                     name_label.visible = square_labels;
-                    name_label.xalign = square_labels ? 0 : 0.5f;
                     content_box.orientation = Gtk.Orientation.VERTICAL;
                     content_box.spacing = square_labels ? 4 : 0;
+                    if (square_labels) {
+                        content_box.halign = Gtk.Align.FILL;
+                        name_label.wrap = true;
+                        name_label.wrap_mode = Pango.WrapMode.WORD_CHAR;
+                        name_label.lines = 2;
+                        name_label.max_width_chars = -1;
+                        name_label.yalign = 0;
+                        // Reserve two font-sized lines even for short names.
+                        // GTK needs this height to ellipsize a two-line label.
+                        var caption = name_label.create_pango_layout ("Ag\nAg");
+                        int caption_width, caption_height;
+                        caption.get_pixel_size (out caption_width, out caption_height);
+                        name_label.height_request = caption_height;
+                        // Keep tiny cells usable without clipping the caption.
+                        icon_sz = int.min (icon_sz,
+                            int.max (1, cell_px - 16 - 4 - caption_height));
+                    }
+                    icon_image.pixel_size = icon_sz;
                     break;
 
                 case TileSize.MEDIUM:

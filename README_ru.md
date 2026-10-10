@@ -138,7 +138,7 @@ ximper-shell-launcher --preset 8.1 --toggle
 | `cell_size` | `0` | Размер ячейки в пикселях; 0 — автоматически |
 | `max_columns` | `0` | Предел столбцов вертикальной доски; 0 — автоматически |
 | `tile_icon_size` | `0` | Размер иконок: 0 — автоматически, иначе 1–128 px |
-| `tile_square_labels` | `false` | Показывать подписи квадратных плиток |
+| `tile_square_labels` | `false` | Показывать центрированные подписи малых квадратных плиток, до двух строк |
 | `layer` | `"overlay"` | Слой окна: `background`, `bottom`, `top`, `overlay` |
 | `window_mode` | `"floating"` | `floating` или `fullscreen` |
 | `close_on_focus_loss` | `true` | Скрывать плавающее меню при потере фокуса |
