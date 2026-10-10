@@ -16,7 +16,8 @@ namespace XimperShellLauncher {
             out int x,
             out int y,
             out int width,
-            out int height
+            out int height,
+            out int margin
         ) {
             int screen_width = 1920;
             int screen_height = 1080;
@@ -30,6 +31,24 @@ namespace XimperShellLauncher {
 
             width = app.config.floating_width.clamp (320, 4096);
             height = app.config.floating_height.clamp (240, 4096);
+            margin = 0;
+
+            var position = app.config.floating_position;
+            if (position != FloatingPosition.CUSTOM) {
+                // Keep a usable requested size even with an excessive margin.
+                int min_width = int.min (320, screen_width);
+                int min_height = int.min (240, screen_height);
+                int max_margin = int.max (0, int.min ((screen_width - min_width) / 2,
+                                                     (screen_height - min_height) / 2));
+                margin = int.min (app.config.floating_margin.clamp (0, 512), max_margin);
+                width = int.min (width, int.max (1, screen_width - 2 * margin));
+                height = int.min (height, int.max (1, screen_height - 2 * margin));
+                int horizontal = position.horizontal_alignment ();
+                int vertical = position.vertical_alignment ();
+                x = horizontal < 0 ? margin : (horizontal > 0 ? screen_width - width - margin : (screen_width - width) / 2);
+                y = vertical < 0 ? margin : (vertical > 0 ? screen_height - height - margin : (screen_height - height) / 2);
+                return;
+            }
 
             int available_width = screen_width - width;
             int available_height = screen_height - height;

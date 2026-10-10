@@ -44,21 +44,34 @@ namespace XimperShellLauncher {
             WindowMode mode,
             GtkLayerShell.Layer layer,
             int floating_x = 0,
-            int floating_y = 24
+            int floating_y = 24,
+            FloatingPosition position = FloatingPosition.CUSTOM,
+            int edge_margin = 0
         ) {
             GtkLayerShell.set_layer (window, layer);
-            GtkLayerShell.set_exclusive_zone (window, -1);
+            // Floating menus respect panels' reserved space; fullscreen keeps
+            // its intentional whole-output behavior.
+            GtkLayerShell.set_exclusive_zone (window, mode == WindowMode.FLOATING ? 0 : -1);
 
             switch (mode) {
                 case WindowMode.FLOATING:
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.TOP, true);
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.BOTTOM, false);
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, true);
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, false);
-                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.TOP, floating_y);
-                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.BOTTOM, 0);
-                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.LEFT, floating_x);
-                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.RIGHT, 0);
+                    bool manual = position == FloatingPosition.CUSTOM;
+                    int horizontal = manual ? -1 : position.horizontal_alignment ();
+                    int vertical = manual ? -1 : position.vertical_alignment ();
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.TOP, vertical < 0);
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.BOTTOM, vertical > 0);
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, horizontal < 0);
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, horizontal > 0);
+                    // Unanchored axes are centered by the compositor using the
+                    // actual surface size, not an estimated requested size.
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.TOP,
+                        manual ? floating_y : (vertical < 0 ? edge_margin : 0));
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.BOTTOM,
+                        !manual && vertical > 0 ? edge_margin : 0);
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.LEFT,
+                        manual ? floating_x : (horizontal < 0 ? edge_margin : 0));
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.RIGHT,
+                        !manual && horizontal > 0 ? edge_margin : 0);
                     window.remove_css_class ("fullscreen");
                     window.add_css_class ("floating");
                     break;

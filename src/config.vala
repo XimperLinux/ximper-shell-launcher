@@ -11,6 +11,8 @@ namespace XimperShellLauncher {
         public AppListSort search_sort { get; set; default = AppListSort.RELEVANCE; }
         public WindowMode window_mode { get; set; default = WindowMode.FLOATING; }
         public bool close_on_focus_loss { get; set; default = true; }
+        public FloatingPosition floating_position { get; set; default = FloatingPosition.CUSTOM; }
+        public int floating_margin { get; set; default = 16; }
         public int floating_x { get; set; default = 0; }
         public int floating_y { get; set; default = 24; }
         public int floating_width { get; set; default = 1120; }
@@ -84,6 +86,10 @@ namespace XimperShellLauncher {
                     window_mode = WindowMode.from_string (root.get_string_member ("window_mode"));
                 if (root.has_member ("close_on_focus_loss"))
                     close_on_focus_loss = root.get_boolean_member ("close_on_focus_loss");
+                if (root.has_member ("floating_position"))
+                    floating_position = FloatingPosition.from_string (root.get_string_member ("floating_position"));
+                if (root.has_member ("floating_margin"))
+                    floating_margin = (int) root.get_int_member ("floating_margin");
                 if (root.has_member ("floating_x"))
                     floating_x = (int) root.get_int_member ("floating_x");
                 if (root.has_member ("floating_y"))
@@ -198,6 +204,8 @@ namespace XimperShellLauncher {
             search_sort = AppListSort.RELEVANCE;
             window_mode = WindowMode.FLOATING;
             close_on_focus_loss = true;
+            floating_position = FloatingPosition.CUSTOM;
+            floating_margin = 16;
             floating_x = 0;
             floating_y = 24;
             floating_width = 1120;
@@ -262,6 +270,10 @@ namespace XimperShellLauncher {
             builder.add_string_value (window_mode.to_string ());
             builder.set_member_name ("close_on_focus_loss");
             builder.add_boolean_value (close_on_focus_loss);
+            builder.set_member_name ("floating_position");
+            builder.add_string_value (floating_position.to_string ());
+            builder.set_member_name ("floating_margin");
+            builder.add_int_value (floating_margin);
             builder.set_member_name ("floating_x");
             builder.add_int_value (floating_x);
             builder.set_member_name ("floating_y");

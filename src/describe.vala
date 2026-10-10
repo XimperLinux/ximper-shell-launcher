@@ -26,6 +26,10 @@ namespace XimperShellLauncher {
         builder.add_string_value (config.window_mode.to_string ());
         builder.set_member_name ("close_on_focus_loss");
         builder.add_boolean_value (config.close_on_focus_loss);
+        builder.set_member_name ("floating_position");
+        builder.add_string_value (config.floating_position.to_string ());
+        builder.set_member_name ("floating_margin");
+        builder.add_int_value (config.floating_margin);
         builder.set_member_name ("floating_x");
         builder.add_int_value (config.floating_x);
         builder.set_member_name ("floating_y");
@@ -137,6 +141,12 @@ namespace XimperShellLauncher {
             builder, "window_mode", "Window mode", "floating", { "floating", "fullscreen" }
         );
         add_boolean_property (builder, "close_on_focus_loss", "Close on focus loss", true);
+        add_enum_property (
+            builder, "floating_position", "Floating window position", "custom",
+            { "custom", "top-left", "top", "top-right", "left", "center", "right",
+              "bottom-left", "bottom", "bottom-right" }
+        );
+        add_integer_property (builder, "floating_margin", "Floating edge margin", 16, 0, 512);
         add_integer_property (builder, "floating_x", "Floating X offset", 0, -10000, 10000);
         add_integer_property (builder, "floating_y", "Floating Y offset", 24, -10000, 10000);
         add_integer_property (builder, "floating_width", "Floating width", 1120, 1, 10000);

@@ -38,6 +38,65 @@ namespace XimperShellLauncher {
         public string to_string () { return this == ALPHABETICAL ? "alphabetical" : "relevance"; }
     }
 
+    public enum FloatingPosition {
+        CUSTOM,
+        TOP_LEFT,
+        TOP,
+        TOP_RIGHT,
+        LEFT,
+        CENTER,
+        RIGHT,
+        BOTTOM_LEFT,
+        BOTTOM,
+        BOTTOM_RIGHT;
+
+        public static FloatingPosition from_string (string value) {
+            switch (value) {
+                case "top-left": return TOP_LEFT;
+                case "top": return TOP;
+                case "top-right": return TOP_RIGHT;
+                case "left": return LEFT;
+                case "center": return CENTER;
+                case "right": return RIGHT;
+                case "bottom-left": return BOTTOM_LEFT;
+                case "bottom": return BOTTOM;
+                case "bottom-right": return BOTTOM_RIGHT;
+                default: return CUSTOM;
+            }
+        }
+
+        public string to_string () {
+            switch (this) {
+                case TOP_LEFT: return "top-left";
+                case TOP: return "top";
+                case TOP_RIGHT: return "top-right";
+                case LEFT: return "left";
+                case CENTER: return "center";
+                case RIGHT: return "right";
+                case BOTTOM_LEFT: return "bottom-left";
+                case BOTTOM: return "bottom";
+                case BOTTOM_RIGHT: return "bottom-right";
+                default: return "custom";
+            }
+        }
+
+        public int horizontal_alignment () {
+            switch (this) {
+                case TOP_LEFT: case LEFT: case BOTTOM_LEFT: return -1;
+                case TOP_RIGHT: case RIGHT: case BOTTOM_RIGHT: return 1;
+                default: return 0;
+            }
+        }
+
+        public int vertical_alignment () {
+            switch (this) {
+                case TOP_LEFT: case TOP: case TOP_RIGHT: return -1;
+                case BOTTOM_LEFT: case BOTTOM: case BOTTOM_RIGHT: return 1;
+                default: return 0;
+            }
+        }
+    }
+
     public enum WindowMode {
         FULLSCREEN,
         FLOATING;

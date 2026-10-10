@@ -64,6 +64,8 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "search_sort": "relevance",
   "window_mode": "floating",
   "close_on_focus_loss": true,
+  "floating_position": "custom",
+  "floating_margin": 16,
   "floating_x": 0,
   "floating_y": 24,
   "floating_width": 1120,
@@ -106,12 +108,14 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `search_sort` | string | `"relevance"` | Local search results: `"relevance"` by match score and launch frequency, or `"alphabetical"`; provider order is unchanged |
 | `window_mode` | string | `"floating"` | Window mode for all launcher interfaces: `"fullscreen"` or `"floating"` |
 | `close_on_focus_loss` | bool | `true` | Close the floating launcher when it loses focus |
-| `floating_x` | int | `0` | Horizontal offset of the floating launcher in pixels |
-| `floating_y` | int | `24` | Vertical offset of the floating launcher in pixels |
+| `floating_position` | string | `"custom"` | Manual percentages (`"custom"`) or `"top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"`, `"bottom-right"`; floating windows only |
+| `floating_margin` | int | `16` | Edge margin in pixels for presets (0–512, limited by the monitor size); ignored in custom mode |
+| `floating_x` | int | `0` | Legacy pixel offset retained for compatibility; manual placement uses percentages |
+| `floating_y` | int | `24` | Legacy pixel offset retained for compatibility; manual placement uses percentages |
 | `floating_width` | int | `1120` | Width of the floating launcher in pixels; shared by all interfaces |
 | `floating_height` | int | `880` | Height of the floating launcher in pixels; shared by all interfaces |
-| `floating_x_percent` | int | `50` | Horizontal position, 0–100% of available space; shared by all interfaces |
-| `floating_y_percent` | int | `50` | Vertical position, 0–100% of available space; shared by all interfaces |
+| `floating_x_percent` | int | `50` | Horizontal position in custom mode, 0–100% of available space; retained when selecting presets |
+| `floating_y_percent` | int | `50` | Vertical position in custom mode, 0–100% of available space; retained when selecting presets |
 | `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |
 | `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
 | `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |
@@ -123,6 +127,8 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `groups` | array | | Tile groups with tiles and folders |
 
 To enable combined mode, set `"launcher_mode": "combined"` and run `ximper-shell-launcher --reload`. Set `"app_list_side": "right"` to place the list on the right. Existing tile/folder layouts are reused unchanged. Alphabetical grouping uses Unicode letters; names starting with digits or symbols appear under `#`.
+
+Floating placement is independent of `launcher_mode`: it neither enables tiles nor replaces Wofi. For example, set `"floating_position": "bottom-left"` and `"floating_margin": 16`, then run `ximper-shell-launcher --reload`. Presets use native layer-shell anchors and limit the requested size to the selected monitor. Floating windows respect space reserved by panels such as Waybar; preset edge margins are relative to that available area. `"custom"` restores the existing percentage coordinates; fullscreen ignores positioning presets.
 
 `monitor_index` is accepted only as a legacy setting and is migrated to `output` when the configuration is saved. Use the monitor connector name instead, because display indexes are not stable.
 

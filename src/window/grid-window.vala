@@ -306,6 +306,8 @@ namespace XimperShellLauncher {
                 window_geometry.invalidate_monitor ();
                 apply_window_mode ();
             });
+            app.config.notify["floating-position"].connect (() => { apply_window_mode (); });
+            app.config.notify["floating-margin"].connect (() => { apply_window_mode (); });
             app.config.notify["floating-x"].connect (() => {
                 apply_window_mode ();
             });
@@ -359,14 +361,18 @@ namespace XimperShellLauncher {
             int floating_y;
             int floating_width;
             int floating_height;
-            window_geometry.get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height);
+            int floating_margin;
+            window_geometry.get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height,
+                                                   out floating_margin);
 
             LayerShellHelper.apply_window_mode (
                 this,
                 effective_mode,
                 LayerShellHelper.parse_layer (app.config.layer),
                 floating_x,
-                floating_y
+                floating_y,
+                app.config.floating_position,
+                floating_margin
             );
 
             if (effective_mode == WindowMode.FLOATING) {
