@@ -20,6 +20,7 @@ namespace XimperShellLauncher {
         }
 
         protected override void dispose () {
+            cancel_tile_focus_restore ();
             if (monitors_handler != 0) {
                 SignalHandler.disconnect (monitor_model, monitors_handler);
                 monitors_handler = 0;
@@ -65,6 +66,11 @@ namespace XimperShellLauncher {
         public bool layout_busy { get { return tile_grid != null && tile_grid.other_board_dragging (); } }
         private bool horizontal_tiles { get { return app.config.groups_enabled && app.config.group_layout == GroupLayout.HORIZONTAL; } }
         private Gtk.ScrolledWindow scrolled;
+        private weak Gtk.Viewport tile_focus_viewport;
+        private uint tile_layout_depth;
+        private bool tile_focus_dragging;
+        private Gdk.FrameClock? tile_focus_clock;
+        private ulong tile_focus_after_paint;
         private uint tile_drag_scroll_tick;
         private bool tile_drag_hovering;
         private double tile_drag_x;
@@ -175,12 +181,24 @@ namespace XimperShellLauncher {
             var tile_viewport = tile_grid.get_parent () as Gtk.Viewport;
             if (tile_viewport != null) tile_viewport.scroll_to_focus = true;
             weak GridWindow drag_window = this;
-            weak Gtk.Viewport focus_viewport = tile_viewport;
+            tile_focus_viewport = tile_viewport;
+            if (tile_viewport != null) tile_viewport.unmap.connect (() => {
+                var window = drag_window;
+                if (window != null) window.update_tile_focus_guard ();
+            });
             tile_grid.drag_state_changed.connect ((active) => {
                 var window = drag_window;
                 if (window == null) return;
-                if (focus_viewport != null) focus_viewport.scroll_to_focus = !active;
+                window.tile_focus_dragging = active;
+                window.update_tile_focus_guard ();
                 if (!active) window.stop_tile_drag_scroll ();
+            });
+            tile_grid.layout_changing.connect ((active) => {
+                var window = drag_window;
+                if (window == null) return;
+                if (active) window.tile_layout_depth++;
+                else if (window.tile_layout_depth > 0) window.tile_layout_depth--;
+                window.update_tile_focus_guard ();
             });
             scrolled.hadjustment.notify["page-size"].connect (() => {
                 var window = drag_window;
@@ -677,6 +695,46 @@ namespace XimperShellLauncher {
         private void update_tile_drop_tail () {
             tile_grid.set_drop_viewport_size ((int) scrolled.hadjustment.page_size,
                 (int) scrolled.vadjustment.page_size);
+        }
+
+        private void cancel_tile_focus_restore () {
+            if (tile_focus_after_paint != 0) {
+                SignalHandler.disconnect (tile_focus_clock, tile_focus_after_paint);
+                tile_focus_after_paint = 0;
+            }
+            tile_focus_clock = null;
+        }
+
+        private bool tile_focus_guard_busy () {
+            return tile_focus_dragging || tile_layout_depth > 0 ||
+                (tile_grid != null && tile_grid.other_board_dragging ());
+        }
+
+        private void update_tile_focus_guard () {
+            cancel_tile_focus_restore ();
+            if (tile_focus_viewport == null) return;
+            tile_focus_viewport.scroll_to_focus = false;
+            if (tile_focus_guard_busy ()) return;
+
+            // Drag-end precedes the HIGH_IDLE root rebuild. Reconnect only
+            // after GTK has allocated and painted the replacement children.
+            var clock = tile_focus_viewport.get_frame_clock ();
+            if (!tile_focus_viewport.get_mapped () || clock == null) {
+                // No visible layout/focus work can run here; the setter itself
+                // does not scroll. Do not leave hidden/no-clock views disabled.
+                tile_focus_viewport.scroll_to_focus = true;
+                return;
+            }
+            tile_focus_clock = clock;
+            weak GridWindow owner = this;
+            tile_focus_after_paint = clock.after_paint.connect (() => {
+                var window = owner;
+                if (window == null) return;
+                window.cancel_tile_focus_restore ();
+                if (!window.tile_focus_guard_busy () && window.tile_focus_viewport != null)
+                    window.tile_focus_viewport.scroll_to_focus = true;
+            });
+            clock.request_phase (Gdk.FrameClockPhase.LAYOUT | Gdk.FrameClockPhase.AFTER_PAINT);
         }
 
         private void stop_tile_drag_scroll () {

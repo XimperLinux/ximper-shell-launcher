@@ -16,6 +16,7 @@ namespace XimperShellLauncher {
         private bool horizontal_groups { get { return app.config.groups_enabled && app.config.group_layout == GroupLayout.HORIZONTAL; } }
         public bool has_active_drag { get { return drag_source != null && !drag_committed; } }
         public signal void drag_state_changed (bool active);
+        public signal void layout_changing (bool active);
 
         public void set_drop_viewport_size (int width, int height) {
             drop_viewport_width = width;
@@ -86,8 +87,12 @@ namespace XimperShellLauncher {
                     new_group_zone.can_target = false;
                     new_group_zone.remove_css_class ("drop-active");
                 }
-                drag_state_changed (false);
             }
+            // A destination can still be finishing after the source's drag-end.
+            // Notify again when the final board settles, including cancellation
+            // paths that do not request a root rebuild.
+            if (drag_source == null && !other_board_dragging ())
+                drag_state_changed (false);
             schedule_rebuild ();
         }
 
@@ -130,6 +135,7 @@ namespace XimperShellLauncher {
 
         public void build_from_config () {
             if (other_board_dragging ()) { rebuild_pending = true; return; }
+            layout_changing (true);
             rebuild_pending = false;
             // Horizontal boards share the same content height. Seed replacement
             // boards with that allocation, not the startup fallback; an interim
@@ -288,6 +294,7 @@ namespace XimperShellLauncher {
                 board.pin_requested.connect ((id) => { var grid = weak_grid; if (grid != null) grid.pin_requested (id); });
                 board.unpin_requested.connect ((id) => { var grid = weak_grid; if (grid != null) grid.unpin_requested (id); });
                 board.layout_changed.connect (() => { var grid = weak_grid; if (grid != null) grid.save_layout (); });
+                board.layout_changing.connect ((active) => { var grid = weak_grid; if (grid != null) grid.layout_changing (active); });
                 board.extend_menu.connect ((menu, popover, id) => { var grid = weak_grid; if (grid != null) grid.extend_tile_menu (index, menu, popover, id); });
                 board.drag_finished.connect (() => {
                     var grid = weak_grid;
@@ -297,6 +304,7 @@ namespace XimperShellLauncher {
                 append (section);
             }
             if (app.config.groups_enabled) append_new_group_zone ();
+            layout_changing (false);
         }
 
         private void append_new_group_zone () {

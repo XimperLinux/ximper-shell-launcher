@@ -57,6 +57,7 @@ namespace XimperShellLauncher {
         public signal void extend_menu (Gtk.Box menu, Gtk.Popover popover, string id);
         public signal void drag_finished ();
         public signal void layout_changed ();
+        public signal void layout_changing (bool active);
         public signal void tile_activated (AppEntry entry);
         public signal void pin_requested (string desktop_id);
         public signal void unpin_requested (string desktop_id);
@@ -124,6 +125,7 @@ namespace XimperShellLauncher {
                 rebuild_after_drag = true;
                 return;
             }
+            layout_changing (true);
             if (horizontal) packer.compute_for_height (viewport_height, app.config.cell_size);
             // Remove all children
             for (uint i = 0; i < placements.length; i++) {
@@ -191,6 +193,7 @@ namespace XimperShellLauncher {
             // the same rebuild, not an earlier drag-finished frame.
             drag_controller.clear_committed_preview ();
             queue_resize ();
+            layout_changing (false);
         }
 
         private bool is_below_folder (int row_start, int row_end) {
