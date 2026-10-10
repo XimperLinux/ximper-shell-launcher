@@ -67,6 +67,8 @@ The names are exactly `8.1`, `10`, `ximper` and `wofi`, without a `win` prefix. 
 - Drag an entry into the **New group** area after the last group to create a group. An empty tail of about half the visible tile area makes it accessible; holding a dragged tile near an edge scrolls automatically.
 - Moving the last entry out removes the empty source group. Deliberately created empty groups stay available for additions. Cancelling a drag leaves the layout unchanged. Folder names within a group must differ; a move with a conflicting name is rejected.
 
+Folders open in the scroll direction, smoothly making space for their contents: to the right in horizontal layouts and downward in vertical layouts.
+
 In horizontal mode, tiles fill the available height and groups grow to the right. In vertical mode, groups follow one another downward. With groups disabled, folders remain available on one shared tile board; editing it saves a flat layout.
 
 In **All applications** mode, unpinned applications still appear in the catalog. In **Pinned** mode, only your saved launcher tiles are shown. Applications remain available in the list and search either way.

@@ -108,12 +108,13 @@ namespace XimperShellLauncher {
         }
 
         private int horizontal_group_width () {
-            int edge = folder_panel_x () - GridPacker.SPACING;
-            if (open_folder_id != null) {
-                int count = model.count_folder_items (open_folder_id, app.app_provider);
-                edge = folder_panel_x () + int.max (1, (count + packer.folder_rows - 1) / packer.folder_rows) * (packer.cell_size + GridPacker.SPACING);
-            }
-            return int.max (200, edge + packer.margin);
+            int panel_x = folder_panel_x ();
+            int closed_width = int.max (200, panel_x - GridPacker.SPACING + packer.margin);
+            if (open_folder_id == null) return closed_width;
+            int count = model.count_folder_items (open_folder_id, app.app_provider);
+            int columns = int.max (1, (count + packer.folder_rows - 1) / packer.folder_rows);
+            int open_width = int.max (closed_width, panel_x + columns * (packer.cell_size + GridPacker.SPACING) + packer.margin);
+            return closed_width + (int) ((open_width - closed_width) * animator.slide_progress);
         }
 
         private void rebuild () {
@@ -263,6 +264,9 @@ namespace XimperShellLauncher {
         }
 
         private void build_folder_content () {
+            // A viewport resize may rebuild content before the tracked opening
+            // idle runs. Do not add a second set of children in that case.
+            if (folder_header != null) return;
             unowned TileBoard owner = this;
             var fc = model.find_folder (open_folder_id);
             if (fc == null || fc.folder_items == null) return;
@@ -403,7 +407,9 @@ namespace XimperShellLauncher {
                 int zone_y = folder_render_y;
                 int zone_w = horizontal ? int.max (packer.cell_size, width - zone_x - packer.margin) : packer.columns * (packer.cell_size + GridPacker.SPACING) - GridPacker.SPACING;
                 int zone_h = horizontal ? viewport_height : folder_render_height;
-                folder_drop_zone.opacity = folder_visible ? 1 : 0;
+                // Horizontal space is reserved before the panel is revealed.
+                // Fade it with the content, not at its full minimum width during slide.
+                folder_drop_zone.opacity = folder_visible ? (horizontal ? animator.cascade_progress : 1) : 0;
 
                 int zmw, znw, zmh, znh;
                 folder_drop_zone.measure (Gtk.Orientation.HORIZONTAL, -1, out zmw, out znw, null, null);
@@ -534,6 +540,9 @@ namespace XimperShellLauncher {
             animator.reset ();
             if (group_grid != null) group_grid.begin_drag (this, id);
             drag_controller.begin_source (source, id);
+            // reset() completes folder expansion; invalidate its measured extent
+            // before laying out a drag that starts during the slide.
+            queue_resize ();
             queue_allocate ();
         }
 
@@ -557,24 +566,15 @@ namespace XimperShellLauncher {
         private void toggle_folder (FolderTile folder, int cell_row) {
             if (drag_in_progress) return;
             animator.cancel ();
-            if (horizontal) {
-                open_folder_id = open_folder_id == folder.folder_name ? null : folder.folder_name;
-                animator.reset ();
-                rebuild ();
-                if (open_folder_id != null) focus_folder_first ();
-                return;
-            }
-
             if (open_folder_id == folder.folder_name) {
-                // Close same folder: cascade out → slide up → rebuild
+                // Close same folder: cascade out → collapse reserved space
                 animator.run_cascade (animator.cascade_progress, 0.0, () => {
                     animator.run_slide (animator.slide_progress, 0.0, () => {
-                        close_folder_state ();
-                        rebuild ();
+                        finish_folder_close ();
                     });
                 });
             } else if (open_folder_id != null) {
-                // Switch folder: cascade out → slide up → setup new → slide down → cascade in
+                // Switch folder: cascade out → collapse → setup → expand → cascade in
                 var new_name = folder.folder_name;
                 var new_row = cell_row;
                 animator.run_cascade (animator.cascade_progress, 0.0, () => {
@@ -585,7 +585,7 @@ namespace XimperShellLauncher {
                         });
                         var id2 = Idle.add (() => {
                             build_folder_content ();
-                            focus_folder_first ();
+                            if (!horizontal) focus_folder_first ();
                             return Source.REMOVE;
                         });
                         animator.track_idle (id2);
@@ -606,7 +606,9 @@ namespace XimperShellLauncher {
 
                 var id = Idle.add (() => {
                     build_folder_content ();
-                    focus_folder_first ();
+                    // Keep horizontal focus on the clicked folder: focusing an
+                    // invisible panel item during slide can scroll its ancestors.
+                    if (!horizontal) focus_folder_first ();
                     return Source.REMOVE;
                 });
                 animator.track_idle (id);
@@ -622,6 +624,19 @@ namespace XimperShellLauncher {
             animator.slide_progress = 0.0;
             animator.cascade_progress = 0.0;
             update_below_flags ();
+        }
+
+        private void finish_folder_close () {
+            close_folder_state ();
+            if (horizontal) {
+                // Preserve the source folder widget/focus throughout collapse.
+                cleanup_folder_content ();
+                update_below_flags ();
+                queue_resize ();
+                queue_allocate ();
+            } else {
+                rebuild ();
+            }
         }
 
         private void close_folder_state () {
@@ -892,12 +907,10 @@ namespace XimperShellLauncher {
 
         public void close_open_folder () {
             if (open_folder_id == null || drag_in_progress) return;
-            if (horizontal) { close_folder_state (); rebuild (); return; }
             animator.cancel ();
             animator.run_cascade (animator.cascade_progress, 0.0, () => {
                 animator.run_slide (animator.slide_progress, 0.0, () => {
-                    close_folder_state ();
-                    rebuild ();
+                    finish_folder_close ();
                 });
             });
         }
