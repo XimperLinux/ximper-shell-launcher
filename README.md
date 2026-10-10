@@ -150,6 +150,27 @@ Floating placement is independent of `launcher_mode`: it neither enables tiles n
 Search providers are discovered in the user and system `gnome-shell/search-providers` XDG data directories. Set `search_providers_enabled` to `false` to disable all external providers while keeping local application search. Their order in `search.providers` controls the order of result sections. Providers not listed there remain enabled and follow the configured entries alphabetically.
 
 
+### Opening and closing animations
+
+`animation_open` and `animation_hide` are independent profile objects. Each accepts `effect`: `"none"`, `"fade"`, `"slide"`, `"zoom"`, or `"pop"`. The default is Slide from the top on opening and back towards the top on closing (400 ms flight, followed by a short spring settling on opening). Missing profile members retain defaults; selecting another effect does not discard its saved tuning. Edit configuration and use `--reload`.
+
+```json
+{
+  "animation_open": {
+    "effect": "slide",
+    "fade": { "duration_ms": 180 },
+    "slide": { "direction": "top", "duration_ms": 400 },
+    "zoom": { "scale_percent": 85, "duration_ms": 200 },
+    "pop": { "scale_percent": 85, "damping_percent": 65, "stiffness": 300 }
+  },
+  "animation_hide": { "effect": "slide", "slide": { "direction": "top", "duration_ms": 400 } }
+}
+```
+
+Merge these members into the existing configuration, not over the tile layout. Both profiles support the same fields. Durations are 0–2000 ms (0 is immediate), Slide travel is calculated automatically to the selected usable-screen edge; legacy `slide.distance` is preserved but ignored. Direction is `left`, `right`, `top`, or `bottom` (entry side on opening, exit side on closing). Zoom/Pop scale is 50–100 percent. Pop uses a real libadwaita spring: damping ratio is `damping_percent / 100` (30–200), stiffness is 50–1200, mass is fixed at 1; settling time follows the physics, not a duration setting. Integer bounds are enforced when loading; invalid member types keep defaults.
+
+Slide moves the **whole menu from/to the selected usable-screen edge, without fading or scaling**. Opening finishes its timed flight up to 16 logical pixels past the destination, then a real libadwaita spring settles the translation (damping ratio 0.5, mass 1, stiffness 400). Settling adds time beyond `duration_ms`; closing is a timed flight without a spring. When a floating profile uses Slide, a transparent usable-output surface hosts the menu at its panel-aware resting position; the surrounding area passes clicks through. Other profiles keep their normal behavior. Switching mid-animation to Slide immediately restores full opacity/scale and continues from the current displacement. There is no cross-monitor flight or guaranteed overlap of Waybar: the usable edge excludes reserved panel space. Without a Slide profile, effects remain inside the native menu surface (spring overshoot can be clipped, and its native shadow is suppressed during transitions). System-disabled animations and `none` are immediate. Repeated toggles retarget current visuals without resetting the search or rebuilding tiles during reversal. `--describe` includes profile values and additive `metadata.object_properties`; external settings-editor support for nested profiles is not verified.
+
 ### Layout, migration, and limits
 
 The first configuration is generated from installed visible applications: categories with at least two applications become folders. Other applications are added as small tiles. Configured groups are merged into one board; saving layout writes one unnamed group. Missing/hidden applications are purged, and folders with fewer than two items are ungrouped when the board is rebuilt. Applications not represented in the layout are automatically added, so removing a standalone tile is not permanent application hiding.

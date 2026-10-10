@@ -2,6 +2,9 @@ namespace XimperShellLauncher {
 
     public class ConfigManager : Object {
 
+        public AnimationProfile animation_open = AnimationProfile.opening ();
+        public AnimationProfile animation_hide = AnimationProfile.hiding ();
+
         public int max_columns { get; set; default = 0; }
         public int cell_size { get; set; default = 0; }
         public string layer { get; set; default = "overlay"; }
@@ -60,6 +63,10 @@ namespace XimperShellLauncher {
 
                 var root = parser.get_root ().get_object ();
                 bool config_migrated = false;
+                var opening = AnimationProfile.object_member (root, "animation_open");
+                if (opening != null) animation_open.read (opening);
+                var hiding = AnimationProfile.object_member (root, "animation_hide");
+                if (hiding != null) animation_hide.read (hiding);
 
                 if (root.has_member ("max_columns"))
                     max_columns = (int) root.get_int_member ("max_columns");
@@ -195,6 +202,8 @@ namespace XimperShellLauncher {
         }
 
         private void reset_to_defaults () {
+            animation_open = AnimationProfile.opening ();
+            animation_hide = AnimationProfile.hiding ();
             max_columns = 0;
             cell_size = 0;
             layer = "overlay";
@@ -300,6 +309,10 @@ namespace XimperShellLauncher {
             builder.add_int_value (wallpaper_dim);
             builder.set_member_name ("background_opacity");
             builder.add_int_value (background_opacity);
+            builder.set_member_name ("animation_open");
+            animation_open.serialize (builder);
+            builder.set_member_name ("animation_hide");
+            animation_hide.serialize (builder);
             builder.set_member_name ("search_providers_enabled");
             builder.add_boolean_value (search_providers_enabled);
             builder.set_member_name ("search");

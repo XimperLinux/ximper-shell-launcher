@@ -58,6 +58,10 @@ namespace XimperShellLauncher {
         builder.add_int_value (config.wallpaper_dim);
         builder.set_member_name ("background_opacity");
         builder.add_int_value (config.background_opacity);
+        builder.set_member_name ("animation_open");
+        config.animation_open.serialize (builder);
+        builder.set_member_name ("animation_hide");
+        config.animation_hide.serialize (builder);
         builder.set_member_name ("search_providers_enabled");
         builder.add_boolean_value (config.search_providers_enabled);
         builder.set_member_name ("search_providers");
@@ -113,6 +117,12 @@ namespace XimperShellLauncher {
         builder.begin_object ();
         builder.set_member_name ("search_providers");
         add_search_provider_array (builder, provider_manager.providers);
+        // Additive schema namespace: existing flat property consumers are unchanged.
+        builder.set_member_name ("object_properties");
+        builder.begin_object ();
+        add_animation_schema (builder, "animation_open", AnimationProfile.opening ());
+        add_animation_schema (builder, "animation_hide", AnimationProfile.hiding ());
+        builder.end_object ();
         builder.set_member_name ("properties");
         builder.begin_object ();
         add_integer_property (
@@ -173,6 +183,44 @@ namespace XimperShellLauncher {
         generator.set_root (builder.get_root ());
         generator.set_pretty (true);
         return generator.to_data (null) + "\n";
+    }
+
+    private void add_animation_schema (Json.Builder builder, string name, AnimationProfile defaults) {
+        builder.set_member_name (name);
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("object");
+        builder.set_member_name ("consumer_compatibility"); builder.add_string_value ("unverified");
+        builder.set_member_name ("scope"); builder.add_string_value ("local-selected-monitor");
+        builder.set_member_name ("default"); defaults.serialize (builder);
+        builder.set_member_name ("properties"); builder.begin_object ();
+        add_enum_property (builder, "effect", "Effect (none disables)", defaults.effect.to_string (),
+            { "none", "fade", "slide", "zoom", "pop" });
+        string[] sections = { "fade", "slide", "zoom", "pop" };
+        foreach (var section in sections) {
+            builder.set_member_name (section); builder.begin_object ();
+            builder.set_member_name ("type"); builder.add_string_value ("object");
+            builder.set_member_name ("properties"); builder.begin_object ();
+            switch (section) {
+            case "fade":
+                add_integer_property (builder, "duration_ms", "Duration (ms)", defaults.fade_duration_ms, 0, 2000);
+                break;
+            case "slide":
+                add_enum_property (builder, "direction", "Screen edge", defaults.slide_direction.to_string (), { "left", "right", "top", "bottom" });
+                add_integer_property (builder, "duration_ms", "Flight duration (ms; opening spring settles afterwards)", defaults.slide_duration_ms, 0, 2000);
+                break;
+            case "zoom":
+                add_integer_property (builder, "scale_percent", "Scale (%)", 85, 50, 100);
+                add_integer_property (builder, "duration_ms", "Duration (ms)", 200, 0, 2000);
+                break;
+            case "pop":
+                add_integer_property (builder, "scale_percent", "Scale (%)", 85, 50, 100);
+                add_integer_property (builder, "damping_percent", "Damping (%)", 65, 30, 200);
+                add_integer_property (builder, "stiffness", "Spring stiffness (mass fixed at 1)", 300, 50, 1200);
+                break;
+            }
+            builder.end_object (); builder.end_object ();
+        }
+        builder.end_object (); builder.end_object ();
     }
 
     private void add_config_search_provider_array (Json.Builder builder, ConfigManager config) {

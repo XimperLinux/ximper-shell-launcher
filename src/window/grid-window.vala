@@ -3,6 +3,63 @@ namespace XimperShellLauncher {
     public class GridWindow : Gtk.Window {
 
         private weak Application app;
+        private MenuTransition transition;
+        public bool desired_open { get; private set; }
+        private bool interactive;
+        private ListModel monitor_model;
+        private ulong monitors_handler;
+
+        private static ulong watch_monitors (GridWindow window, ListModel monitors) {
+            weak GridWindow owner = window;
+            return monitors.items_changed.connect (() => {
+                if (owner == null) return;
+                owner.settle_transition ();
+                owner.window_geometry.invalidate_monitor ();
+                owner.apply_window_mode ();
+            });
+        }
+
+        protected override void dispose () {
+            if (monitors_handler != 0) {
+                SignalHandler.disconnect (monitor_model, monitors_handler);
+                monitors_handler = 0;
+            }
+            if (transition != null) transition.cancel ();
+            base.dispose ();
+        }
+
+        private void update_input () {
+            GtkLayerShell.set_keyboard_mode (this, desired_open ? GtkLayerShell.KeyboardMode.ON_DEMAND : GtkLayerShell.KeyboardMode.NONE);
+            var surface = get_surface ();
+            if (surface != null) {
+                if (!desired_open) surface.set_input_region (new Cairo.Region ());
+                else if (transition.hosted) {
+                    var rect = transition.menu_rect;
+                    Cairo.RectangleInt input = { rect.x, rect.y, rect.width, rect.height };
+                    surface.set_input_region (new Cairo.Region.rectangle (input));
+                } else surface.set_input_region (null);
+            }
+            // Keep theme state unchanged while gating all pointer/DnD input.
+            root_overlay.can_target = interactive;
+        }
+
+        private void transition_settled () {
+            transition.finish (desired_open);
+            interactive = desired_open;
+            remove_css_class ("menu-transitioning");
+            update_input ();
+            if (!desired_open) set_visible (false);
+
+        }
+
+        public void settle_transition () {
+            transition.finish (desired_open);
+            transition_settled ();
+        }
+
+        public void toggle_menu () {
+            if (desired_open) close_grid (); else open_grid ();
+        }
         private SearchBar search_bar;
         private TileGrid tile_grid;
         private Gtk.ScrolledWindow scrolled;
@@ -17,7 +74,6 @@ namespace XimperShellLauncher {
         private CombinedView combined_view;
         private bool wofi_mode = false;
         private bool combined_mode = false;
-        private bool ignore_next_focus_leave = false;
         private bool focus_leave_armed = false;
         private WindowGeometry window_geometry;
         private PopoverNavigator popover_navigator;
@@ -34,11 +90,24 @@ namespace XimperShellLauncher {
             LayerShellHelper.setup_overlay (this, LayerShellHelper.parse_layer (app.config.layer));
 
             build_ui ();
+            // Capture queued pointer/scroll/touch events as well as native input
+            // gating, without making the animated subtree insensitive.
+            var input_gate = new Gtk.EventControllerLegacy ();
+            input_gate.propagation_phase = Gtk.PropagationPhase.CAPTURE;
+            input_gate.event.connect ((event) => {
+                if (interactive) return false;
+                var type = event.get_event_type ();
+                return type != Gdk.EventType.KEY_PRESS && type != Gdk.EventType.KEY_RELEASE &&
+                    type != Gdk.EventType.FOCUS_CHANGE;
+            });
+            ((Gtk.Widget) this).add_controller (input_gate);
             setup_keys ();
             setup_click_close ();
             setup_config_updates ();
             setup_focus_close ();
             apply_window_mode ();
+            monitor_model = get_display ().get_monitors ();
+            monitors_handler = watch_monitors (this, monitor_model);
         }
 
         private void build_ui () {
@@ -133,7 +202,16 @@ namespace XimperShellLauncher {
             root_overlay.add_overlay (wallpaper_dimmer);
             root_overlay.add_overlay (toast_overlay);
             root_overlay.set_measure_overlay (toast_overlay, true);
-            set_child (root_overlay);
+            transition = new MenuTransition (root_overlay);
+            transition.settled.connect (transition_settled);
+            transition.allocation_changed.connect (update_input);
+            set_child (transition);
+            map.connect (() => { update_input (); });
+            unmap.connect (() => {
+                transition.finish (false);
+                desired_open = false;
+                interactive = false;
+            });
         }
 
         private void update_wallpaper () {
@@ -180,6 +258,10 @@ namespace XimperShellLauncher {
             var key_controller = new Gtk.EventControllerKey ();
             key_controller.set_propagation_phase (Gtk.PropagationPhase.CAPTURE);
             key_controller.key_pressed.connect ((keyval, keycode, state) => {
+                if (!interactive) {
+                    if (keyval == Gdk.Key.Escape && desired_open) close_grid ();
+                    return true;
+                }
                 // Let popovers handle their own keyboard navigation and Escape.
                 if (search_bar.results_widget.has_open_popover || tile_grid.get_active_popover () != null)
                     return false;
@@ -279,7 +361,7 @@ namespace XimperShellLauncher {
         private void setup_click_close () {
             var gesture = new Gtk.GestureClick ();
             gesture.pressed.connect ((n, x, y) => {
-                if (app.config.window_mode != WindowMode.FULLSCREEN) return;
+                if (!interactive || app.config.window_mode != WindowMode.FULLSCREEN) return;
                 var widget = pick (x, y, Gtk.PickFlags.DEFAULT);
                 if (widget == this || widget == scrolled || widget is Gtk.Viewport) {
                     close_grid ();
@@ -329,26 +411,22 @@ namespace XimperShellLauncher {
         }
 
         private void setup_focus_close () {
-            var focus = new Gtk.EventControllerFocus ();
-            focus.enter.connect (() => {
-                if (app.config.window_mode != WindowMode.FLOATING) return;
-                focus_leave_armed = true;
-            });
-            focus.leave.connect (() => {
-                if (!visible) return;
-                if (!app.config.close_on_focus_loss) return;
-                if (app.config.window_mode != WindowMode.FLOATING) return;
-                if (!focus_leave_armed) return;
-                if (ignore_next_focus_leave) {
-                    ignore_next_focus_leave = false;
+            // Widget focus can remain on the entry after another application
+            // becomes active. Track toplevel activation, not descendant focus.
+            notify["is-active"].connect (() => {
+                if (!desired_open) return;
+                if (is_active) {
+                    focus_leave_armed = true;
                     return;
                 }
+                if (!focus_leave_armed || !app.config.close_on_focus_loss) return;
+                if (app.config.window_mode != WindowMode.FLOATING) return;
                 close_grid ();
             });
-            ((Gtk.Widget) this).add_controller (focus);
         }
 
         private void apply_window_mode () {
+            if (transition != null && transition.running) settle_transition ();
             var effective_mode = app.config.window_mode;
             if (effective_mode == WindowMode.FLOATING) {
                 var monitor = window_geometry.get_floating_monitor ();
@@ -365,15 +443,28 @@ namespace XimperShellLauncher {
             window_geometry.get_floating_geometry (out floating_x, out floating_y, out floating_width, out floating_height,
                                                    out floating_margin);
 
+            bool host = effective_mode == WindowMode.FLOATING &&
+                (app.config.animation_open.effect == AnimationEffect.SLIDE ||
+                 app.config.animation_hide.effect == AnimationEffect.SLIDE);
+            bool custom = app.config.floating_position == FloatingPosition.CUSTOM;
+            transition.configure_host (host,
+                custom ? -1 : app.config.floating_position.horizontal_alignment (),
+                custom ? -1 : app.config.floating_position.vertical_alignment (),
+                custom ? floating_x : floating_margin,
+                custom ? floating_y : floating_margin);
             LayerShellHelper.apply_window_mode (
-                this,
-                effective_mode,
-                LayerShellHelper.parse_layer (app.config.layer),
-                floating_x,
-                floating_y,
-                app.config.floating_position,
-                floating_margin
+                this, host ? WindowMode.FULLSCREEN : effective_mode,
+                LayerShellHelper.parse_layer (app.config.layer), floating_x, floating_y,
+                app.config.floating_position, floating_margin
             );
+            if (host) {
+                // The compositor supplies the whole usable area; no global origin
+                // or panel height is needed for placement within this surface.
+                GtkLayerShell.set_exclusive_zone (this, 0);
+                remove_css_class ("fullscreen");
+                add_css_class ("floating");
+                add_css_class ("slide-host");
+            } else remove_css_class ("slide-host");
 
             if (effective_mode == WindowMode.FLOATING) {
                 toast_overlay.width_request = floating_width;
@@ -383,6 +474,7 @@ namespace XimperShellLauncher {
                 toast_overlay.height_request = -1;
             }
 
+            update_input ();
             queue_resize ();
         }
 
@@ -398,19 +490,29 @@ namespace XimperShellLauncher {
         }
 
         public void open_grid () {
-            configure_interface ();
-            search_bar.reset ();
-            tile_grid.build_from_config ();
-            update_content (false);
-            ignore_next_focus_leave = true;
-            focus_leave_armed = false;
-            window_geometry.invalidate_monitor ();
-            apply_window_mode ();
-
+            if (desired_open) return;
+            bool fresh = !visible;
+            if (fresh) {
+                configure_interface ();
+                search_bar.reset ();
+                tile_grid.build_from_config ();
+                update_content (false);
+                window_geometry.invalidate_monitor ();
+                apply_window_mode ();
+                transition.prepare (app.config.animation_open.copy ());
+            }
+            focus_leave_armed = is_active;
+            desired_open = true;
+            interactive = false;
+            add_css_class ("menu-transitioning");
+            update_input ();
             set_visible (true);
             present ();
-
+            // Choose the initial focus now, not after the animation: a genuine
+            // leave during opening must dismiss rather than refocus later.
             search_bar.search_entry.grab_focus ();
+            if (desired_open)
+                transition.transition (true, app.config.animation_open.copy ());
         }
 
         public void open_wofi () {
@@ -423,9 +525,18 @@ namespace XimperShellLauncher {
         }
 
         private void close_grid () {
-            ignore_next_focus_leave = false;
             focus_leave_armed = false;
-            set_visible (false);
+            if (!desired_open) return;
+            desired_open = false;
+            interactive = false;
+            var popover = search_bar.results_widget.get_active_popover ();
+            if (popover != null) popover.popdown ();
+            popover = tile_grid.get_active_popover ();
+            if (popover != null) popover.popdown ();
+            popover_navigator.reset ();
+            add_css_class ("menu-transitioning");
+            update_input ();
+            transition.transition (false, app.config.animation_hide.copy ());
         }
 
         public void show_toast (string message) {
@@ -437,7 +548,7 @@ namespace XimperShellLauncher {
         // --- Gamepad ---
 
         public void gamepad_navigate (int dx, int dy) {
-            if (!visible) return;
+            if (!interactive) return;
 
             if (popover_navigator.active) {
                 if (dy != 0) popover_navigator.navigate (dy);
@@ -458,7 +569,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_activate () {
-            if (!visible) return;
+            if (!interactive) return;
 
             if (popover_navigator.active) {
                 popover_navigator.activate_focused ();
@@ -470,7 +581,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_context_menu () {
-            if (!visible || popover_navigator.active) return;
+            if (!interactive || popover_navigator.active) return;
             if (list_navigation_active ()) search_bar.results_widget.open_selected_context_menu ();
             else tile_grid.gamepad_context_menu ();
             var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
@@ -480,7 +591,7 @@ namespace XimperShellLauncher {
         }
 
         public void gamepad_back () {
-            if (!visible) return;
+            if (!interactive) { if (desired_open) close_grid (); return; }
 
             if (popover_navigator.active) {
                 var popover = search_bar.results_widget.get_active_popover () ?? tile_grid.get_active_popover ();
@@ -502,15 +613,11 @@ namespace XimperShellLauncher {
 
         public void gamepad_toggle () {
             if (popover_navigator.active) return;
-            if (visible) {
-                close_grid ();
-            } else {
-                open_grid ();
-            }
+            toggle_menu ();
         }
 
         public void gamepad_scroll (int direction) {
-            if (!visible) return;
+            if (!interactive) return;
             if (popover_navigator.active) return;
             var adj = list_navigation_active ()
                 ? search_bar.results_widget.vadjustment : scrolled.vadjustment;

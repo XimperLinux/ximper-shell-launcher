@@ -85,16 +85,11 @@ namespace XimperShellLauncher {
 
         public void toggle_grid () {
             if (grid_window == null) return;
-            if (grid_window.visible) {
-                grid_window.set_visible (false);
-            } else if (config.launcher_mode == LauncherMode.WOFI) {
-                grid_window.open_wofi ();
-            } else {
-                grid_window.open_grid ();
-            }
+            grid_window.toggle_menu ();
         }
 
         public void reload_config () {
+            if (grid_window != null) grid_window.settle_transition ();
             config.load ();
             app_provider.scan ();
             if (grid_window != null)
