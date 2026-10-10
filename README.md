@@ -1,9 +1,10 @@
 # ximper-shell-launcher
 
-Application launcher.
-A component of the Ximper Shell.
+Application launcher. A component of the Ximper Shell.
 
-Fullscreen app launcher with a tiles mode inspired by Windows Phone 8.1. Tiles of different sizes, folders with animation, drag-and-drop, fuzzy search across all .desktop fields with GNOME Search Providers integration, gamepad support. Built with Vala, GTK4, libadwaita, gtk4-layer-shell, libmanette.
+[Русская документация](README_ru.md)
+
+Wayland app launcher with a tiles mode inspired by Windows Phone 8.1. Tiles of different sizes, folders with animation, drag-and-drop, fuzzy search across application metadata with GNOME Search Providers integration, gamepad support. Built with Vala, GTK4, libadwaita, gtk4-layer-shell, libmanette.
 
 Supports Hyprland and Niri through compositor helpers.
 
@@ -20,14 +21,24 @@ Supports Hyprland and Niri through compositor helpers.
 - Gamepad navigation through libmanette.
 - Optional integration with Ximper Shell Dock to pin or unpin applications from a tile context menu.
 
-## Build
+## Build and installation
+
+Requires Meson ≥ 0.62, Ninja, Vala, a C compiler, gettext tools, and development packages for GTK ≥ 4.12, libadwaita ≥ 1.4, gtk4-layer-shell ≥ 1.0, json-glib, gio-unix, gdk-pixbuf, and manette-0.2. Gamepad support is a required build dependency; Dock and search providers are optional runtime integrations. Run in a Wayland session with layer-shell support and a session D-Bus.
 
 ```sh
-meson setup _build
+meson setup _build --prefix=/usr --sysconfdir=/etc
 ninja -C _build
-./_build/src/ximper-shell-launcher
 meson test -C _build --print-errorlogs
+./_build/src/ximper-shell-launcher --toggle
+# Optional system installation (requires permission to write system directories):
+meson install -C _build
 ```
+
+Meson installs the binary, CSS under `sysconfdir/xdg/ximper-shell/launcher/style.css`, and translations. Runtime system CSS lookup uses `/etc/xdg`, hence the explicit `--sysconfdir=/etc`. The ALT RPM recipe is [`ximper-shell-launcher.spec`](ximper-shell-launcher.spec); its `%check` runs Meson tests. The existing `desktop-entry-exec` test covers desktop-entry execution and D-Bus activation/fallback, not UI or drag-and-drop.
+
+### Session startup
+
+Running `ximper-shell-launcher` without options starts it with a hidden window. Configure your compositor/session to start it and bind `ximper-shell-launcher --toggle` to a key as needed. No autostart file, desktop entry, systemd unit, or D-Bus activation service file is shipped. It is a single-instance GApplication: subsequent CLI commands are forwarded to the running instance. `--toggle` shows **or hides** the menu.
 
 Application tiles use GIO to launch `.desktop` entries. D-Bus activation is
 asynchronous; if it fails, the launcher retries the entry's `Exec` via GIO.
@@ -36,11 +47,13 @@ Entries without a valid D-Bus name use GIO's normal `Exec` path with `setsid()`.
 ## CLI
 
 ```sh
-# Opens the launcher selected by launcher_mode
+# Shows/hides the launcher selected by launcher_mode (-t is the short form)
 ximper-shell-launcher --toggle
 ximper-shell-launcher --reload    # reread config from disk and apply it to the running launcher
 ximper-shell-launcher --describe  # print the current configuration and supported parameters as JSON
 ```
+
+`--reload` reloads configuration/applications and rebuilds the interface, not CSS. `--describe` prints `config`, `runtime`, `paths`, and parameter/provider `metadata`. It is not a pure headless schema tool: a new instance performs GUI startup, which can create or migrate configuration. Commands forwarded to a running instance use its configuration. Output differs from the on-disk schema: `config.search_providers` is flat, whereas the file uses `search.providers`. Do not copy the whole output to `config.json`. `runtime.running` is a constant, not an independent health probe. Combined flags take priority in this order: describe, toggle, reload.
 
 ## Compositor Support
 
@@ -51,7 +64,9 @@ The launcher uses compositor helpers for compositor-specific behavior:
 
 ## Config
 
-`~/.config/ximper-shell/launcher/config.json`
+`$XDG_CONFIG_HOME/ximper-shell/launcher/config.json` (normally `~/.config/ximper-shell/launcher/config.json`). Edit the file and use `--reload`; there is no built-in settings window.
+
+This example includes sample applications/providers, not a universal initial layout:
 
 ```json
 {
@@ -78,8 +93,8 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "wallpaper_opacity": 100,
   "wallpaper_dim": 0,
   "background_opacity": 100,
+  "search_providers_enabled": true,
   "search": {
-    "providers_enabled": true,
     "providers": [
       { "id": "org.gnome.Nautilus.desktop", "enabled": true },
       { "id": "org.gnome.Calculator.desktop", "enabled": false }
@@ -88,7 +103,7 @@ The launcher uses compositor helpers for compositor-specific behavior:
   "groups": [{
     "name": "",
     "tiles": [
-      { "desktop_id": "firefox.desktop", "size": "small" },
+      { "desktop_id": "org.gnome.Nautilus.desktop", "size": "small" },
       { "desktop_id": "folder:Internet", "size": "folder",
         "folder_name": "Internet",
         "folder_items": ["firefox.desktop", "org.gnome.Epiphany.desktop"] }
@@ -99,7 +114,7 @@ The launcher uses compositor helpers for compositor-specific behavior:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `max_columns` | int | `0` | Max tile columns (0 = auto, up to 18) |
+| `max_columns` | int | `0` | Column limit (0 = automatic, capped at 18); actual grid has at least 4 columns and rounds odd counts down to an even count |
 | `cell_size` | int | `0` | Tile size in pixels (0 = auto from screen width) |
 | `layer` | string | `"overlay"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_mode` | string | `"tiles"` | Launcher interface: `"tiles"`, compact `"wofi"`, or `"combined"` (list + tiles) |
@@ -112,17 +127,17 @@ The launcher uses compositor helpers for compositor-specific behavior:
 | `floating_margin` | int | `16` | Edge margin in pixels for presets (0–512, limited by the monitor size); ignored in custom mode |
 | `floating_x` | int | `0` | Legacy pixel offset retained for compatibility; manual placement uses percentages |
 | `floating_y` | int | `24` | Legacy pixel offset retained for compatibility; manual placement uses percentages |
-| `floating_width` | int | `1120` | Width of the floating launcher in pixels; shared by all interfaces |
-| `floating_height` | int | `880` | Height of the floating launcher in pixels; shared by all interfaces |
+| `floating_width` | int | `1120` | Requested width in pixels; runtime clamps to 320–4096; shared by all interfaces |
+| `floating_height` | int | `880` | Requested height in pixels; runtime clamps to 240–4096; shared by all interfaces |
 | `floating_x_percent` | int | `50` | Horizontal position in custom mode, 0–100% of available space; retained when selecting presets |
 | `floating_y_percent` | int | `50` | Vertical position in custom mode, 0–100% of available space; retained when selecting presets |
-| `output` | string[] | `[]` | Target monitor connector; an empty array uses the compositor-selected active output |
+| `output` | string[] | `[]` | Floating target connectors; only the first is used. If absent/unavailable, try the compositor's active output, then the monitor of the pointer surface |
 | `wallpaper_path` | string | `""` | Absolute path to a local wallpaper image shown behind the menu; empty disables it |
 | `wallpaper_fit` | int | `2` | Image fit: 0=fill, 1=contain, 2=cover, 3=scale down |
 | `wallpaper_opacity` | int | `100` | Wallpaper opacity, 0–100% |
 | `wallpaper_dim` | int | `0` | Black dimmer above wallpaper, 0–100% |
 | `background_opacity` | int | `100` | Menu background opacity, 0–100% |
-| `search.providers_enabled` | bool | `true` | Enable all external GNOME Search Providers globally; local application search stays enabled when this is `false` |
+| `search_providers_enabled` | bool | `true` | Enable all external GNOME Search Providers globally; local application search stays enabled when this is `false` |
 | `search.providers` | array | `[]` | Ordered search providers; each entry has a desktop-file `id` and an `enabled` flag |
 | `groups` | array | | Tile groups with tiles and folders |
 
@@ -132,14 +147,28 @@ Floating placement is independent of `launcher_mode`: it neither enables tiles n
 
 `monitor_index` is accepted only as a legacy setting and is migrated to `output` when the configuration is saved. Use the monitor connector name instead, because display indexes are not stable.
 
-Search providers are discovered in the user and system `gnome-shell/search-providers` XDG data directories. Set `search.providers_enabled` to `false` to disable all external providers while keeping local application search. Their order in `search.providers` controls the order of result sections. Providers not listed there remain enabled and follow the configured entries alphabetically.
+Search providers are discovered in the user and system `gnome-shell/search-providers` XDG data directories. Set `search_providers_enabled` to `false` to disable all external providers while keeping local application search. Their order in `search.providers` controls the order of result sections. Providers not listed there remain enabled and follow the configured entries alphabetically.
 
+
+### Layout, migration, and limits
+
+The first configuration is generated from installed visible applications: categories with at least two applications become folders. Other applications are added as small tiles. Configured groups are merged into one board; saving layout writes one unnamed group. Missing/hidden applications are purged, and folders with fewer than two items are ungrouped when the board is rebuilt. Applications not represented in the layout are automatically added, so removing a standalone tile is not permanent application hiding.
+
+If the launcher config is absent, legacy `ximper-shell/tile-menu/config.json` is copied. Numeric layers, `monitor_index`, and `wofi_width`/`wofi_height` are migrated and saved during loading. Defaults in the table describe scalar settings; `groups` depend on installed applications. Metadata ranges from `--describe` are advisory, not loader validation: `max_columns` metadata is 0–20, floating dimensions 1–10000, while the runtime limits above apply. Positive column limits are not capped at 18. Position presets additionally fit the requested size to the monitor; custom placement does not. `output` selection applies only to floating windows. Fullscreen uses whole-output anchoring; floating respects reserved panel space (exclusive zone 0 versus fullscreen -1).
+
+A wallpaper must be an absolute path to a regular local file. When active, it replaces the ordinary background, so `background_opacity` has no effect; use wallpaper opacity/dimming instead.
+
+### Search and application history
+
+Local fuzzy matching examines display name, GenericName, Comment, desktop ID, Keywords, and Categories—not every desktop-file field or Exec. Search is debounced by 200 ms. Provider sections precede local applications; providers are queried sequentially with a 500 ms timeout per D-Bus call and up to five result IDs per provider. Tiles mode shows at most eight local search results; Wofi and combined do not impose that limit. Provider headers open the full provider search; activation uses SearchProvider2 with full-search fallback. Results with `clipboardText` copy that text to the clipboard.
+
+Relevance combines match score and recorded launch frequency. Counts are stored in `$XDG_DATA_HOME/ximper-shell/launcher/launch-history.json` (normally `~/.local/share/...`). Launches and desktop actions from the application list are recorded; tile launches are not. This is not a log of all successfully launched applications. Local list rows, like tiles, offer desktop actions and Dock pin/unpin when available. The app catalog uses GIO's visibility rules and monitors installed entries; reopen or reload to refresh the displayed layout/list after changes.
 
 ### Custom CSS
 
-Create `~/.config/ximper-shell/launcher/style.css` to change the menu appearance without modifying installed files. This stylesheet is loaded with user priority, so its rules override the bundled stylesheet. Reload or restart the launcher after editing it.
+Create `~/.config/ximper-shell/launcher/style.css` to change the menu appearance without modifying installed files. This stylesheet is loaded with user priority, so its rules override the bundled stylesheet. Restart the launcher after editing it; `--reload` does not reload stylesheets.
 
-The bundled [`data/ximper-shell-launcher.css`](data/ximper-shell-launcher.css) lists all available rules and is a useful starting point. On an installed system it is normally available as `/etc/xdg/ximper-shell/launcher/style.css`.
+The bundled [`data/ximper-shell-launcher.css`](data/ximper-shell-launcher.css) is a useful starting point. Some legacy rules remain unused; the expanded-folder background uses `.folder-drop-zone`. On an installed system it is normally available as `/etc/xdg/ximper-shell/launcher/style.css`.
 
 ```sh
 mkdir -p ~/.config/ximper-shell/launcher
@@ -163,7 +192,20 @@ For example, to adjust the menu background, tile corners, and floating-menu shad
 }
 ```
 
-Useful selectors include `.grid-overlay`, `.grid-overlay.floating`, `.window-background`, `.tile`, `.tile-name`, `.search-entry`, `.search-result-row`, `.folder-expanded`, and `.wallpaper-dimmer`. GTK/libadwaita theme colors such as `@window_bg_color`, `@card_bg_color`, and `@accent_bg_color` follow the active system theme.
+Useful selectors include `.grid-overlay`, `.grid-overlay.floating`, `.window-background`, `.tile`, `.tile-name`, `.search-entry`, `.search-result-row`, `.folder-drop-zone`, and `.wallpaper-dimmer`. GTK/libadwaita theme colors such as `@window_bg_color`, `@card_bg_color`, and `@accent_bg_color` follow the active system theme.
+
+Base CSS lookup order is `$XDG_DATA_HOME/ximper-shell-launcher/ximper-shell-launcher.css`, `/etc/xdg/ximper-shell/launcher/style.css`, then source-tree CSS resolved through `/proc/self/exe`. User config CSS overrides it; legacy `~/.config/ximper-shell/tile-menu/style.css` is used only if launcher user CSS is absent.
+
+## Architecture
+
+- [`src/application.vala`](src/application.vala): GApplication lifecycle, CLI/D-Bus, configuration and integrations.
+- [`src/config.vala`](src/config.vala), [`src/config-types.vala`](src/config-types.vala), [`src/describe.vala`](src/describe.vala): persistence, models, and metadata.
+- `src/window/`: shared window, combined list/tiles view, geometry, wallpaper background and popover navigation.
+- `src/tiles/`: custom TileBoard allocation, ordered occupancy packing (mixed spans), TileModel mutations, drag candidate previews, folder animation and tile widgets. Drag targets exclude source/gap, previews deep-copy layout, drag icons are frozen, and rebuilding waits for drag completion.
+- `src/search/`: shared virtualized Gtk.ListView, ordering/Unicode headings, query orchestration, SearchProvider2 and loading indicator.
+- `src/integration/`: GIO app catalog/launching, bounded asynchronous icon loading, Dock client and launch counts.
+- `src/compositor/`, `src/tools/`, `src/input/`: monitor lookup, layer-shell and gamepad support.
+- `data/` and `po/`: GTK CSS and gettext translations (Russian supplied).
 
 ## Gamepad
 
@@ -171,14 +213,14 @@ Gamepad support via libmanette. A toast notification appears when a gamepad is c
 
 | Button | Action |
 |--------|--------|
-| D-pad / Left stick | Navigate tiles |
+| D-pad / Left stick | Navigate tiles, lists, or context menus |
 | A (South) | Activate tile / select menu item |
 | B (East) | Back (close folder / close popover / close menu) |
-| X (North) | Open context menu on focused tile |
+| X (North) | Open context menu on focused tile/local application row |
 | Xbox / Guide | Toggle launcher |
 | LB / RB | Scroll up / down |
 
-Hold D-pad or stick for continuous navigation.
+Hold D-pad or stick for continuous navigation. Guide does not toggle the launcher while a process named `steam` is running. Start and Y have no assigned action. The connection toast is emitted for newly connected devices, not devices already present at startup.
 
 ## D-Bus
 
