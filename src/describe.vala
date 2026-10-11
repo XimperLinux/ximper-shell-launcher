@@ -215,7 +215,7 @@ namespace XimperShellLauncher {
         builder.set_member_name ("properties"); builder.begin_object ();
         add_boolean_property (builder, "enabled", "Show action panel", false);
         add_enum_property (builder, "position", "Action panel position", "left",
-            { "left", "right", "above-search", "below-search" });
+            { "left", "right", "above-search", "below-search", "in-search" });
         add_boolean_property (builder, "show_labels", "Show action labels", false);
         add_integer_property (builder, "background_opacity", "Panel background opacity (%)", 0, 0, 100);
         add_integer_property (builder, "width", "Vertical panel width (0 = automatic)", 0, 0, 400);

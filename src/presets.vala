@@ -27,6 +27,102 @@ namespace XimperShellLauncher {
             return 10;
         }
 
+        private static Json.Object button (string type, string label, string icon) {
+            var obj = new Json.Object ();
+            obj.set_string_member ("type", type);
+            obj.set_string_member ("label", label);
+            obj.set_string_member ("icon", icon);
+            return obj;
+        }
+
+        private static void add_button (Json.Array array, Json.Object obj) {
+            var node = new Json.Node (Json.NodeType.OBJECT);
+            node.set_object (obj);
+            array.add_element (node);
+        }
+
+        private static Json.Object folder_button (string label, string icon, string path) {
+            var obj = button ("folder", label, icon);
+            obj.set_string_member ("path", path);
+            obj.set_boolean_member ("close_launcher", true);
+            return obj;
+        }
+
+        private static Json.Object command_button (string label, string icon, string[] argv) {
+            var obj = button ("command", label, icon);
+            var args = new Json.Array ();
+            foreach (string arg in argv) args.add_string_element (arg);
+            obj.set_array_member ("argv", args);
+            obj.set_boolean_member ("confirm", true);
+            obj.set_boolean_member ("close_launcher", true);
+            return obj;
+        }
+
+        private static Json.Object? settings_button () {
+            if (Environment.find_program_in_path ("tuner") == null) return null;
+            var obj = button ("command", _("Settings"), "preferences-system-symbolic");
+            var argv = new Json.Array ();
+            argv.add_string_element ("tuner");
+            obj.set_array_member ("argv", argv);
+            obj.set_boolean_member ("close_launcher", true);
+            return obj;
+        }
+
+        private static Json.Object profile_button (bool include_settings) {
+            string label = Environment.get_real_name ();
+            if (label == "" || label == "Unknown") label = Environment.get_user_name ();
+            var obj = button ("menu", label, "avatar-default-symbolic");
+            var items = new Json.Array ();
+            add_button (items, folder_button (_("Home"), "user-home-symbolic", "~"));
+            if (include_settings) {
+                var settings = settings_button ();
+                if (settings != null) add_button (items, settings);
+            }
+            if (Environment.find_program_in_path ("loginctl") != null) {
+                add_button (items, command_button (_("Lock"), "system-lock-screen-symbolic", { "loginctl", "lock-session" }));
+                // Resolve the session at activation, never freeze its ID in a
+                // persistent preset or pass a shell variable as literal argv.
+                add_button (items, command_button (_("Sign out"), "system-log-out-symbolic",
+                    { "sh", "-c", ": \"${XDG_SESSION_ID:?}\"; exec loginctl terminate-session \"$XDG_SESSION_ID\"" }));
+            }
+            obj.set_array_member ("items", items);
+            return obj;
+        }
+
+        private static Json.Object power_button () {
+            var obj = button ("menu", _("Power"), "system-shutdown-symbolic");
+            var items = new Json.Array ();
+            add_button (items, command_button (_("Sleep"), "weather-clear-night-symbolic", { "systemctl", "suspend" }));
+            add_button (items, command_button (_("Restart"), "system-reboot-symbolic", { "systemctl", "reboot" }));
+            add_button (items, command_button (_("Power off"), "system-shutdown-symbolic", { "systemctl", "poweroff" }));
+            obj.set_array_member ("items", items);
+            return obj;
+        }
+
+        private static SidebarConfig preset_sidebar (string name) {
+            if (name != "10" && name != "8.1") return new SidebarConfig ();
+            var obj = new Json.Object ();
+            obj.set_boolean_member ("enabled", true);
+            obj.set_string_member ("position", name == "10" ? "left" : "in-search");
+            obj.set_boolean_member ("show_labels", name == "8.1");
+            obj.set_int_member ("background_opacity", 0);
+            var start = new Json.Array ();
+            var end = new Json.Array ();
+            add_button (end, profile_button (name == "8.1"));
+            if (name == "10") {
+                var documents = Environment.get_user_special_dir (UserDirectory.DOCUMENTS);
+                var pictures = Environment.get_user_special_dir (UserDirectory.PICTURES);
+                if (documents != null) add_button (end, folder_button (_("Documents"), "folder-documents-symbolic", documents));
+                if (pictures != null) add_button (end, folder_button (_("Pictures"), "folder-pictures-symbolic", pictures));
+                var settings = settings_button ();
+                if (settings != null) add_button (end, settings);
+            }
+            if (Environment.find_program_in_path ("systemctl") != null) add_button (end, power_button ());
+            obj.set_array_member ("start", start);
+            obj.set_array_member ("end", end);
+            return SidebarConfig.preset_template (obj);
+        }
+
         public static bool apply (string name, ConfigManager config, GenericArray<AppEntry> apps) {
             if (!is_valid (name)) return false;
             string[] labels = { _("System"), _("Internet"), _("Office"), _("Graphics"), _("Multimedia"), _("Games"), _("Development"), _("Education"), _("Science"), _("Utilities"), _("Other") };
@@ -86,6 +182,7 @@ namespace XimperShellLauncher {
                 config.floating_y_percent = 50;
             }
             if (name == "10") config.app_list_side = AppListSide.LEFT;
+            if (config.sidebar.follows_preset ()) config.sidebar = preset_sidebar (name);
             return true;
         }
     }

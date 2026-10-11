@@ -246,3 +246,43 @@ msgstr "Отмена"
 #: src/window/action-sidebar.vala
 msgid "Run"
 msgstr "Выполнить"
+
+#: src/presets.vala
+msgid "Settings"
+msgstr "Настройки"
+
+#: src/presets.vala
+msgid "Home"
+msgstr "Домашняя папка"
+
+#: src/presets.vala
+msgid "Lock"
+msgstr "Заблокировать"
+
+#: src/presets.vala
+msgid "Sign out"
+msgstr "Выйти из сеанса"
+
+#: src/presets.vala
+msgid "Power"
+msgstr "Питание"
+
+#: src/presets.vala
+msgid "Sleep"
+msgstr "Сон"
+
+#: src/presets.vala
+msgid "Restart"
+msgstr "Перезагрузить"
+
+#: src/presets.vala
+msgid "Power off"
+msgstr "Выключить"
+
+#: src/presets.vala
+msgid "Documents"
+msgstr "Документы"
+
+#: src/presets.vala
+msgid "Pictures"
+msgstr "Изображения"

@@ -325,18 +325,29 @@ namespace XimperShellLauncher {
         }
 
         private void configure_sidebar () {
-            bool focused = action_sidebar.contains_focus;
-            if (focused) search_bar.search_entry.grab_focus ();
-            var parent = action_sidebar.get_parent () as Gtk.Box;
-            if (parent != null) parent.remove (action_sidebar);
+            bool focused = action_sidebar.contains_focus || search_bar.search_entry.has_focus;
+            action_sidebar.set_center_widget (null);
+            var parent = action_sidebar.get_parent ();
+            if (parent is Gtk.Box) ((Gtk.Box) parent).remove (action_sidebar);
+            else if (parent == top_overlay) top_overlay.set_child (null);
+            top_overlay.set_child (search_bar);
             action_sidebar.configure (app.config.sidebar);
-            if (!app.config.sidebar.enabled) return;
+            if (!app.config.sidebar.enabled) {
+                if (focused) search_bar.search_entry.grab_focus ();
+                return;
+            }
             switch (app.config.sidebar.position) {
                 case SidebarPosition.LEFT: panel_host.prepend (action_sidebar); break;
                 case SidebarPosition.RIGHT: panel_host.append (action_sidebar); break;
                 case SidebarPosition.ABOVE_SEARCH: main_box.prepend (action_sidebar); break;
                 case SidebarPosition.BELOW_SEARCH: main_box.insert_child_after (action_sidebar, top_overlay); break;
+                case SidebarPosition.IN_SEARCH:
+                    top_overlay.set_child (null);
+                    action_sidebar.set_center_widget (search_bar);
+                    top_overlay.set_child (action_sidebar);
+                    break;
             }
+            if (focused) search_bar.search_entry.grab_focus ();
         }
 
         private bool towards_sidebar (int dx, int dy) {
@@ -346,6 +357,7 @@ namespace XimperShellLauncher {
                 case SidebarPosition.RIGHT: return dx > 0;
                 case SidebarPosition.ABOVE_SEARCH: return dy < 0;
                 case SidebarPosition.BELOW_SEARCH: return dy < 0;
+                case SidebarPosition.IN_SEARCH: return dx != 0 || dy < 0;
             }
             return false;
         }
@@ -372,6 +384,8 @@ namespace XimperShellLauncher {
         private bool enter_sidebar (int dx, int dy) {
             if (!action_sidebar.visible) return false;
             var position = app.config.sidebar.position;
+            if (position == SidebarPosition.IN_SEARCH && search_bar.search_entry.has_focus && dx != 0)
+                return focus_sidebar ();
             if (search_bar.search_entry.has_focus && position == SidebarPosition.BELOW_SEARCH && dy > 0)
                 return focus_sidebar ();
             if (!towards_sidebar (dx, dy)) return false;

@@ -8,6 +8,15 @@ namespace XimperShellLauncher {
         private Gtk.ScrolledWindow end_scroll;
         private Gtk.Box start_box;
         private Gtk.Box end_box;
+        private Gtk.Widget? center_widget;
+
+        public void set_center_widget (Gtk.Widget? widget) {
+            if (center_widget == widget) return;
+            if (center_widget != null) center_widget.unparent ();
+            center_widget = widget;
+            if (widget != null) widget.insert_before (this, end_scroll);
+            queue_resize ();
+        }
         private GenericArray<Gtk.Button> buttons = new GenericArray<Gtk.Button> ();
         private GenericArray<Gtk.Image> images = new GenericArray<Gtk.Image> ();
         private GenericArray<Gtk.Button> menu_buttons = new GenericArray<Gtk.Button> ();
@@ -33,7 +42,8 @@ namespace XimperShellLauncher {
             get {
                 var root = get_root () as Gtk.Window;
                 var focus = root != null ? root.get_focus () : null;
-                return focus != null && (focus == this || focus.is_ancestor (this));
+                return focus != null && (focus == this || focus.is_ancestor (this)) &&
+                    (center_widget == null || (focus != center_widget && !focus.is_ancestor (center_widget)));
             }
         }
 
@@ -144,6 +154,7 @@ namespace XimperShellLauncher {
             cancel_pending ();
             clear_images ();
             clear_menu_images ();
+            set_center_widget (null);
             if (popup != null && popup.get_parent () != null) popup.unparent ();
             if (panel_background != null && panel_background.get_parent () != null) panel_background.unparent ();
             if (start_scroll != null && start_scroll.get_parent () != null) start_scroll.unparent ();
@@ -408,11 +419,21 @@ namespace XimperShellLauncher {
                 out int minimum, out int natural, out int minimum_baseline, out int natural_baseline) {
             minimum_baseline = natural_baseline = -1;
             bool along = orientation == (horizontal ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL);
-            if (along) { minimum = natural = 0; return; }
+            if (along) {
+                minimum = natural = 0;
+                if (center_widget != null) center_widget.measure (orientation, -1, out minimum, out natural, null, null);
+                return;
+            }
             int a_min, a_nat, b_min, b_nat;
             start_box.measure (orientation, -1, out a_min, out a_nat, null, null);
             end_box.measure (orientation, -1, out b_min, out b_nat, null, null);
             minimum = natural = int.max (config.thickness, int.max (a_min, b_min) + 2 * effective_padding ());
+            if (center_widget != null) {
+                int c_min, c_nat;
+                center_widget.measure (orientation, for_size, out c_min, out c_nat, null, null);
+                minimum = int.max (minimum, c_min);
+                natural = int.max (natural, c_nat);
+            }
         }
 
         private void allocate_section (Gtk.ScrolledWindow scroll, int width, int height, int x, int y) {
@@ -436,15 +457,35 @@ namespace XimperShellLauncher {
             int a_min, a_nat, b_min, b_nat;
             start_box.measure (axis, cross, out a_min, out a_nat, null, null);
             end_box.measure (axis, cross, out b_min, out b_nat, null, null);
+            int section_y = pad;
+            int section_budget = available;
+            if (center_widget != null) {
+                int c_min;
+                center_widget.measure (Gtk.Orientation.HORIZONTAL, -1, out c_min, null, null, null);
+                // Keep search usable; arbitrarily long sections scroll instead
+                // of inflating the window or covering the entry.
+                section_budget = int.max (0, available - int.max (c_min, available / 2));
+            }
             double total = (double) a_nat + b_nat;
             int a = a_nat, b = b_nat;
-            if (total > available) {
-                a = (int) (available * ((double) a_nat / total));
-                b = available - a;
+            if (total > section_budget) {
+                a = (int) (section_budget * ((double) a_nat / total));
+                b = section_budget - a;
             }
-            allocate_section (start_scroll, horizontal ? a : cross, horizontal ? cross : a, pad, pad);
+            if (center_widget != null) {
+                center_widget.measure (Gtk.Orientation.VERTICAL, int.max (1, available - a - b), null, null, null, null);
+                var center_transform = new Gsk.Transform ().translate (Graphene.Point () { x = pad + a, y = 0 });
+                center_widget.allocate (int.max (1, available - a - b), height, -1, center_transform);
+                cross = int.min (cross, config.button_height);
+                section_y = (height - cross) / 2;
+                var search = center_widget as SearchBar;
+                Graphene.Rect entry_bounds = Graphene.Rect ();
+                if (search != null && search.search_entry.compute_bounds (this, out entry_bounds))
+                    section_y = ((int) (entry_bounds.origin.y + entry_bounds.size.height / 2 - cross / 2)).clamp (0, int.max (0, height - cross));
+            }
+            allocate_section (start_scroll, horizontal ? a : cross, horizontal ? cross : a, pad, section_y);
             allocate_section (end_scroll, horizontal ? b : cross, horizontal ? cross : b,
-                horizontal ? pad + available - b : pad, horizontal ? pad : pad + available - b);
+                horizontal ? pad + available - b : pad, horizontal ? section_y : pad + available - b);
             if (popup.visible) popup.present ();
         }
     }

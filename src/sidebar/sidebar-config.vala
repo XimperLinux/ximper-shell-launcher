@@ -11,13 +11,14 @@ namespace XimperShellLauncher {
     }
 
     public enum SidebarPosition {
-        LEFT, RIGHT, ABOVE_SEARCH, BELOW_SEARCH;
+        LEFT, RIGHT, ABOVE_SEARCH, BELOW_SEARCH, IN_SEARCH;
 
         public string to_string () {
             switch (this) {
                 case RIGHT: return "right";
                 case ABOVE_SEARCH: return "above-search";
                 case BELOW_SEARCH: return "below-search";
+                case IN_SEARCH: return "in-search";
                 default: return "left";
             }
         }
@@ -26,6 +27,7 @@ namespace XimperShellLauncher {
                 case "right": return RIGHT;
                 case "above-search": return ABOVE_SEARCH;
                 case "below-search": return BELOW_SEARCH;
+                case "in-search": return IN_SEARCH;
                 default: return LEFT;
             }
         }
@@ -164,7 +166,7 @@ namespace XimperShellLauncher {
         public GenericArray<SidebarItem> start_items = new GenericArray<SidebarItem> ();
         public GenericArray<SidebarItem> end_items = new GenericArray<SidebarItem> ();
         private Json.Node? source;
-        public bool horizontal { get { return position == SidebarPosition.ABOVE_SEARCH || position == SidebarPosition.BELOW_SEARCH; } }
+        public bool horizontal { get { return position == SidebarPosition.ABOVE_SEARCH || position == SidebarPosition.BELOW_SEARCH || position == SidebarPosition.IN_SEARCH; } }
         public int thickness { get { return horizontal ? (height > 0 ? height : button_height + 2 * padding) :
             (width > 0 ? width : (show_labels ? 200 : 56)); } }
 
@@ -218,6 +220,36 @@ namespace XimperShellLauncher {
             if (node == null || node.get_node_type () != Json.NodeType.ARRAY) return;
             var entries = node.get_array ();
             for (uint i = 0; i < entries.get_length (); i++) items.add (SidebarItem.read (entries.get_element (i)));
+        }
+
+        // Only an untouched generated template or the complete standard empty
+        // config may follow a preset. Any user edit/unknown field is preserved.
+        public bool follows_preset () {
+            if (source == null) return true;
+            var defaults = new Json.Builder ();
+            new SidebarConfig ().serialize (defaults, false);
+            if (source.equal (defaults.get_root ())) return true;
+            if (source.get_node_type () != Json.NodeType.OBJECT) return false;
+            var obj = source.get_object ();
+            var template = member (obj, "_preset_template");
+            if (template == null || template.get_node_type () != Json.NodeType.OBJECT) return false;
+            var current = new Json.Object ();
+            foreach (unowned string key in obj.get_members ()) {
+                if (key != "_preset_template") current.set_member (key, obj.get_member (key).copy ());
+            }
+            return current.equal (template.get_object ());
+        }
+
+        public static SidebarConfig preset_template (Json.Object payload) {
+            // Separate objects, not a shallow-copy-and-modify self-reference.
+            var obj = new Json.Object ();
+            foreach (unowned string key in payload.get_members ()) obj.set_member (key, payload.get_member (key).copy ());
+            var snapshot = new Json.Node (Json.NodeType.OBJECT);
+            snapshot.set_object (payload);
+            obj.set_member ("_preset_template", snapshot);
+            var node = new Json.Node (Json.NodeType.OBJECT);
+            node.set_object (obj);
+            return read (node);
         }
 
         public void serialize (Json.Builder builder, bool preserve_source = true) {

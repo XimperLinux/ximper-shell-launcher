@@ -1,4 +1,5 @@
 src/application.vala
+src/presets.vala
 src/config.vala
 src/tiles/folder-tile.vala
 src/window/grid-window.vala

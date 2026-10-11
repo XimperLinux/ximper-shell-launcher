@@ -57,6 +57,10 @@ The names are exactly `8.1`, `10`, `ximper` and `wofi`, without a `win` prefix. 
 
 ## Using the launcher
 
+Preset `10` adds a left rail with profile, available XDG folders/settings and power. Preset `8.1` places profile and power at the upper right, in the search row (`in-search`), following [Windows 8.1 Update](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-R2-and-2012/hh831491%28v%3Dws.11%29). `ximper` and `wofi` do not add a panel by themselves.
+
+The standard empty panel adopts preset defaults. An untouched generated panel follows subsequent presets; any user edit (including disabling it, appearance or buttons) preserves it. `_preset_template` stores its original settings for comparison; do not edit that internal field. Power requires `systemctl`, lock/sign out require `loginctl`; all system actions require confirmation. Settings runs `tuner`, only when that binary is found in PATH during generation: a separate button in `10`, a profile submenu item in `8.1` (not in the `10` profile). Settings does not require confirmation. XDG folders appear only when available. Applying a preset records actions, never executes them.
+
 ### Tiles, folders and groups
 
 - Click a tile to launch an application. Arrow keys move focus; Enter or Space activates a tile. Escape closes a context menu or the launcher.
@@ -190,7 +194,7 @@ These are examples, not automatically installed buttons. Actions only run on act
 | Field | Default | Purpose |
 |---|---|---|
 | `enabled` | `false` | Enable the panel |
-| `position` | `left` | `left`, `right`: vertical; `above-search`, `below-search`: horizontal |
+| `position` | `left` | `left`, `right`: vertical; `above-search`, `below-search`: horizontal; `in-search`: start buttons, search field, end buttons in one row |
 | `show_labels` | `false` | Always show labels beside icons |
 | `background_opacity` | `0` | Theme-colored panel background opacity, 0–100%; 0 means no background |
 | `width` / `height` | `0` | Side-panel width / horizontal-strip height; 0 means automatic |
@@ -205,7 +209,7 @@ Entry types: `command` (`argv`, optional `cwd`), `application` (`desktop_id`), `
 
 **No implicit shell:** arguments, including spaces, `;` and `$()`, are passed literally. For shell syntax explicitly use `["sh", "-c", "…"]`. Commands run with your own permissions; successful process creation does not guarantee command success. `close_launcher: true` hides the launcher after the launch request is accepted.
 
-Cancel, closing and reload discard pending confirmation. Invalid entries remain disabled and retain their data when saved. Tile changes and presets preserve the panel. Keyboard/gamepad navigation follows its orientation; Escape/B first cancels confirmation or goes back through a menu. Cross-axis arrows return to the main area; Tab works normally.
+Cancel, closing and reload discard pending confirmation. Invalid entries remain disabled and retain their data when saved. Tile changes preserve the panel; presets preserve user customization and only replace an untouched previously generated panel. Keyboard/gamepad navigation follows its orientation; Escape/B first cancels confirmation or goes back through a menu. Cross-axis arrows return to the main area; Tab works normally.
 
 </details>
 
