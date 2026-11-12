@@ -1,4 +1,5 @@
 grid_deps = [
+  meson.get_compiler('vala').find_library('posix'),
   dependency('gtk4', version: '>= 4.12'),
   dependency('libadwaita-1', version: '>= 1.4'),
   dependency('gtk4-layer-shell-0', version: '>= 1.0'),

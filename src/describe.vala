@@ -1,11 +1,19 @@
 namespace XimperShellLauncher {
 
-    public string describe_json (ConfigManager config) {
+    public string describe_json (ConfigManager config, bool running = true) {
         var provider_manager = new SearchProviderManager (config);
         provider_manager.scan_providers (true);
 
         var builder = new Json.Builder ();
         builder.begin_object ();
+        builder.set_member_name ("api_version");
+        builder.add_int_value (1);
+        builder.set_member_name ("write_protocol");
+        builder.add_string_value ("locked-json-v1");
+        if (!FileUtils.test (config.config_file, FileTest.EXISTS)) {
+            builder.set_member_name ("initial_config");
+            builder.add_value (config.initial_document ());
+        }
         builder.set_member_name ("config");
         builder.begin_object ();
         builder.set_member_name ("max_columns");
@@ -117,7 +125,7 @@ namespace XimperShellLauncher {
         builder.set_member_name ("runtime");
         builder.begin_object ();
         builder.set_member_name ("running");
-        builder.add_boolean_value (true);
+        builder.add_boolean_value (running);
         builder.end_object ();
         builder.set_member_name ("paths");
         builder.begin_object ();
@@ -129,6 +137,11 @@ namespace XimperShellLauncher {
         builder.begin_object ();
         builder.set_member_name ("search_providers");
         add_search_provider_array (builder, provider_manager.providers);
+        builder.set_member_name ("storage_paths");
+        builder.begin_object ();
+        builder.set_member_name ("search_providers");
+        builder.begin_array (); builder.add_string_value ("search"); builder.add_string_value ("providers"); builder.end_array ();
+        builder.end_object ();
         // Additive schema namespace: existing flat property consumers are unchanged.
         builder.set_member_name ("object_properties");
         builder.begin_object ();
@@ -138,6 +151,25 @@ namespace XimperShellLauncher {
         builder.end_object ();
         builder.set_member_name ("properties");
         builder.begin_object ();
+        builder.set_member_name ("output");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("string"); builder.end_object ();
+        builder.end_object ();
+        builder.set_member_name ("groups");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("object"); builder.end_object ();
+        builder.set_member_name ("readOnly"); builder.add_boolean_value (true);
+        builder.end_object ();
+        builder.set_member_name ("search_providers");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("object"); builder.end_object ();
+        builder.end_object ();
         add_integer_property (
             builder, "max_columns", "Maximum columns (0 = automatic)", 0, 0, 20
         );
@@ -389,6 +421,12 @@ namespace XimperShellLauncher {
         builder.add_int_value (minimum);
         builder.set_member_name ("maximum");
         builder.add_int_value (maximum);
+        if (name == "cell_size") {
+            builder.set_member_name ("unit"); builder.add_string_value ("px");
+            builder.set_member_name ("special_values"); builder.begin_object ();
+            builder.set_member_name ("0"); builder.add_string_value ("automatic");
+            builder.end_object ();
+        }
         builder.end_object ();
     }
 }

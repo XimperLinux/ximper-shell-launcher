@@ -129,8 +129,13 @@ namespace XimperShellLauncher {
             }
 
             if (options.contains ("reload")) {
-                reload_config ();
-                return 0;
+                try {
+                    reload_config ();
+                    return 0;
+                } catch (Error e) {
+                    cmdline.printerr ("%s\n", e.message);
+                    return 1;
+                }
             }
 
             return 0;
@@ -141,9 +146,9 @@ namespace XimperShellLauncher {
             grid_window.toggle_menu ();
         }
 
-        public void reload_config () {
+        public void reload_config () throws Error {
             if (grid_window != null) grid_window.settle_transition ();
-            config.load ();
+            config.load_config (true);
             app_provider.scan ();
             if (grid_window != null)
                 grid_window.reload_from_config ();

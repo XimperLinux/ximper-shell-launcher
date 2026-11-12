@@ -18,5 +18,14 @@ exec_test = executable('launcher-exec-test',
 )
 test('desktop-entry-exec', exec_test)
 
+config_test = executable('launcher-config-test',
+  files('tests/config-merge-test.vala', 'src/config.vala', 'src/config-types.vala',
+        'src/sidebar/sidebar-config.vala', 'src/animation-config.vala',
+        'src/tools/layer-shell-helper.vala'),
+  dependencies: grid_deps,
+  c_args: ['-DGETTEXT_PACKAGE="ximper-shell-launcher"'],
+)
+test('config-merge', config_test)
+
 subdir('data')
 subdir('po')
