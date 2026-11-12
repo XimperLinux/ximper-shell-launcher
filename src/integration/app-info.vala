@@ -136,16 +136,11 @@ namespace XimperShellLauncher {
                 if (!keyfile.has_group (group)) return;
 
                 var exec_line = keyfile.get_string (group, "Exec");
-                exec_line = strip_field_codes (exec_line);
-
-                string[] argv;
-                Shell.parse_argv (exec_line, out argv);
-                Process.spawn_async (
-                    null, argv, null,
-                    SpawnFlags.SEARCH_PATH,
-                    () => { c_setsid (); },
-                    null
-                );
+                keyfile.set_string ("Desktop Entry", "Exec",
+                    expand_desktop_filename (exec_line, app_info.get_filename ()));
+                keyfile.set_boolean ("Desktop Entry", "DBusActivatable", false);
+                var action_info = new DesktopAppInfo.from_keyfile (keyfile);
+                if (action_info != null) launch_with_gio (action_info);
             } catch (Error e) {
                 warning ("Failed to launch action %s for %s: %s", action_id, name, e.message);
             }
@@ -211,10 +206,12 @@ namespace XimperShellLauncher {
             int qi = 0;
             int consecutive = 0;
             int max_consecutive = 0;
-            int ql = query.length;
+            int ql = (int) query.char_count ();
+            int query_offset = 0;
 
-            for (int ti = 0; ti < text.length && qi < ql; ti++) {
-                if (text[ti] == query[qi]) {
+            for (int ti = 0; ti < text.length && qi < ql; ti += text.get_char (ti).to_string ().length) {
+                if (text.get_char (ti) == query.get_char (query_offset)) {
+                    query_offset += query.get_char (query_offset).to_string ().length;
                     qi++;
                     consecutive++;
                     if (consecutive > max_consecutive)
