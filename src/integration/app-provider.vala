@@ -40,23 +40,11 @@ namespace XimperShellLauncher {
 
         public GenericArray<AppEntry> search (string query) {
             var scored = new GenericArray<AppEntry> ();
-            var scores = new GenericArray<int> ();
 
             for (uint i = 0; i < apps.length; i++) {
                 int s = apps[i].match_score (query);
                 if (s > 0) {
                     scored.add (apps[i]);
-                    scores.add (s);
-                }
-            }
-
-            // Sort by score descending
-            for (int i = 0; i < (int) scored.length - 1; i++) {
-                for (int j = i + 1; j < (int) scored.length; j++) {
-                    if (scores[j] > scores[i]) {
-                        var tmp_e = scored[i]; scored[i] = scored[j]; scored[j] = tmp_e;
-                        var tmp_s = scores[i]; scores[i] = scores[j]; scores[j] = tmp_s;
-                    }
                 }
             }
 

@@ -104,13 +104,13 @@ namespace XimperShellLauncher {
                 var result = provider_results[i];
                 int group_index = -1;
                 for (uint j = 0; j < provider_keys.length; j++) {
-                    if (provider_keys[j] == result.provider.bus_name) {
+                    if (provider_keys[j] == result.provider.desktop_id) {
                         group_index = (int) j;
                         break;
                     }
                 }
                 if (group_index < 0) {
-                    provider_keys.add (result.provider.bus_name);
+                    provider_keys.add (result.provider.desktop_id);
                     provider_groups.add (new GenericArray<SearchResult> ());
                     group_index = (int) provider_keys.length - 1;
                 }

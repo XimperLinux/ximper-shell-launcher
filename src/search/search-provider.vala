@@ -198,7 +198,7 @@ namespace XimperShellLauncher {
                     if (!config.is_search_provider_enabled (provider.desktop_id)) continue;
                     var job = new ProviderSearchJob (batch, provider);
                     if (is_subsearch) {
-                        var cached = prev_results.lookup (provider.bus_name);
+                        var cached = prev_results.lookup (provider.desktop_id);
                         if (cached != null) {
                             job.previous_ids = new GenericArray<string> ();
                             for (uint j = 0; j < cached.length; j++) job.previous_ids.add (cached[j]);
@@ -223,7 +223,7 @@ namespace XimperShellLauncher {
                 for (uint i = 0; i < batch.jobs.length; i++) {
                     var job = batch.jobs[i];
                     if (!job.succeeded) continue;
-                    prev_results.insert (job.provider.bus_name, job.ids);
+                    prev_results.insert (job.provider.desktop_id, job.ids);
                     for (uint j = 0; j < job.results.length; j++) all_results.add (job.results[j]);
                 }
                 prev_query = batch.query;
@@ -301,7 +301,6 @@ namespace XimperShellLauncher {
             while (ids_iter.next ("s", out id)) {
                 if (id == null) continue;
                 ids.add (id.validate () ? id : id.make_valid ());
-                if (ids.length >= 5) break;
             }
 
             // Job-local until the current batch commits after metadata.
@@ -311,7 +310,7 @@ namespace XimperShellLauncher {
 
             // GetResultMetas — build (as) tuple
             var ids_builder = new VariantBuilder (new VariantType ("as"));
-            for (uint i = 0; i < ids.length; i++) {
+            for (uint i = 0; i < ids.length && i < 5; i++) {
                 if (ids[i] != null) ids_builder.add ("s", ids[i]);
             }
             var ids_tuple = new Variant.tuple ({ids_builder.end ()});
@@ -327,7 +326,7 @@ namespace XimperShellLauncher {
             if (metas_variant == null) return results;
 
             var metas_array = metas_variant.get_child_value (0);
-            for (size_t i = 0; i < metas_array.n_children (); i++) {
+            for (size_t i = 0; i < metas_array.n_children () && i < 5; i++) {
                 var meta = metas_array.get_child_value (i);
 
                 string? result_id = null;
