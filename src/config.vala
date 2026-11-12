@@ -43,6 +43,7 @@ namespace XimperShellLauncher {
         private string config_path;
         private Json.Object? baseline;
         private Json.Object? legacy_document;
+        private int pending_monitor_index = -1;
         public string config_file { get { return config_path; } }
 
         public signal void output_changed ();
@@ -67,6 +68,33 @@ namespace XimperShellLauncher {
         }
 
         public void load_config (bool persist) throws Error {
+            // Parse and migrate privately: failures must not mutate the live object.
+            var candidate = new ConfigManager ();
+            candidate.read_config (persist);
+            replace_with (candidate);
+        }
+
+        public void replace_with (ConfigManager candidate) {
+            freeze_notify ();
+            foreach (var property in ((ObjectClass) get_class ()).list_properties ()) {
+                if ((property.flags & ParamFlags.WRITABLE) == 0) continue;
+                var value = Value (property.value_type);
+                candidate.get_property (property.name, ref value);
+                set_property (property.name, value);
+            }
+            sidebar = candidate.sidebar;
+            animation_open = candidate.animation_open;
+            animation_hide = candidate.animation_hide;
+            output = candidate.output;
+            search_providers = candidate.search_providers;
+            groups = candidate.groups;
+            baseline = candidate.baseline;
+            legacy_document = candidate.legacy_document;
+            pending_monitor_index = candidate.pending_monitor_index;
+            thaw_notify ();
+        }
+
+        private void read_config (bool persist) throws Error {
             reset_to_defaults ();
             legacy_document = null;
             string source = config_path;
@@ -98,7 +126,7 @@ namespace XimperShellLauncher {
                 if (root.has_member ("max_columns"))
                     max_columns = (int) root.get_int_member ("max_columns");
                 if (root.has_member ("cell_size"))
-                    cell_size = (int) root.get_int_member ("cell_size");
+                    cell_size = (int) root.get_int_member ("cell_size").clamp (0, 512);
                 if (root.has_member ("tile_icon_size"))
                     tile_icon_size = int.min (128, int.max (0, (int) root.get_int_member ("tile_icon_size")));
                 if (root.has_member ("tile_square_labels"))
@@ -164,6 +192,7 @@ namespace XimperShellLauncher {
                 } else if (root.has_member ("monitor_index")) {
                     int legacy_index = (int) root.get_int_member ("monitor_index");
                     var display = Gdk.Display.get_default ();
+                    if (display == null) pending_monitor_index = legacy_index;
                     if (display != null) {
                         var monitors = display.get_monitors ();
                         if (legacy_index >= 0 && legacy_index < (int) monitors.get_n_items ()) {
@@ -242,6 +271,7 @@ namespace XimperShellLauncher {
         }
 
         private void reset_to_defaults () {
+            pending_monitor_index = -1;
             sidebar = new SidebarConfig ();
             animation_open = AnimationProfile.opening ();
             animation_hide = AnimationProfile.hiding ();
@@ -290,6 +320,7 @@ namespace XimperShellLauncher {
         }
 
         public void set_output (string? connector) {
+            pending_monitor_index = -1;
             output = new GenericArray<string> ();
             if (connector != null && connector.length > 0) output.add (connector);
             output_changed ();
@@ -391,10 +422,16 @@ namespace XimperShellLauncher {
             builder.add_int_value (floating_x_percent);
             builder.set_member_name ("floating_y_percent");
             builder.add_int_value (floating_y_percent);
-            builder.set_member_name ("output");
-            builder.begin_array ();
-            for (uint i = 0; i < output.length; i++) builder.add_string_value (output[i]);
-            builder.end_array ();
+            if (pending_monitor_index >= 0 && output.length == 0) {
+                // An offline writer must not shadow an unresolved legacy selection.
+                builder.set_member_name ("monitor_index");
+                builder.add_int_value (pending_monitor_index);
+            } else {
+                builder.set_member_name ("output");
+                builder.begin_array ();
+                for (uint i = 0; i < output.length; i++) builder.add_string_value (output[i]);
+                builder.end_array ();
+            }
             builder.set_member_name ("wallpaper_path");
             builder.add_string_value (wallpaper_path);
             builder.set_member_name ("wallpaper_fit");
@@ -474,50 +511,54 @@ namespace XimperShellLauncher {
         private extern const int LOCK_EX;
 
         public void save () {
+            try {
+                save_checked ();
+            } catch (Error e) {
+                warning ("Failed to save config: %s", e.message);
+            }
+        }
+
+        public void save_checked () throws Error {
             save_changes (false);
         }
 
-        private void save_changes (bool migrating) {
+        private void save_changes (bool migrating) throws Error {
+            if (DirUtils.create_with_parents (Path.get_dirname (config_path), 0700) < 0)
+                throw new IOError.FAILED ("Cannot create config directory");
+            int fd = Posix.open (config_path + ".lock", Posix.O_CREAT | Posix.O_RDWR | Posix.O_CLOEXEC, 0600);
+            if (fd < 0) throw new IOError.FAILED ("Cannot open config lock");
             try {
-                if (DirUtils.create_with_parents (Path.get_dirname (config_path), 0700) < 0)
-                    throw new IOError.FAILED ("Cannot create config directory");
-                int fd = Posix.open (config_path + ".lock", Posix.O_CREAT | Posix.O_RDWR | Posix.O_CLOEXEC, 0600);
-                if (fd < 0) throw new IOError.FAILED ("Cannot open config lock");
-                try {
-                    while (file_lock (fd, LOCK_EX) < 0) {
-                        if (Posix.errno != Posix.EINTR) throw new IOError.FAILED ("Cannot lock config");
-                    }
-                    var latest = new Json.Object ();
-                    bool exists = FileUtils.test (config_path, FileTest.EXISTS);
-                    if (exists) {
-                        var parser = new Json.Parser ();
-                        parser.load_from_file (config_path);
-                        if (parser.get_root ().get_node_type () != Json.NodeType.OBJECT)
-                            throw new IOError.INVALID_DATA ("Expected config object");
-                        latest = parser.get_root ().get_object ();
-                    }
-                    var current = (exists ? snapshot () : initial_document ()).get_object ();
-                    foreach (var key in current.get_members ()) {
-                        var value = current.get_member (key);
-                        // On concurrent first launch, retain fields already initialized on disk.
-                        if (baseline == null && latest.has_member (key)) continue;
-                        if (migrating && latest.has_member (key) &&
-                            (!baseline.has_member (key) ||
-                             !latest.get_member (key).equal (baseline.get_member (key)))) continue;
-                        if (exists && baseline != null && baseline.has_member (key)
-                            && baseline.get_member (key).equal (value)) continue;
-                        latest.set_member (key, value.copy ());
-                    }
-                    var node = new Json.Node (Json.NodeType.OBJECT);
-                    node.set_object (latest);
-                    FileUtils.set_contents_full (config_path, Json.to_string (node, true) + "\n",
-                        -1, FileSetContentsFlags.CONSISTENT, 0600);
-                    baseline = current;
-                } finally {
-                    Posix.close (fd);
+                while (file_lock (fd, LOCK_EX) < 0) {
+                    if (Posix.errno != Posix.EINTR) throw new IOError.FAILED ("Cannot lock config");
                 }
-            } catch (Error e) {
-                warning ("Failed to save config: %s", e.message);
+                var latest = new Json.Object ();
+                bool exists = FileUtils.test (config_path, FileTest.EXISTS);
+                if (exists) {
+                    var parser = new Json.Parser ();
+                    parser.load_from_file (config_path);
+                    if (parser.get_root ().get_node_type () != Json.NodeType.OBJECT)
+                        throw new IOError.INVALID_DATA ("Expected config object");
+                    latest = parser.get_root ().get_object ();
+                }
+                var current = (exists ? snapshot () : initial_document ()).get_object ();
+                foreach (var key in current.get_members ()) {
+                    var value = current.get_member (key);
+                    // On concurrent first launch, retain fields already initialized on disk.
+                    if (baseline == null && latest.has_member (key)) continue;
+                    if (migrating && latest.has_member (key) &&
+                        (!baseline.has_member (key) ||
+                         !latest.get_member (key).equal (baseline.get_member (key)))) continue;
+                    if (exists && baseline != null && baseline.has_member (key)
+                        && baseline.get_member (key).equal (value)) continue;
+                    latest.set_member (key, value.copy ());
+                }
+                var node = new Json.Node (Json.NodeType.OBJECT);
+                node.set_object (latest);
+                FileUtils.set_contents_full (config_path, Json.to_string (node, true) + "\n",
+                    -1, FileSetContentsFlags.CONSISTENT, 0600);
+                baseline = current;
+            } finally {
+                Posix.close (fd);
             }
         }
 
@@ -596,7 +637,7 @@ namespace XimperShellLauncher {
             search_providers.insert (target, (owned) provider);
         }
 
-        private void create_default (bool persist) {
+        private void create_default (bool persist) throws Error {
             groups = new GenericArray<GroupConfig> ();
 
             var category_map = new HashTable<string, string> (str_hash, str_equal);
@@ -683,7 +724,7 @@ namespace XimperShellLauncher {
 
             groups.add (main_group);
 
-            if (persist) save ();
+            if (persist) save_checked ();
         }
     }
 }

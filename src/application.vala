@@ -102,10 +102,17 @@ namespace XimperShellLauncher {
                 }
                 // Preserve unrelated settings as currently saved on disk,
                 // even if an external editor changed them since startup.
-                config.load ();
-                app_provider.scan ();
-                Presets.apply (preset, config, app_provider.apps);
-                config.save ();
+                try {
+                    var candidate = new ConfigManager ();
+                    candidate.load_config (false);
+                    app_provider.scan ();
+                    Presets.apply (preset, candidate, app_provider.apps);
+                    candidate.save_checked ();
+                    config.replace_with (candidate);
+                } catch (Error e) {
+                    cmdline.printerr ("%s\n", e.message);
+                    return 1;
+                }
                 if (grid_window != null) {
                     grid_window.settle_transition ();
                     grid_window.reload_from_config ();

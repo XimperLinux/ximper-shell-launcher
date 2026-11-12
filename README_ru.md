@@ -139,7 +139,7 @@ ximper-shell-launcher --preset 8.1 --toggle
 | `app_list_side` | `"left"` | Список в combined: `left` или `right` |
 | `app_list_sort` | `"alphabetical"` | Список без запроса: `alphabetical` или `relevance` по частоте запусков |
 | `search_sort` | `"relevance"` | Поиск приложений: `relevance` или `alphabetical` |
-| `cell_size` | `0` | Размер ячейки в пикселях; 0 — автоматически |
+| `cell_size` | `0` | Размер ячейки 0–512 px; 0 — автоматически. Значения из файла ограничиваются этим диапазоном |
 | `max_columns` | `0` | Предел столбцов вертикальной доски; 0 — автоматически |
 | `tile_icon_size` | `0` | Размер иконок: 0 — автоматически, иначе 1–128 px |
 | `tile_square_labels` | `false` | Показывать центрированные подписи малых квадратных плиток, до двух строк |
@@ -148,7 +148,7 @@ ximper-shell-launcher --preset 8.1 --toggle
 | `close_on_focus_loss` | `true` | Скрывать плавающее меню при потере фокуса |
 | `floating_position` | `"custom"` | `custom`, `center`, `top`, `bottom`, `left`, `right` или углы `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `floating_margin` | `16` | Отступ от края для готовых положений, в пикселях |
-| `floating_width` / `floating_height` | `1120` / `880` | Размер плавающего меню в пикселях |
+| `floating_width` / `floating_height` | `1120` / `880` | Ширина 320–4096 px, высота 240–4096 px; дополнительно ограничиваются доступной областью экрана |
 | `floating_x_percent` / `floating_y_percent` | `50` / `50` | Положение `custom`: 0–100% доступного пространства |
 | `output` | `[]` | Имена разъёмов мониторов, например `["DP-1"]`; для плавающего окна используется первый, иначе активный монитор |
 | `wallpaper_path` | `""` | Абсолютный путь к фоновому изображению; пустая строка отключает его |
@@ -159,6 +159,8 @@ ximper-shell-launcher --preset 8.1 --toggle
 | `search_providers_enabled` | `true` | Внешние поставщики; `false` оставляет поиск приложений |
 | `search.providers` | `[]` | Порядок поставщиков: записи с desktop-ID `id` и флагом `enabled` |
 | `groups` | По установленным приложениям | Именованные группы с массивами `tiles` |
+
+Устаревшие `floating_x`/`floating_y` сохраняются для совместимости, но не влияют на положение окна и отмечены в схеме как `deprecated` и `readOnly`. Используйте процентные координаты и `floating_position`.
 
 Размеры плиток: `small` (квадрат), `medium` (широкая), `large` (большая). Для папки используйте `size: "folder"`, `desktop_id: "folder:Имя"`, `folder_name` и массив desktop-ID `folder_items`.
 

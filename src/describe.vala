@@ -211,10 +211,15 @@ namespace XimperShellLauncher {
               "bottom-left", "bottom", "bottom-right" }
         );
         add_integer_property (builder, "floating_margin", "Floating edge margin", 16, 0, 512);
-        add_integer_property (builder, "floating_x", "Floating X offset", 0, -10000, 10000);
-        add_integer_property (builder, "floating_y", "Floating Y offset", 24, -10000, 10000);
-        add_integer_property (builder, "floating_width", "Floating width", 1120, 1, 10000);
-        add_integer_property (builder, "floating_height", "Floating height", 880, 1, 10000);
+        // Legacy pixel offsets remain readable for compatibility, not writable controls.
+        foreach (string name in new string[] { "floating_x", "floating_y" }) {
+            add_property (builder, name, "Legacy pixel offset (unused; use percent position)", "integer");
+            builder.set_member_name ("readOnly"); builder.add_boolean_value (true);
+            builder.set_member_name ("deprecated"); builder.add_boolean_value (true);
+            builder.end_object ();
+        }
+        add_integer_property (builder, "floating_width", "Floating width", 1120, 320, 4096);
+        add_integer_property (builder, "floating_height", "Floating height", 880, 240, 4096);
         add_integer_property (
             builder, "floating_x_percent", "Floating horizontal position", 50, 0, 100
         );

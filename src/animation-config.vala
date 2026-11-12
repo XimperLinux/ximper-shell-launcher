@@ -133,7 +133,6 @@ namespace XimperShellLauncher {
             add_int (builder, "duration_ms", fade_duration_ms); builder.end_object ();
             builder.set_member_name ("slide"); builder.begin_object ();
             builder.set_member_name ("direction"); builder.add_string_value (slide_direction.to_string ());
-            add_int (builder, "distance", slide_distance);
             add_int (builder, "duration_ms", slide_duration_ms); builder.end_object ();
             builder.set_member_name ("zoom"); builder.begin_object ();
             add_int (builder, "scale_percent", zoom_scale_percent);

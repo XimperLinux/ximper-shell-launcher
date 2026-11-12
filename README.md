@@ -135,14 +135,14 @@ Merge the settings you need into your existing file; replacing the whole file ca
 | `app_list_sort` | `"alphabetical"` | Browse list: `alphabetical` or `relevance` |
 | `search_sort` | `"relevance"` | Matching applications: `relevance` or `alphabetical` |
 | `max_columns` | `0` | Vertical-layout column limit; 0 chooses automatically. Horizontal groups grow as needed |
-| `cell_size` | `0` | Tile cell size in pixels; 0 chooses automatically |
+| `cell_size` | `0` | Tile cell size from 0 to 512 px; 0 chooses automatically. File values are clamped to this range |
 | `tile_icon_size` | `0` | Icon size in pixels, up to 128; 0 chooses automatically |
 | `tile_square_labels` | `false` | Show centered application names on small square tiles, up to two lines |
 | `window_mode` | `"floating"` | `floating` or `fullscreen` |
 | `close_on_focus_loss` | `true` | Close a floating menu when it loses focus |
 | `floating_position` | `"custom"` | `custom`, `center`, `top`, `bottom`, `left`, `right`, or a corner such as `bottom-left` |
 | `floating_margin` | `16` | Edge margin for fixed positions, in pixels |
-| `floating_width` / `floating_height` | `1120` / `880` | Floating menu size, in pixels |
+| `floating_width` / `floating_height` | `1120` / `880` | Width 320–4096 px, height 240–4096 px; additionally limited by the available screen area |
 | `floating_x_percent` / `floating_y_percent` | `50` / `50` | Position from 0 to 100 in `custom` mode |
 | `output` | `[]` | Floating menu monitor connector names; only the first is used. Empty selects the active monitor |
 | `layer` | `"overlay"` | Window layer: `background`, `bottom`, `top`, or `overlay` |
@@ -153,6 +153,8 @@ Merge the settings you need into your existing file; replacing the whole file ca
 | `search_providers_enabled` | `true` | Enable external providers; application search remains available when false |
 | `search.providers` | `[]` | Provider desktop IDs, order and `enabled` flags |
 | `groups` | Generated from installed apps | Your saved tiles and folders; prefer editing through the menu |
+
+Legacy `floating_x`/`floating_y` are retained for compatibility but do not position the window; their schema entries are `deprecated` and `readOnly`. Use percent coordinates and `floating_position` instead.
 
 Providers not listed in `search.providers` remain enabled and follow configured providers alphabetically. Disable an individual one with `"enabled": false`, or disable all external providers with `search_providers_enabled`.
 
